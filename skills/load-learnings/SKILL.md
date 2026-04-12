@@ -15,19 +15,38 @@ user-invocable: false
 
 ## Protocol
 
-### Step 1 — Semantic query
+### Step 1 — Semantic query (dual-source)
 
-Query the skills knowledge graph using the current task description:
+Skills live in **two locations**:
+- `.agents/skills/` — lifecycle, process, quality skills (indexed as `skills` in GitNexus)
+- `.opencode/skill/` — SEO, payments, auth, marketing, CMS, etc. (OpenCode plugin skills)
+
+**Source A — GitNexus semantic search** (`.agents/skills/`):
 
 ```
 gitnexus_query(
   query: "{current task description in natural language}",
   repo: "skills",
-  limit: 30
+  limit: 20
 )
 ```
 
-This returns learnings semantically similar to the task — not just tag matches.
+**Source B — Direct grep on high-confidence learnings** (`.opencode/skill/`):
+
+```bash
+grep -r "confidence: [4-9]\|confidence: 10" \
+  ".opencode/skill/*/learnings.md" \
+  -A 5 -B 10 2>/dev/null | grep -E "problem:|solution:|context:" | head -30
+```
+
+Or for task-specific: search by relevant tags:
+
+```bash
+grep -rl "tags:.*{tag}" .opencode/skill/*/learnings.md 2>/dev/null | \
+  xargs grep -h "problem:\|solution:\|confidence:" 2>/dev/null | head -20
+```
+
+Merge results from both sources before scoring.
 
 ### Step 2 — Score and filter
 

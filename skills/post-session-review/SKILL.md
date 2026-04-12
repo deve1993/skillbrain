@@ -45,6 +45,8 @@ rm -f ".agents/skills/_pending/*.yml"
 
 ### Phase 3 — Confidence decay
 
+> **Both skill locations**: apply decay to BOTH `.agents/skills/*/learnings.md` AND `.opencode/skill/*/learnings.md` (129 learnings.md total).
+
 For each `learnings.md` with active learnings, apply these rules:
 
 **Learnings used or confirmed this session:**
@@ -66,7 +68,7 @@ For each `learnings.md` with active learnings, apply these rules:
 If current project has a `package.json`:
 
 ```bash
-grep -r "valid_until_version:" ".agents/skills/*/learnings.md"
+grep -r "valid_until_version:" ".agents/skills/*/learnings.md" ".opencode/skill/*/learnings.md" 2>/dev/null
 ```
 
 For each result: compare the versions in the learning against current `package.json`.
@@ -79,7 +81,8 @@ Find project-specific learnings with high confidence:
 ```bash
 grep -B 20 "confidence: [4-9]\|confidence: 10" \
   ".agents/skills/*/learnings.md" \
-  | grep "scope: project-specific"
+  ".opencode/skill/*/learnings.md" \
+  2>/dev/null | grep "scope: project-specific"
 ```
 
 For each: check if the same pattern appears validated in another project.

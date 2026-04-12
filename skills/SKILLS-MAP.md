@@ -1,6 +1,11 @@
 # Skills Ecosystem Map
 
 > Auto-updated by `post-session-review`. Last update: 2026-04-12
+>
+> **Skill locations:**
+> - `.agents/skills/` — 30 lifecycle/process/quality skills (this file)
+> - `.opencode/skill/` — 99 domain skills (SEO, auth, payments, marketing, CMS…)
+> - **Total: 129 skills | 129 learnings.md**
 
 ## Skill Graph
 
@@ -92,7 +97,15 @@ graph TD
 | using-git-worktrees | quality | 0 | — |
 | writing-skills | quality | 0 | — |
 
-## Learning Stats
+## Skill Breakdown
+
+| Location | Skills | learnings.md | Notes |
+|----------|--------|--------------|-------|
+| `.agents/skills/` | 30 | 30 | Lifecycle, process, quality — tracked here |
+| `.opencode/skill/` | 99 | 99 | SEO, auth, payments, marketing, CMS, etc. |
+| **Totale** | **129** | **129** | |
+
+## Learning Stats (`.agents/skills/` only)
 
 - **Total learnings**: 13
 - **Global**: 11 | **Project-specific**: 2
