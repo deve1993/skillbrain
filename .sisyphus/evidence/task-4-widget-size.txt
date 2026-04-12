@@ -1,1 +1,0 @@
-Gzipped widget size:     2838 bytes (target: <30720 bytes)
