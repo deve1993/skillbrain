@@ -81,7 +81,7 @@ Fix any failure before writing. Do not skip any check.
 Search existing learnings for entries sharing 2+ tags with the new one:
 
 ```bash
-grep -r "tags:" ".agents/skills/*/learnings.md" \
+grep -r "tags:" "/Users/dan/Desktop/progetti-web/Fullstack session/.agents/skills/*/learnings.md" \
   | grep "{tag1}\|{tag2}"
 ```
 
@@ -108,7 +108,7 @@ Append the learning between `<!-- LEARNINGS START -->` and `<!-- LEARNINGS END -
 ### Step 6 — Re-index skills with embeddings
 
 ```bash
-gitnexus analyze .agents/skills --skip-git 2>&1 | tail -3
+gitnexus analyze "/Users/dan/Desktop/progetti-web/Fullstack session/.agents/skills" --skip-git 2>&1 | tail -3
 ```
 
 This updates the structural index. Semantic search works at query-time via the embedding model (loaded automatically on first query).
@@ -128,7 +128,7 @@ If running as a subagent, do NOT write directly to `learnings.md`.
 Write to a temp file instead:
 
 ```
-.agents/skills/_pending/learning-{date}-{random}.yml
+/Users/dan/Desktop/progetti-web/Fullstack session/.agents/skills/_pending/learning-{date}-{random}.yml
 ```
 
 The parent agent or `post-session-review` will merge these at session end.

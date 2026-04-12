@@ -1,0 +1,19 @@
+{
+  "skill": "pixarts/client-site",
+  "description": "Triggers when building frontend for Pixarts client projects using the standard stack (Next.js + Payload CMS + shadcn/ui + i18n + Tailwind)",
+  "should_trigger": [
+    "Inizia lo scaffold di un nuovo sito cliente Pixarts con Next.js",
+    "Crea il lib/payload.ts con il client per fetchare dati dal CMS per tenant",
+    "Implementa il componente AnimatedElement riutilizzabile per il sito cliente",
+    "Configura le variabili d'ambiente standard per un sito Pixarts",
+    "Crea la struttura di cartelle standard per un nuovo progetto cliente",
+    "Implementa l'API route /api/revalidate per il cache invalidation dal CMS",
+    "Crea il Dockerfile multi-stage per il deploy del sito cliente su Coolify"
+  ],
+  "should_not_trigger": [
+    "Crea un nuovo modulo CMS per le prenotazioni",
+    "Configura il multi-tenant access control in Payload CMS",
+    "Inizia un nuovo progetto Nuxt 3 per il cliente",
+    "Come ottimizzare le query MongoDB del CMS?"
+  ]
+}

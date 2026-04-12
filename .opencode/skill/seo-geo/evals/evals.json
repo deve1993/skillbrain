@@ -1,0 +1,52 @@
+{
+  "skill": "seo-geo",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "brand-mentions-vs-backlinks",
+      "description": "Verifies skill correctly states brand mentions correlate 3x more than backlinks with AI visibility",
+      "input": "Should I focus on building backlinks or brand mentions to improve AI search visibility?",
+      "expected_output_contains": [
+        "brand mentions",
+        "backlinks",
+        "YouTube",
+        "Reddit",
+        "Wikipedia"
+      ],
+      "expected_output_excludes": [
+        "backlinks are most important",
+        "ignore brand mentions"
+      ]
+    },
+    {
+      "id": "optimal-passage-length",
+      "description": "Verifies 134-167 word optimal passage length for AI citation is stated",
+      "input": "How long should my content sections be to maximize AI citation probability?",
+      "expected_output_contains": [
+        "134",
+        "167",
+        "self-contained",
+        "answer"
+      ],
+      "expected_output_excludes": [
+        "longer is always better",
+        "word count doesn't matter"
+      ]
+    },
+    {
+      "id": "javascript-ssr-critical",
+      "description": "Verifies skill warns that AI crawlers don't execute JavaScript — SSR is critical",
+      "input": "My site is a React SPA — will AI crawlers like GPTBot be able to read my content?",
+      "expected_output_contains": [
+        "JavaScript",
+        "server-side",
+        "SSR",
+        "crawlers"
+      ],
+      "expected_output_excludes": [
+        "CSR is fine for AI crawlers",
+        "JavaScript doesn't matter"
+      ]
+    }
+  ]
+}

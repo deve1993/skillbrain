@@ -1,0 +1,27 @@
+{
+  "skill": "pixarts/client-site",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "fetchfromcms-with-tags",
+      "description": "Verifies correct fetchFromCMS implementation with cache tags",
+      "input": "Crea la funzione per fetchare le pagine pubblicate del tenant dal CMS con cache tags",
+      "expected_output_contains": ["fetchFromCMS", "tags", "revalidate", "NEXT_PUBLIC_CMS_URL", "NEXT_PUBLIC_TENANT_SLUG"],
+      "expected_output_excludes": ["no-store", "getServerSideProps", "useEffect"]
+    },
+    {
+      "id": "env-vars-standard",
+      "description": "Verifies standard Pixarts env var naming conventions",
+      "input": "Quali variabili d'ambiente devo configurare per un nuovo sito Pixarts?",
+      "expected_output_contains": ["NEXT_PUBLIC_CMS_URL", "NEXT_PUBLIC_TENANT_SLUG", "REVALIDATION_SECRET", "NEXT_PUBLIC_SITE_URL"],
+      "expected_output_excludes": ["DATABASE_URL", "MONGODB_URI directly in frontend"]
+    },
+    {
+      "id": "docker-healthcheck",
+      "description": "Verifies Docker multi-stage build includes healthcheck",
+      "input": "Crea il Dockerfile per il sito cliente Pixarts",
+      "expected_output_contains": ["HEALTHCHECK", "/api/health", "standalone", "multi-stage", "FROM base AS runner"],
+      "expected_output_excludes": ["single stage", "no healthcheck"]
+    }
+  ]
+}

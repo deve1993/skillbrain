@@ -1,0 +1,49 @@
+{
+  "skill": "referral-program",
+  "version": "1.1.0",
+  "test_cases": [
+    {
+      "id": "referral-vs-affiliate",
+      "description": "Verifies skill correctly distinguishes between referral (existing customers) and affiliate (external publishers) programs",
+      "input": "Should I create a referral program or an affiliate program for my design tool?",
+      "expected_output_contains": [
+        "referral",
+        "affiliate",
+        "LTV",
+        "customer"
+      ],
+      "expected_output_excludes": [
+        "they're the same",
+        "doesn't matter"
+      ]
+    },
+    {
+      "id": "trigger-moments",
+      "description": "Verifies skill recommends high-intent trigger moments for asking customers to refer",
+      "input": "When is the best time to ask users of my project management tool to refer colleagues?",
+      "expected_output_contains": [
+        "aha moment",
+        "milestone",
+        "renew",
+        "upgrade"
+      ],
+      "expected_output_excludes": [
+        "immediately on signup",
+        "random times"
+      ]
+    },
+    {
+      "id": "metrics-ltv-impact",
+      "description": "Verifies skill mentions LTV and churn improvements for referred customers",
+      "input": "Why should I invest in a referral program vs paid ads?",
+      "expected_output_contains": [
+        "LTV",
+        "churn",
+        "CAC"
+      ],
+      "expected_output_excludes": [
+        "referrals are always worse than ads"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "_comment": "Aggiungi questi script al package.json del progetto",
+  "scripts": {
+    "check": "node scripts/check-project.mjs",
+    "check:fix": "node scripts/check-project.mjs --fix",
+    "check:ci": "node scripts/check-project.mjs --ci",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "audit": "npm audit --audit-level=moderate",
+    "prepare": "husky"
+  }
+}

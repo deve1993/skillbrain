@@ -1,0 +1,18 @@
+{
+  "skill": "tailwind",
+  "description": "Triggers when user needs to setup, configure, or use Tailwind CSS 4, including design tokens, dark mode, and cn() utility",
+  "should_trigger": [
+    "Setup Tailwind CSS 4 in my project",
+    "Configure custom design tokens in Tailwind",
+    "Implement dark mode with Tailwind",
+    "Create a responsive layout with Tailwind utility classes",
+    "Use the cn() utility to merge Tailwind classes conditionally",
+    "Add CSS custom properties in Tailwind @theme"
+  ],
+  "should_not_trigger": [
+    "Setup CSS modules for my project",
+    "Use styled-components for theming",
+    "Configure Material UI theme",
+    "Write vanilla CSS for my component"
+  ]
+}

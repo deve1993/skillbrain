@@ -1,0 +1,9 @@
+
+> build:widget
+> tsx widget/build.ts
+
+
+  public/widget.js  9.1kb
+
+⚡ Done in 1ms
+Widget built successfully → public/widget.js

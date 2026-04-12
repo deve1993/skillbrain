@@ -1,0 +1,27 @@
+{
+  "skill": "marketing-ideas",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "marketing-ideas-stage-match",
+      "description": "Verifies ideas are matched to the user's stage and budget rather than generic advice",
+      "input": "Sono una startup early stage senza budget. Che idee di marketing ho?",
+      "expected_output_contains": ["content", "SEO", "community", "free", "early stage"],
+      "expected_output_excludes": ["paid ads", "conference sponsorship", "acquisitions"]
+    },
+    {
+      "id": "marketing-ideas-implementation",
+      "description": "Verifies each recommended idea includes implementation steps and expected outcome",
+      "input": "Suggerisci 3 strategie di growth marketing per un SaaS project management B2B",
+      "expected_output_contains": ["start", "steps", "outcome", "resources"],
+      "expected_output_excludes": ["just try everything", "no details needed", "vague advice"]
+    },
+    {
+      "id": "marketing-ideas-categories",
+      "description": "Verifies ideas span multiple categories when appropriate (content, community, product-led)",
+      "input": "Cosa posso fare gratuitamente per acquisire i primi 100 utenti?",
+      "expected_output_contains": ["content", "community", "SEO"],
+      "expected_output_excludes": ["only paid", "no free options", "impossible without budget"]
+    }
+  ]
+}

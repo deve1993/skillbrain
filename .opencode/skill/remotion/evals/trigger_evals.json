@@ -1,0 +1,19 @@
+{
+  "skill": "remotion",
+  "description": "Triggers when the user wants to create programmatic videos with React/Remotion — social clips, OG preview videos, intro animations, product showcases",
+  "should_trigger": [
+    "Create a Remotion composition for a 15-second Instagram Reel intro animation",
+    "How do I set up Remotion v4 in my existing Next.js project?",
+    "Build a programmatic OG preview video for my blog posts using Remotion",
+    "How do I use spring() and interpolate() for smooth animations in Remotion?",
+    "Render a Remotion video server-side using @remotion/renderer in a Next.js API route",
+    "Create a social clip composition that accepts dynamic props via Zod schema",
+    "How do I embed a Remotion Player component in my React app?"
+  ],
+  "should_not_trigger": [
+    "Add CSS animations with Framer Motion to my landing page",
+    "Embed a YouTube video in my Next.js page",
+    "Create a GIF from an image sequence using FFmpeg",
+    "Set up a video background on my hero section"
+  ]
+}

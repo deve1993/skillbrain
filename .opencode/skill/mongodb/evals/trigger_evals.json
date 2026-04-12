@@ -1,0 +1,19 @@
+{
+  "skill": "mongodb",
+  "description": "Triggers when querying MongoDB directly via MCP, debugging Payload CMS data, running aggregations, or analyzing tenant collections",
+  "should_trigger": [
+    "Trova tutte le pagine pubblicate del tenant cliente-x nel CMS",
+    "Quanti draft non pubblicati ci sono nel database Payload?",
+    "Debug: perché la pagina non appare sul frontend? controlla il database",
+    "Fai una aggregation per vedere le statistiche per tenant",
+    "Cerca l'utente con email admin@example.com nel database MongoDB",
+    "Lista tutti i media non utilizzati (orfani) nel CMS",
+    "Controlla gli indici della collection pages per ottimizzare le query"
+  ],
+  "should_not_trigger": [
+    "Crea una nuova collection in Payload CMS con i campi standard",
+    "Come configuro next-intl per l'italiano?",
+    "Implementa un form di contatto con react-hook-form",
+    "Come faccio deploy su Coolify?"
+  ]
+}

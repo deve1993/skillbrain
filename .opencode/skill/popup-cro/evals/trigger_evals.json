@@ -1,0 +1,19 @@
+{
+  "skill": "popup-cro",
+  "description": "Triggers when the user wants to create or optimize popups, modals, overlays, exit intent, or lead capture banners for conversion purposes",
+  "should_trigger": [
+    "I need to add an exit intent popup to reduce cart abandonment on my e-commerce site",
+    "How do I create an email capture popup that converts at 5%?",
+    "Design a lead magnet popup for my B2B SaaS landing page",
+    "My modal overlay is showing too early and annoying visitors — how do I fix the timing?",
+    "What's the best scroll-based trigger for a newsletter popup on a blog?",
+    "Create an announcement banner for a limited-time promotion",
+    "I want to add a slide-in popup that doesn't block content on mobile"
+  ],
+  "should_not_trigger": [
+    "How do I optimize my contact form conversion rate?",
+    "Improve the CTA button on my pricing page",
+    "Add a cookie consent banner (GDPR compliance)",
+    "Design my homepage hero section"
+  ]
+}

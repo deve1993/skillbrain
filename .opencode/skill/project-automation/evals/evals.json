@@ -1,0 +1,51 @@
+{
+  "skill": "project-automation",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "husky-setup",
+      "description": "Verifies correct Husky + lint-staged setup with TypeScript check and Prettier",
+      "input": "Set up pre-commit hooks for my Next.js TypeScript project",
+      "expected_output_contains": [
+        "husky",
+        "lint-staged",
+        "tsc --noEmit",
+        "prettier"
+      ],
+      "expected_output_excludes": [
+        "--no-verify",
+        "skip hooks"
+      ]
+    },
+    {
+      "id": "ci-pipeline",
+      "description": "Verifies GitHub Actions pipeline includes all 3 jobs: quality, security, lighthouse",
+      "input": "Create a complete CI/CD GitHub Actions workflow for a Pixarts client project",
+      "expected_output_contains": [
+        "quality",
+        "security",
+        "lighthouse",
+        "npm audit"
+      ],
+      "expected_output_excludes": [
+        "skip security",
+        "no performance check"
+      ]
+    },
+    {
+      "id": "monitoring-n8n",
+      "description": "Verifies n8n monitoring covers health endpoint, SSL, response time, sitemap, robots",
+      "input": "What does the n8n monitoring workflow check for a client site?",
+      "expected_output_contains": [
+        "health",
+        "SSL",
+        "response time",
+        "sitemap",
+        "robots.txt"
+      ],
+      "expected_output_excludes": [
+        "only checks uptime"
+      ]
+    }
+  ]
+}

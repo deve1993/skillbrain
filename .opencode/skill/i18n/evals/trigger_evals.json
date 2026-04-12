@@ -1,0 +1,19 @@
+{
+  "skill": "i18n",
+  "description": "Triggers when user needs to implement internationalization — next-intl setup, IT/EN/CZ routing, hreflang tags, language switcher, or plural/date formatting",
+  "should_trigger": [
+    "Come configuro next-intl per supportare italiano, inglese e ceco?",
+    "Aggiungi il language switcher al navbar del sito",
+    "Come imposto le route con prefisso lingua (/it, /en, /cs)?",
+    "Come aggiungo i tag hreflang per il SEO multilingua?",
+    "Implementa la pluralizzazione delle traduzioni con next-intl",
+    "Come formato le date in italiano con next-intl?",
+    "Il middleware non reindirizza correttamente al locale di default"
+  ],
+  "should_not_trigger": [
+    "Crea il file di traduzione per la landing page",
+    "Come configuro Payload CMS con supporto multilingua?",
+    "Aggiungi il supporto per il tema scuro al sito",
+    "Come ottimizo le performance del sito per il mercato internazionale?"
+  ]
+}

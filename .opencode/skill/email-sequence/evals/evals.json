@@ -1,0 +1,27 @@
+{
+  "skill": "email-sequence",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "email-seq-b2b-nurture",
+      "description": "Verifies a complete 7-email B2B nurture sequence is produced with correct timing and purpose per email",
+      "input": "Crea una sequenza di nurturing B2B di 7 email per un SaaS di project management",
+      "expected_output_contains": ["Day 0", "Day 2", "pain point", "case study", "objection", "CTA"],
+      "expected_output_excludes": ["buy now", "last chance", "spam"]
+    },
+    {
+      "id": "email-seq-subject-lines",
+      "description": "Verifies subject line best practices and formulas are applied",
+      "input": "Dammi 5 oggetti email efficaci per la campagna di re-engagement",
+      "expected_output_contains": ["40", "60", "characters"],
+      "expected_output_excludes": ["CLICK NOW!!!", "FREE FREE FREE", "no-reply"]
+    },
+    {
+      "id": "email-seq-metrics",
+      "description": "Verifies B2B benchmark metrics are cited correctly",
+      "input": "Quali metriche devo monitorare per la mia sequenza di email?",
+      "expected_output_contains": ["open rate", "click rate", "unsubscribe", "20", "25"],
+      "expected_output_excludes": ["ignore bounce rate", "metrics don't matter"]
+    }
+  ]
+}

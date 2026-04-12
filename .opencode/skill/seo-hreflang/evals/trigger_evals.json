@@ -1,0 +1,19 @@
+{
+  "skill": "seo-hreflang",
+  "description": "Triggers when the user needs to implement, audit, or fix hreflang tags for international/multilingual SEO — language codes, return tags, x-default, sitemap implementation",
+  "should_trigger": [
+    "Audit my hreflang implementation — Google Search Console is showing errors",
+    "How do I add hreflang tags for my Italian, English, and Czech Next.js site?",
+    "Generate an hreflang XML sitemap for my 200-page multilingual website",
+    "My hreflang is set to 'en-uk' — is that correct?",
+    "Check my international SEO — I have pages in English, French, and German",
+    "Why does Google ignore my hreflang tags? I think I'm missing return tags",
+    "Should I use HTML link tags or sitemap for hreflang on my 500-page site?"
+  ],
+  "should_not_trigger": [
+    "Set up next-intl for my multilingual Next.js app",
+    "Translate my website content to French",
+    "Add language switcher to my navigation",
+    "Create a sitemap.xml for my single-language site"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "skill": "seo-geo",
+  "description": "Triggers when the user wants to optimize content for AI search engines — ChatGPT, Perplexity, Google AI Overviews — including brand mentions, llms.txt, AI crawler access, and passage-level citability",
+  "should_trigger": [
+    "How do I optimize my content to appear in ChatGPT search results and Perplexity citations?",
+    "My site isn't showing in Google AI Overviews — what can I do?",
+    "Analyze my site's GEO readiness and give me a citability score",
+    "How do I create llms.txt and allow AI crawlers in robots.txt?",
+    "What content structure gets cited most by AI search engines?",
+    "My brand isn't mentioned by ChatGPT or Perplexity — how do I fix that?",
+    "Optimize my passages to be 134-167 words for AI citation"
+  ],
+  "should_not_trigger": [
+    "Fix my Google Search ranking for a specific keyword",
+    "Improve my click-through rate from organic search",
+    "Set up Google Analytics tracking",
+    "Add Open Graph tags to my pages"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "skill": "ffmpeg",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "ffmpeg-dockerfile",
+      "description": "Verifies correct Dockerfile setup with FFmpeg installation for Node.js",
+      "input": "Come aggiungo FFmpeg al Dockerfile del mio progetto Next.js?",
+      "expected_output_contains": ["apt-get install", "ffmpeg", "node:22-bookworm", "fluent-ffmpeg"],
+      "expected_output_excludes": ["npm install ffmpeg", "global install", "Windows"]
+    },
+    {
+      "id": "ffmpeg-thumbnail",
+      "description": "Verifies thumbnail extraction code using fluent-ffmpeg with correct pattern",
+      "input": "Scrivi una funzione TypeScript per generare un thumbnail da un video",
+      "expected_output_contains": ["screenshots", "folder", "filename", "count", "fluent-ffmpeg", "Promise"],
+      "expected_output_excludes": ["child_process.exec", "shell injection", "sync"]
+    },
+    {
+      "id": "ffmpeg-temp-files",
+      "description": "Verifies proper temporary file handling with cleanup in finally block",
+      "input": "Come gestisco i file temporanei durante il processing di un video in una API route?",
+      "expected_output_contains": ["tmpdir", "unlink", "finally", "cleanup"],
+      "expected_output_excludes": ["leave temp files", "no cleanup needed"]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+TASK 14: CORS + Security Headers
+================================
+
+VERIFICATION: TypeScript Compilation
+=====================================
+Command: npx tsc --noEmit
+Status: ✅ PASSED (no errors)
+Timestamp: 2026-04-05
+
+FILES CREATED/MODIFIED:
+=======================
+1. src/middleware/security.ts (NEW)
+   - securityHeaders middleware function
+   - Headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+
+2. src/server.ts (MODIFIED)
+   - Added import: securityHeaders middleware
+   - Applied security headers globally via app.use(securityHeaders)
+   - Updated CORS: origin: true (allow all origins for widget use case)
+   - Added methods: GET, POST, OPTIONS
+   - Added allowedHeaders: Content-Type, Accept
+   - credentials: false
+
+DESIGN RATIONALE:
+=================
+- Widget must work on any client site → permissive CORS (origin: true)
+- Per-skill origin restriction via allowedOrigins is a future enhancement
+- Security headers applied globally before all routes
+- No TypeScript errors or warnings
+
+VERIFICATION COMPLETE ✅

@@ -1,0 +1,19 @@
+{
+  "skill": "ai-seo",
+  "description": "Triggered when the user wants to optimize content for AI search engines like ChatGPT, Perplexity, or Google AI Overviews, or get cited as a source in AI-generated answers.",
+  "should_trigger": [
+    "How do I optimize my content to appear in Google AI Overviews?",
+    "We want to get cited by ChatGPT and Perplexity for our key queries",
+    "Help me with GEO — generative engine optimization for our SaaS",
+    "How do I check if our brand appears in AI search results?",
+    "Should I allow GPTBot and ClaudeBot to crawl our site?",
+    "How do I structure content so AI systems can extract it as answers?",
+    "What schema markup helps AI systems understand my content better?"
+  ],
+  "should_not_trigger": [
+    "How do I improve my Google PageSpeed score?",
+    "Write a blog post about project management",
+    "Help me build backlinks for my SaaS website",
+    "What are the best meta tags for traditional SEO?"
+  ]
+}

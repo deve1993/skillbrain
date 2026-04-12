@@ -1,0 +1,19 @@
+{
+  "skill": "analytics-tracking",
+  "description": "Triggered when the user wants to set up a tracking plan, implement GA4 events, track CTAs/forms/scroll, configure UTM parameters, or create analytics dashboards for marketing decisions.",
+  "should_trigger": [
+    "Set up GA4 event tracking for our landing page",
+    "I need to track form abandonment and field-level errors",
+    "Create a scroll depth tracking hook for Next.js",
+    "How do I preserve UTM parameters through a multi-step funnel?",
+    "Set up CTA visibility and click tracking with IntersectionObserver",
+    "Create a complete tracking plan for our SaaS landing page",
+    "Define custom dimensions and conversion goals in GA4 for our B2B funnel"
+  ],
+  "should_not_trigger": [
+    "Install Plausible analytics in my Next.js app",
+    "How do I design a statistically valid A/B test?",
+    "What is the best analytics provider for GDPR compliance?",
+    "How do I build a cookie consent banner?"
+  ]
+}

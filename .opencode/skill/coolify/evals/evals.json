@@ -1,0 +1,53 @@
+{
+  "skill": "coolify",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "multistage-dockerfile",
+      "description": "Verifies the skill produces a multi-stage Dockerfile with deps, builder, and runner stages",
+      "input": "Create a production-ready Dockerfile for my Next.js app",
+      "expected_output_contains": [
+        "FROM node",
+        "AS deps",
+        "AS builder",
+        "AS runner",
+        "standalone",
+        "HEALTHCHECK"
+      ],
+      "expected_output_excludes": [
+        "single stage",
+        "npm install only",
+        "no health check"
+      ]
+    },
+    {
+      "id": "nextjs-standalone-config",
+      "description": "Verifies the skill includes the required standalone output in next.config.js",
+      "input": "What do I need to configure in next.config.js for Coolify Docker deployment?",
+      "expected_output_contains": [
+        "output",
+        "standalone"
+      ],
+      "expected_output_excludes": [
+        "output: 'export'",
+        "no special config"
+      ]
+    },
+    {
+      "id": "github-actions-ci",
+      "description": "Verifies the skill creates a GitHub Actions workflow that triggers Coolify webhook deployment",
+      "input": "Create a GitHub Actions workflow that deploys to Coolify when I push to main",
+      "expected_output_contains": [
+        "push",
+        "branches: [main]",
+        "COOLIFY_TOKEN",
+        "COOLIFY_WEBHOOK",
+        "curl"
+      ],
+      "expected_output_excludes": [
+        "manual deploy only",
+        "FTP upload"
+      ]
+    }
+  ]
+}

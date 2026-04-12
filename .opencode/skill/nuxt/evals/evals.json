@@ -1,0 +1,27 @@
+{
+  "skill": "nuxt",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "nuxt-data-fetching",
+      "description": "Verifies correct useFetch usage in Nuxt 3 pages",
+      "input": "Come fetcho i dati dei post dal server in una pagina Nuxt 3?",
+      "expected_output_contains": ["useFetch", "await", "script setup", "lang=\"ts\""],
+      "expected_output_excludes": ["useEffect", "fetch()", "getServerSideProps"]
+    },
+    {
+      "id": "nuxt-server-api-route",
+      "description": "Verifies correct Nitro server route implementation",
+      "input": "Crea un'API route POST per gestire il form di contatto in Nuxt",
+      "expected_output_contains": ["server/api", "defineEventHandler", "readBody", "export default"],
+      "expected_output_excludes": ["app/api", "NextResponse", "route.ts"]
+    },
+    {
+      "id": "nuxt-composable",
+      "description": "Verifies correct composable pattern with useState",
+      "input": "Come creo un composable per gestire lo stato dell'utente in Nuxt?",
+      "expected_output_contains": ["composables/", "useState", "export function use"],
+      "expected_output_excludes": ["createContext", "Provider", "useReducer"]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "skill": "form-cro",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "form-cro-field-reduction",
+      "description": "Verifies the skill recommends reducing fields and explains the impact on conversion",
+      "input": "Il mio form di contatto ha 9 campi. Il completion rate è 12%. Cosa cambio?",
+      "expected_output_contains": ["fields", "friction", "reduce", "email", "completion rate"],
+      "expected_output_excludes": ["add more fields", "mandatory all", "ignore drop-off"]
+    },
+    {
+      "id": "form-cro-cta-copy",
+      "description": "Verifies the skill provides strong CTA copy recommendations vs weak generic ones",
+      "input": "Il pulsante del form dice 'Submit'. Come lo miglioro?",
+      "expected_output_contains": ["action", "value", "Get", "Request", "Send"],
+      "expected_output_excludes": ["Submit is fine", "Click here", "Continue"]
+    },
+    {
+      "id": "form-cro-multistep",
+      "description": "Verifies when to use multi-step forms and the progressive commitment pattern",
+      "input": "Ho un form di preventivo con 12 campi. Devo usare uno step singolo o multi-step?",
+      "expected_output_contains": ["multi-step", "progress", "5", "6", "commitment"],
+      "expected_output_excludes": ["always single step", "never multi-step"]
+    }
+  ]
+}

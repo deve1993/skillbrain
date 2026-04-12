@@ -1,0 +1,27 @@
+{
+  "skill": "nextjs",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "server-action-form",
+      "description": "Verifies Server Action implementation with Zod validation",
+      "input": "Crea una Server Action per gestire l'invio di un form di contatto con validazione",
+      "expected_output_contains": ["'use server'", "z.object", "formData", "revalidatePath", "schema.parse"],
+      "expected_output_excludes": ["'use client'", "fetch('/api/", "useState"]
+    },
+    {
+      "id": "isr-data-fetching",
+      "description": "Verifies ISR configuration with revalidate option",
+      "input": "Come faccio fetch di dati in un Server Component con rivalidazione ogni ora?",
+      "expected_output_contains": ["next", "revalidate", "3600", "fetch"],
+      "expected_output_excludes": ["useEffect", "useState", "axios"]
+    },
+    {
+      "id": "locale-layout",
+      "description": "Verifies App Router locale layout structure",
+      "input": "Crea il layout per le route localizzate [locale] con next-intl",
+      "expected_output_contains": ["[locale]", "layout.tsx", "getTranslations", "NextIntlClientProvider", "generateStaticParams"],
+      "expected_output_excludes": ["pages/_app.tsx", "getServerSideProps"]
+    }
+  ]
+}

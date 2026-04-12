@@ -1,0 +1,19 @@
+{
+  "skill": "landing-architecture",
+  "description": "Triggers when user needs to structure or build a high-conversion landing page — hero section, social proof, pricing, FAQ, CTA placement for SaaS/services",
+  "should_trigger": [
+    "Crea la struttura di una landing page ad alta conversione per il mio SaaS",
+    "Come devo organizzare le sezioni della landing page per massimizzare le conversioni?",
+    "Scrivi l'headline e il copy per la hero section della landing page",
+    "Come struttura la sezione pricing per un SaaS con 3 piani?",
+    "Aggiungi social proof e testimonial nella landing page",
+    "Crea la sezione FAQ con schema.org per la landing page",
+    "Dove posiziono la CTA sulla landing page per avere più click?"
+  ],
+  "should_not_trigger": [
+    "Implementa la homepage del sito istituzionale dell'azienda",
+    "Come creo un form di contatto per la landing page?",
+    "Analizza le landing page dei competitor",
+    "Come ottimizo le performance della landing page?"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "skill": "state",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "zustand-store-setup",
+      "description": "Verifies correct Zustand store pattern with TypeScript interface and actions",
+      "input": "Create a Zustand store for a shopping cart with add, remove, and clear actions.",
+      "expected_output_contains": [
+        "create<",
+        "interface",
+        "set(",
+        "zustand"
+      ],
+      "expected_output_excludes": [
+        "useReducer",
+        "Redux",
+        "useState for cart"
+      ]
+    },
+    {
+      "id": "tanstack-query-mutations",
+      "description": "Verifies correct TanStack Query mutation pattern with cache invalidation",
+      "input": "Use TanStack Query to create a hook for creating and deleting products, updating the list cache.",
+      "expected_output_contains": [
+        "useMutation",
+        "invalidateQueries",
+        "queryKey",
+        "onSuccess"
+      ],
+      "expected_output_excludes": [
+        "useEffect",
+        "fetch directly in component"
+      ]
+    },
+    {
+      "id": "optimistic-updates",
+      "description": "Verifies correct optimistic update pattern with rollback on error",
+      "input": "Implement optimistic updates when updating a product name with TanStack Query.",
+      "expected_output_contains": [
+        "onMutate",
+        "cancelQueries",
+        "previousProduct",
+        "onError",
+        "context"
+      ],
+      "expected_output_excludes": [
+        "no rollback",
+        "ignore errors"
+      ]
+    }
+  ]
+}

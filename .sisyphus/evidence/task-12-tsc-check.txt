@@ -1,0 +1,34 @@
+TASK: Per-Skill Email Notification — Update src/mailer.ts
+DATE: 2026-04-05
+STATUS: ✅ PASSED
+
+VERIFICATION COMMAND:
+  cd /Users/dan/Desktop/progetti-web/1\ session\ Front/Progetti/lead-qualifier
+  npx tsc --noEmit
+
+RESULT: Zero errors
+  - No TypeScript compilation errors
+  - All type signatures correct
+  - SkillConfig import added to server.ts
+  - notifyLead() signature updated: (lead: Partial<Lead>, skillConfig?: SkillConfig)
+  - Call site updated to pass skillConfig parameter
+
+CHANGES MADE:
+  1. src/mailer.ts:
+     - Added SkillConfig import
+     - Updated notifyLead() signature to accept optional skillConfig
+     - Implemented fallback logic: skillConfig.emailTo → NOTIFY_EMAIL → skip
+     - Updated email subject to include skill name
+     - Updated HTML heading to include skill name
+     - Added skill name to console log
+
+  2. src/server.ts:
+     - Added SkillConfig to imports
+     - Updated notifyLead() call to pass skillConfig parameter
+
+BEHAVIOR:
+  ✓ Skill with emailTo → email sent to that address
+  ✓ Skill without emailTo → fallback to NOTIFY_EMAIL env var
+  ✓ Both null → email skipped with warning log (no crash)
+  ✓ Email subject includes skill name: "New Lead via [skillName]: [leadName]"
+  ✓ HTML heading includes skill name: "New Qualified Lead via [skillName]"

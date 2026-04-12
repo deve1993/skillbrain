@@ -1,0 +1,27 @@
+{
+  "skill": "project-health-check",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "checks-typescript",
+      "description": "Should check TypeScript and build status",
+      "input": "Check the project health",
+      "expected_output_contains": ["TypeScript", "build", "PASS", "FAIL"],
+      "expected_output_excludes": ["skip typescript"]
+    },
+    {
+      "id": "checks-i18n",
+      "description": "Should verify i18n completeness",
+      "input": "Audit the codebase",
+      "expected_output_contains": ["i18n", "messages", "locale"],
+      "expected_output_excludes": ["no i18n check"]
+    },
+    {
+      "id": "generates-report",
+      "description": "Should generate comprehensive health report",
+      "input": "What's the state of the project?",
+      "expected_output_contains": ["REPORT", "SCORE", "recommendations", "CRITICAL"],
+      "expected_output_excludes": ["no report"]
+    }
+  ]
+}

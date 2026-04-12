@@ -1,0 +1,54 @@
+{
+  "skill": "ai-seo",
+  "version": "1.1.0",
+  "test_cases": [
+    {
+      "id": "content-extractability-audit",
+      "description": "Verifies the skill provides a structured extractability checklist based on the three pillars",
+      "input": "Audit my blog post about project management for AI search visibility. What should I check?",
+      "expected_output_contains": [
+        "structure",
+        "authority",
+        "presence",
+        "40-60 words",
+        "statistics",
+        "schema"
+      ],
+      "expected_output_excludes": [
+        "keyword density",
+        "meta keywords"
+      ]
+    },
+    {
+      "id": "ai-bot-robots-check",
+      "description": "Verifies the skill recommends allowing specific AI bots in robots.txt",
+      "input": "Should I block AI crawlers in my robots.txt? What are the trade-offs?",
+      "expected_output_contains": [
+        "GPTBot",
+        "PerplexityBot",
+        "ClaudeBot",
+        "citation",
+        "robots.txt"
+      ],
+      "expected_output_excludes": [
+        "block all bots",
+        "doesn't matter"
+      ]
+    },
+    {
+      "id": "statistics-boost",
+      "description": "Verifies the skill references the Princeton GEO research data on citation boosts",
+      "input": "What content changes will most increase my chances of being cited by AI search engines?",
+      "expected_output_contains": [
+        "statistics",
+        "citations",
+        "40%",
+        "sources",
+        "expert"
+      ],
+      "expected_output_excludes": [
+        "keyword stuffing"
+      ]
+    }
+  ]
+}

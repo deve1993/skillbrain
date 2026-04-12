@@ -1,0 +1,18 @@
+{
+  "skill": "seo-page",
+  "description": "Triggers when the user wants deep analysis of a single page's SEO — on-page elements, content quality, technical meta tags, schema, images, Core Web Vitals flags",
+  "should_trigger": [
+    "Analyze the SEO of my product page at /pricing — what's wrong with it?",
+    "Check the on-page SEO for my blog post about React performance",
+    "Review this single URL for title tag, H1, meta description, and schema issues",
+    "Score my homepage SEO and give me a page scorecard",
+    "Find all SEO issues on my /about page — title, content quality, and images",
+    "Deep SEO analysis of this specific landing page before I launch"
+  ],
+  "should_not_trigger": [
+    "Crawl my entire website and find all SEO issues",
+    "Audit my hreflang implementation across all pages",
+    "Generate a sitemap for my Next.js app",
+    "Set up Google Analytics 4 tracking"
+  ]
+}

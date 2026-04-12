@@ -1,0 +1,19 @@
+{
+  "skill": "competitor-alternatives",
+  "description": "Triggered when the user wants to create SEO comparison pages, 'vs' pages, or competitor alternative pages for capturing competitive search traffic.",
+  "should_trigger": [
+    "Create a 'Notion alternative' page for our project management tool",
+    "Build a 'vs' comparison page: our tool vs Asana",
+    "I want to rank for 'best Slack alternatives' — help me create that page",
+    "Create a competitor comparison page targeting Salesforce users who want to switch",
+    "Build a page targeting searches for 'Figma vs Sketch'",
+    "What's the best structure for an alternatives page targeting Airtable users?",
+    "Help me create comparison pages for all our main competitors"
+  ],
+  "should_not_trigger": [
+    "Write a blog post about project management best practices",
+    "Create a features page for our product",
+    "How do I improve my existing homepage conversion rate?",
+    "Research what our competitors are doing in their marketing"
+  ]
+}

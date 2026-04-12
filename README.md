@@ -3,7 +3,7 @@
 > **Your AI coding assistant forgets everything when you close the session.**  
 > This fixes that — permanently.
 
-![Skills](https://img.shields.io/badge/skills-130-blue)
+![Skills](https://img.shields.io/badge/skills-129-blue)
 ![Learnings](https://img.shields.io/badge/learnings-self--improving-green)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-blueviolet)
 ![OpenCode](https://img.shields.io/badge/OpenCode-compatible-blueviolet)
@@ -153,7 +153,7 @@ gitnexus analyze .agents/skillbrain/skills --skip-git
 
 **3. Add to your Claude Code config**
 
-In your project's `AGENTS.md` or `.claude/CLAUDE.md`, add the skills path:
+In your project's `AGENTS.md` or `.opencode/AGENTS.md`, add the skills path:
 
 ```markdown
 Skills directory: .agents/skillbrain/skills/

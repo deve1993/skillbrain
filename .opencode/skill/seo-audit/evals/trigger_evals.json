@@ -1,0 +1,18 @@
+{
+  "skill": "seo-audit",
+  "description": "Triggers when the user wants a full site SEO audit — crawling multiple pages, generating health scores, detecting technical/content/schema issues with prioritized action plan",
+  "should_trigger": [
+    "Do a full SEO audit of my website and give me a health score",
+    "Run a complete SEO check on https://example.com",
+    "Analyze my entire site for SEO issues — technical, content, and schema",
+    "Give me a website health check before my product launch",
+    "Crawl my site and find all critical SEO problems I need to fix",
+    "Generate a prioritized action plan to improve my site's SEO from 45 to 80"
+  ],
+  "should_not_trigger": [
+    "Analyze just my homepage SEO",
+    "Check if my hreflang tags are correct",
+    "Fix the schema markup on my product page",
+    "Improve the meta description of my about page"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "skill": "form-cro",
+  "description": "Triggers when user wants to optimize form conversion rates — lead capture, contact, demo request, survey or checkout forms (NOT signup/registration)",
+  "should_trigger": [
+    "Ottimizza il tasso di completamento del nostro form di richiesta demo",
+    "Il form di contatto ha un completion rate del 15%, come migliorarlo?",
+    "Quanti campi dovrei avere nel form di lead generation?",
+    "Come riduco l'attrito nel form di preventivo in 3 step?",
+    "Analizza e ottimizza il copy del pulsante di invio del form",
+    "Voglio aggiungere trust elements vicino al form per aumentare le conversioni",
+    "Cosa mettere nel form di richiesta informazioni per massimizzare i contatti?"
+  ],
+  "should_not_trigger": [
+    "Ottimizza il flusso di registrazione e creazione account",
+    "Come implemento react-hook-form con Zod validation?",
+    "Crea un popup con exit intent per catturare email",
+    "Come integro il form con Odoo CRM?"
+  ]
+}

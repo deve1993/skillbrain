@@ -1,0 +1,27 @@
+{
+  "skill": "gdpr",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "gdpr-cookie-violation",
+      "description": "Verifies the skill correctly identifies loading analytics before consent as a violation",
+      "input": "GA4 viene caricato nel layout root senza aspettare il consenso. È un problema?",
+      "expected_output_contains": ["VIOLAZIONE", "consenso", "prima", "CRITICO", "bloccare"],
+      "expected_output_excludes": ["va bene", "non è un problema", "GA4 è escluso"]
+    },
+    {
+      "id": "gdpr-form-audit",
+      "description": "Verifies the skill identifies missing consent checkbox and privacy link near the form",
+      "input": "Il form di contatto chiede nome, email e messaggio. Cosa manca per essere GDPR compliant?",
+      "expected_output_contains": ["checkbox", "privacy policy", "consenso", "link"],
+      "expected_output_excludes": ["il form va bene così", "non serve nulla", "solo email"]
+    },
+    {
+      "id": "gdpr-user-rights",
+      "description": "Verifies all user rights under GDPR articles 15-22 are mentioned",
+      "input": "Quali diritti GDPR devo implementare per gli utenti del sito?",
+      "expected_output_contains": ["accesso", "cancellazione", "portabilità", "rettifica", "opposizione"],
+      "expected_output_excludes": ["nessun diritto richiesto", "solo cancellazione"]
+    }
+  ]
+}

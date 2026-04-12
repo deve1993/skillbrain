@@ -1,0 +1,55 @@
+{
+  "skill": "content-strategy",
+  "version": "1.1.0",
+  "test_cases": [
+    {
+      "id": "searchable-vs-shareable",
+      "description": "Verifies the skill distinguishes between searchable and shareable content types with correct prioritization",
+      "input": "Should we focus on blog posts that rank or thought leadership pieces that go viral on LinkedIn?",
+      "expected_output_contains": [
+        "searchable",
+        "shareable",
+        "demand",
+        "foundation"
+      ],
+      "expected_output_excludes": [
+        "they're the same",
+        "pick randomly"
+      ]
+    },
+    {
+      "id": "topic-prioritization",
+      "description": "Verifies the skill uses the four-factor scoring model for content prioritization",
+      "input": "We have 20 topic ideas — how do I decide which ones to write first?",
+      "expected_output_contains": [
+        "Customer Impact",
+        "Content-Market Fit",
+        "Search Potential",
+        "Resources",
+        "score"
+      ],
+      "expected_output_excludes": [
+        "pick whatever sounds interesting",
+        "just follow trends"
+      ]
+    },
+    {
+      "id": "buyer-stage-mapping",
+      "description": "Verifies the skill maps keyword modifiers to buyer journey stages",
+      "input": "How do I create content for each stage of my buyer's journey for a cybersecurity SaaS?",
+      "expected_output_contains": [
+        "awareness",
+        "consideration",
+        "decision",
+        "implementation",
+        "what is",
+        "best",
+        "pricing"
+      ],
+      "expected_output_excludes": [
+        "all content is the same",
+        "ignore buyer stage"
+      ]
+    }
+  ]
+}

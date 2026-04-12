@@ -1,0 +1,8 @@
+Seed file verification:
+- INSERT INTO skills count: 3
+- Skills included:
+  1. default (Default Sales Assistant)
+  2. terraemare (Terra e Mare)
+  3. cee-machines (CEE Machines)
+- All skills have complete system_prompt content
+- All skills have appropriate greeting and branding colors

@@ -1,0 +1,54 @@
+{
+  "skill": "sveltekit",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "svelte5-runes",
+      "description": "Verifies correct Svelte 5 rune syntax for state, derived, and effects",
+      "input": "Create a counter component in Svelte 5 with reactive state, a derived doubled value, and a console log effect.",
+      "expected_output_contains": [
+        "$state",
+        "$derived",
+        "$effect",
+        "$props"
+      ],
+      "expected_output_excludes": [
+        "writable(",
+        "derived(",
+        "onMount"
+      ]
+    },
+    {
+      "id": "server-load-function",
+      "description": "Verifies correct server-only load function with DB access pattern",
+      "input": "Create a SvelteKit page that fetches a blog post by slug from the database on the server only.",
+      "expected_output_contains": [
+        "+page.server.ts",
+        "PageServerLoad",
+        "params.slug",
+        "db"
+      ],
+      "expected_output_excludes": [
+        "+page.ts",
+        "fetch('/api",
+        "useEffect"
+      ]
+    },
+    {
+      "id": "form-actions-validation",
+      "description": "Verifies correct form actions with validation and fail() on error",
+      "input": "Create a SvelteKit contact form that validates required fields and returns errors.",
+      "expected_output_contains": [
+        "actions",
+        "fail(",
+        "request.formData",
+        "use:enhance"
+      ],
+      "expected_output_excludes": [
+        "useState",
+        "onSubmit",
+        "axios"
+      ]
+    }
+  ]
+}

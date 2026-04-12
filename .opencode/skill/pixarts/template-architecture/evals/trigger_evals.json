@@ -1,0 +1,19 @@
+{
+  "skill": "pixarts/template-architecture",
+  "description": "Triggers when scaffolding a new Pixarts client project, setting up folder structure, configuring root layout, implementing block renderer, or setting up config files",
+  "should_trigger": [
+    "Scaffold la struttura cartelle standard per un nuovo sito Pixarts",
+    "Crea il root layout con next-intl per le route [locale]",
+    "Implementa il BlockRenderer per i contenuti CMS dinamici",
+    "Crea il file robots.ts e sitemap.ts standard per il sito",
+    "Quali config files sono necessari in un nuovo progetto Pixarts?",
+    "Crea la directory blocks/ con i componenti standard (hero, features, cta)",
+    "Configura tsconfig.json con strict mode e path alias @/ per il progetto"
+  ],
+  "should_not_trigger": [
+    "Aggiungi il modulo e-commerce al CMS del tenant",
+    "Configura l'access control multi-tenant in Payload",
+    "Crea animazioni per le sezioni della homepage",
+    "Come faccio deploy su Coolify di un progetto esistente?"
+  ]
+}

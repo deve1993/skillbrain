@@ -1,0 +1,18 @@
+{
+  "skill": "stitch",
+  "description": "Triggers when user wants to generate UI designs from text prompts using Google Stitch MCP, or convert Stitch output to Tailwind/shadcn",
+  "should_trigger": [
+    "Generate a hero section UI using Google Stitch",
+    "Use Stitch MCP to create a pricing section",
+    "Create a landing page design with Stitch from a text prompt",
+    "Convert the Stitch HTML/CSS output to Tailwind classes",
+    "Generate a contact form design with Stitch",
+    "Use Stitch as an alternative to Figma for UI generation"
+  ],
+  "should_not_trigger": [
+    "Generate UI using v0.dev",
+    "Design in Figma and export to code",
+    "Use Framer to create animations",
+    "Clone a website with Playwright"
+  ]
+}

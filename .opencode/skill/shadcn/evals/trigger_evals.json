@@ -1,0 +1,19 @@
+{
+  "skill": "shadcn",
+  "description": "Triggers when user needs to install, configure, use, or theme shadcn/ui components",
+  "should_trigger": [
+    "Add a Button component using shadcn/ui",
+    "How do I install shadcn in my Next.js project?",
+    "Configure dark mode theming for shadcn components",
+    "Use the shadcn Dialog component for a modal",
+    "Customize shadcn colors with CSS variables",
+    "Search for a form component in the shadcn registry",
+    "Set up shadcn MCP server for component search"
+  ],
+  "should_not_trigger": [
+    "Style a button with plain Tailwind CSS",
+    "Use Radix UI directly without shadcn",
+    "Setup Material UI in my project",
+    "Install Headless UI components"
+  ]
+}

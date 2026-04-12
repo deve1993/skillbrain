@@ -1,0 +1,54 @@
+{
+  "skill": "cms",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "sanity-groq-query",
+      "description": "Verifies the skill produces valid GROQ queries with the documented patterns",
+      "input": "Write a GROQ query to fetch all published blog posts with their author name, main image, and categories",
+      "expected_output_contains": [
+        "_type == \"post\"",
+        "author->",
+        "categories[]->",
+        "publishedAt",
+        "groq"
+      ],
+      "expected_output_excludes": [
+        "SQL",
+        "mongoose.find",
+        "prisma.post"
+      ]
+    },
+    {
+      "id": "sanity-revalidation",
+      "description": "Verifies the skill implements webhook-based cache revalidation for Next.js ISR",
+      "input": "How do I automatically revalidate my Next.js pages when content changes in Sanity?",
+      "expected_output_contains": [
+        "revalidateTag",
+        "webhook",
+        "_type",
+        "POST",
+        "route.ts"
+      ],
+      "expected_output_excludes": [
+        "manual refresh only",
+        "revalidate: 0 always"
+      ]
+    },
+    {
+      "id": "draft-mode",
+      "description": "Verifies the skill implements Sanity preview/draft mode with Next.js draftMode",
+      "input": "Set up live preview in Sanity so editors can see unpublished content",
+      "expected_output_contains": [
+        "draftMode",
+        "SANITY_PREVIEW_SECRET",
+        "enable()",
+        "redirect"
+      ],
+      "expected_output_excludes": [
+        "public preview",
+        "no authentication needed"
+      ]
+    }
+  ]
+}

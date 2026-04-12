@@ -1,0 +1,19 @@
+{
+  "skill": "paid-ads",
+  "description": "Triggers when working with paid advertising campaigns, PPC, ROAS/CPA optimization, audience targeting, or ad creative strategy",
+  "should_trigger": [
+    "Come struttura una campagna Google Ads per un SaaS B2B?",
+    "Il mio CPA è troppo alto su Meta Ads, come ottimizzare?",
+    "Quale piattaforma di advertising scelgo tra Google e LinkedIn per B2B?",
+    "Crea una strategia di retargeting per chi ha visitato la pagina prezzi",
+    "Come struttura le campagne Meta per testare nuovi audience?",
+    "Il CTR delle mie ads è basso, quali sono le possibili cause?",
+    "Come calcolo il budget mensile per le paid ads e come allocarlo?"
+  ],
+  "should_not_trigger": [
+    "Crea la landing page per la campagna PPC",
+    "Come configuro GA4 per tracciare le conversioni?",
+    "Scrivi il copy per gli annunci Google Ads",
+    "Ottimizza il tasso di conversione della landing page"
+  ]
+}

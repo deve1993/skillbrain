@@ -1,0 +1,51 @@
+{
+  "skill": "seo-for-devs",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "deprecated-schema-warning",
+      "description": "Verifies skill warns against HowTo and restricted FAQ schema per 2023-2025 deprecations",
+      "input": "Add FAQ and HowTo schema markup to my tutorial blog posts",
+      "expected_output_contains": [
+        "deprecated",
+        "HowTo",
+        "FAQ",
+        "restricted",
+        "gov"
+      ],
+      "expected_output_excludes": [
+        "just add both",
+        "FAQ schema always works"
+      ]
+    },
+    {
+      "id": "rendering-seo-recommendation",
+      "description": "Verifies CSR is flagged as bad for SEO and SSG/ISR recommended for indexable content",
+      "input": "What rendering strategy should I use for my blog posts that need to rank in Google?",
+      "expected_output_contains": [
+        "SSG",
+        "ISR",
+        "index"
+      ],
+      "expected_output_excludes": [
+        "CSR is fine for SEO",
+        "client-side rendering"
+      ]
+    },
+    {
+      "id": "cwv-lcp-priority",
+      "description": "Verifies LCP optimization includes next/image priority prop and preload link",
+      "input": "My hero image is causing slow LCP — how do I fix it in Next.js?",
+      "expected_output_contains": [
+        "priority",
+        "preload",
+        "next/image",
+        "LCP"
+      ],
+      "expected_output_excludes": [
+        "lazy loading for hero",
+        "ignore LCP"
+      ]
+    }
+  ]
+}

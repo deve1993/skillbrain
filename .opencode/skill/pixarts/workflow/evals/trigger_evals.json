@@ -1,0 +1,19 @@
+{
+  "skill": "pixarts/workflow",
+  "description": "Triggers when implementing full Pixarts client site projects through the complete 5-phase workflow: intake → CMS setup → scaffold → build → deploy → QA",
+  "should_trigger": [
+    "Avvia il workflow completo per un nuovo sito cliente: Ristorante Da Mario",
+    "Siamo nella Fase 1 del workflow: configura il tenant CMS per il cliente",
+    "Procedi con la Fase 2: scaffold il progetto Next.js per il cliente",
+    "Come coordino i 6 agenti Pixarts per completare il sito del cliente?",
+    "Genera il brief.json dall'intake del cliente farmacia Bianchi",
+    "Siamo pronti per il deploy, avvia la Fase 4 con Coolify",
+    "Esegui la Fase 5 QA: Lighthouse, a11y, SEO, cross-browser test"
+  ],
+  "should_not_trigger": [
+    "Crea solo la homepage per il sito del cliente",
+    "Come installo Payload CMS standalone senza multi-tenant?",
+    "Crea una nuova collection in Payload CMS",
+    "Ottimizza le performance del sito già deployato"
+  ]
+}

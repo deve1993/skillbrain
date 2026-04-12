@@ -1,0 +1,50 @@
+{
+  "skill": "product-marketing-context",
+  "version": "1.1.0",
+  "test_cases": [
+    {
+      "id": "auto-draft-from-codebase",
+      "description": "Verifies skill offers to auto-draft from codebase before asking questions",
+      "input": "I need to create a product marketing context document for my task management SaaS",
+      "expected_output_contains": [
+        "auto-draft",
+        "codebase",
+        "README",
+        ".agents/product-marketing-context.md"
+      ],
+      "expected_output_excludes": [
+        "fill in this form",
+        "answer all these questions first"
+      ]
+    },
+    {
+      "id": "sections-captured",
+      "description": "Verifies all 12 key sections are covered including customer language and switching dynamics",
+      "input": "Walk me through what should be in a product marketing context document",
+      "expected_output_contains": [
+        "target audience",
+        "competitive landscape",
+        "customer language",
+        "switching dynamics",
+        "objections"
+      ],
+      "expected_output_excludes": [
+        "just describe your product"
+      ]
+    },
+    {
+      "id": "update-existing",
+      "description": "Verifies skill checks for existing file and asks what sections to update",
+      "input": "Update my product marketing context — we launched a new enterprise plan and our main competitor just added our killer feature",
+      "expected_output_contains": [
+        "existing",
+        "update",
+        "sections"
+      ],
+      "expected_output_excludes": [
+        "create from scratch",
+        "delete everything"
+      ]
+    }
+  ]
+}
