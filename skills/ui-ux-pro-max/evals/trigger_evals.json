@@ -1,0 +1,19 @@
+{
+  "skill": "ui-ux-pro-max",
+  "description": "Triggers when user needs UI/UX design intelligence including style selection, color palettes, font pairings, and design system generation",
+  "should_trigger": [
+    "Design a landing page for my SaaS product",
+    "Choose a color palette for a healthcare dashboard",
+    "What font pairing works for a fintech app?",
+    "Create a glassmorphism-style admin panel UI",
+    "Build a dark mode dashboard with bento grid layout",
+    "Generate a design system for my e-commerce site",
+    "Review my UI for accessibility and UX issues"
+  ],
+  "should_not_trigger": [
+    "Fix an accessibility bug in my ARIA implementation",
+    "Optimize React component performance",
+    "Write copy for my landing page",
+    "Setup SEO metadata for my pages"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "skill": "vercel-react-best-practices",
+  "description": "Triggers when writing, reviewing, or refactoring React/Next.js code for performance optimization",
+  "should_trigger": [
+    "Optimize my React component that re-renders too often",
+    "Fix waterfall data fetching in my Next.js page",
+    "Reduce bundle size of my Next.js app",
+    "Review my React code for performance issues",
+    "My page is slow, refactor the data fetching",
+    "Optimize my React app for Vercel deployment",
+    "Eliminate sequential awaits in my API route"
+  ],
+  "should_not_trigger": [
+    "Setup a new React project from scratch",
+    "Install React packages",
+    "Write documentation for my components",
+    "Configure git for my repository"
+  ]
+}

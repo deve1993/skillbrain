@@ -1,0 +1,52 @@
+{
+  "skill": "writing-skills",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "tdd-iron-law-for-skills",
+      "description": "Verifies the skill enforces baseline testing BEFORE writing the skill content",
+      "input": "I have an idea for a new skill. Can I just write it and deploy it?",
+      "expected_output_contains": [
+        "baseline",
+        "failing test",
+        "RED",
+        "before writing"
+      ],
+      "expected_output_excludes": [
+        "go ahead",
+        "write it first",
+        "testing is optional"
+      ]
+    },
+    {
+      "id": "description-triggering-conditions-only",
+      "description": "Verifies the skill description field should contain only triggering conditions, not workflow summaries",
+      "input": "I wrote this skill description: 'Use when executing plans - dispatches subagent per task with code review between tasks'. Is this correct?",
+      "expected_output_contains": [
+        "workflow summary",
+        "triggering conditions",
+        "remove",
+        "Use when"
+      ],
+      "expected_output_excludes": [
+        "description is correct",
+        "workflow summary is fine"
+      ]
+    },
+    {
+      "id": "evals-required",
+      "description": "Verifies evals are required for each production skill",
+      "input": "I finished writing my skill. Can I deploy it without creating evals?",
+      "expected_output_contains": [
+        "evals",
+        "trigger_evals.json",
+        "evals.json",
+        "required"
+      ],
+      "expected_output_excludes": [
+        "evals are optional",
+        "deploy without evals"
+      ]
+    }
+  ]
+}

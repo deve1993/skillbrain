@@ -1,0 +1,20 @@
+{
+  "skill": "systematic-debugging",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "finds-root-cause-first",
+      "description": "Should identify root cause before proposing fixes",
+      "input": "TypeError: Cannot read properties of undefined (reading 'map') in ProductList.tsx line 45",
+      "expected_output_contains": ["root cause", "why", "investigate", "check"],
+      "expected_output_excludes": ["just add", "quick fix", "try this:", "?.map"]
+    },
+    {
+      "id": "no-shotgun-debugging",
+      "description": "Should not make random changes hoping something works",
+      "input": "The auth is broken after my last commit",
+      "expected_output_contains": ["reproduce", "isolate", "git", "what changed"],
+      "expected_output_excludes": ["let's try changing", "maybe", "perhaps we should"]
+    }
+  ]
+}

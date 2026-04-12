@@ -1,0 +1,51 @@
+{
+  "skill": "ui-ux-pro-max",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "design-system-generation",
+      "description": "Verifies the skill runs the design system search script before implementing any UI",
+      "input": "Build a landing page for a beauty spa wellness service. Elegant, luxury aesthetic.",
+      "expected_output_contains": [
+        "python3",
+        "search.py",
+        "--design-system",
+        "beauty spa"
+      ],
+      "expected_output_excludes": [
+        "immediately write code",
+        "skip design system"
+      ]
+    },
+    {
+      "id": "accessibility-critical-rules",
+      "description": "Verifies CRITICAL accessibility rules are applied: contrast ratio, focus states, touch targets",
+      "input": "Review this button component for UI/UX compliance.",
+      "expected_output_contains": [
+        "4.5:1",
+        "focus",
+        "44",
+        "cursor-pointer"
+      ],
+      "expected_output_excludes": [
+        "accessibility is optional",
+        "no issues found"
+      ]
+    },
+    {
+      "id": "no-emoji-icons-rule",
+      "description": "Verifies the skill enforces SVG icons over emoji icons",
+      "input": "I want to use 🚀 and ⚙️ as icons in my SaaS dashboard.",
+      "expected_output_contains": [
+        "SVG",
+        "Lucide",
+        "Heroicons",
+        "emoji"
+      ],
+      "expected_output_excludes": [
+        "emojis are fine",
+        "use emoji icons"
+      ]
+    }
+  ]
+}

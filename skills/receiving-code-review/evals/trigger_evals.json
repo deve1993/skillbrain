@@ -1,0 +1,18 @@
+{
+  "skill": "receiving-code-review",
+  "description": "Triggers when the user is receiving code review feedback and needs guidance on how to respond — covers technical verification, handling unclear feedback, and when to push back",
+  "should_trigger": [
+    "I got code review feedback and the reviewer says to add metrics tracking — but nothing calls that endpoint",
+    "How should I respond to code review comments without being sycophantic?",
+    "A reviewer suggested removing legacy code but I think it's needed for backward compatibility — how do I push back?",
+    "My reviewer gave me 6 items to fix but items 4 and 5 are unclear — what do I do?",
+    "How do I handle external reviewer feedback that conflicts with my architect's decisions?",
+    "The reviewer is technically wrong about this implementation — how do I respond?"
+  ],
+  "should_not_trigger": [
+    "How do I request a code review before merging?",
+    "Write unit tests for this function",
+    "Refactor this component to use hooks",
+    "Design a new API endpoint"
+  ]
+}

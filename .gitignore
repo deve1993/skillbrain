@@ -1,47 +1,63 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Testing
-coverage/
-
-# Next.js
-.next/
-out/
-build/
-
-# Miscellaneous
-.DS_Store
-*.pem
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Local Env Files
+# ─── Secrets ──────────────────────────────────────────────────────────────────
+.opencode/settings.local.json
+settings.local.json
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*.local
+*.pem
+*.key
 
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
+# ─── Client briefs (dati sensibili clienti) ───────────────────────────────────
+.client-briefs/
 
-# Payload
-media/
+# ─── QA reports (generati, non committare) ────────────────────────────────────
+.qa-reports/
 
-# Opencode / System folders (Local only)
-.opencode/
-.Claude/
-AGENTS.md
-opencode.json
-config/
-Contex/
-docs/
-mcp-servers/
-projects/
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Editor ───────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+
+# ─── Node (nei progetti dentro Progetti/) ─────────────────────────────────────
+Progetti/*/node_modules/
+Progetti/*/.next/
+Progetti/*/out/
+Progetti/*/dist/
+Progetti/*/.turbo/
+
+# ─── AI Tool directories (residui di tool provati — non committare) ───────────
+.adal/
+.agent/
+.agents/
+.augment/
+.codebuddy/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+
+# ─── GitNexus (indice locale — non committare) ────────────────────────────────
+.gitnexus/

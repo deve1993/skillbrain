@@ -132,23 +132,17 @@ npm install -g gitnexus
 
 ### Installation
 
-**1. Clone into your project's `.agents/` folder**
+**1. Clone this repo**
 
 ```bash
-cd /your/project
-git clone https://github.com/deve1993/skillbrain .agents/skillbrain
-```
-
-Or install the skills globally:
-
-```bash
-git clone https://github.com/deve1993/skillbrain ~/.agents/skillbrain
+git clone https://github.com/deve1993/skillbrain
+cd skillbrain
 ```
 
 **2. Index the skills folder**
 
 ```bash
-gitnexus analyze .agents/skillbrain/skills --skip-git
+gitnexus analyze .agents/skills --skip-git
 ```
 
 **3. Add to your Claude Code config**
@@ -156,7 +150,7 @@ gitnexus analyze .agents/skillbrain/skills --skip-git
 In your project's `AGENTS.md` or `.claude/CLAUDE.md`, add the skills path:
 
 ```markdown
-Skills directory: .agents/skillbrain/skills/
+Skills directory: .agents/skills/
 ```
 
 **4. Start a session and say:**
@@ -312,7 +306,7 @@ Project-specific patterns should only become global after validation across mult
 
 ### Adding a new skill
 
-1. Create the directory: `.agents/skillbrain/skills/your-skill-name/`
+1. Create the directory: `.agents/skills/your-skill-name/`
 2. Write `SKILL.md` with frontmatter
 3. The system automatically creates `learnings.md` on next `post-session-review`
 

@@ -1,0 +1,19 @@
+{
+  "skill": "frontend-design",
+  "description": "Tests that frontend-design activates for UI creation requests",
+  "should_trigger": [
+    "Create a pricing card component",
+    "Build a hero section for the landing page",
+    "Make this form look better",
+    "Design a sidebar navigation",
+    "I need a modal for user settings",
+    "Create a responsive navbar",
+    "Style this button with glassmorphism"
+  ],
+  "should_not_trigger": [
+    "Fix this API route that returns 500",
+    "Debug why the build is failing",
+    "Set up authentication with Auth.js",
+    "Configure the Payload CMS collection"
+  ]
+}

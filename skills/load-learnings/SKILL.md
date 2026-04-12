@@ -1,0 +1,79 @@
+---
+name: load-learnings
+description: >
+  Loads the most relevant learnings at session start using semantic search
+  via GitNexus embeddings. Hard cap of 15 learnings to protect context window.
+  Called automatically by gitnexus-context after loading the knowledge graph.
+  Do not invoke manually — gitnexus-context handles this.
+version: 1.0.0
+user-invocable: false
+---
+
+# Load Learnings
+
+**Hard cap: 15 learnings per session. No exceptions.**
+
+## Protocol
+
+### Step 1 — Semantic query
+
+Query the skills knowledge graph using the current task description:
+
+```
+gitnexus_query(
+  query: "{current task description in natural language}",
+  repo: "skills",
+  limit: 30
+)
+```
+
+This returns learnings semantically similar to the task — not just tag matches.
+
+### Step 2 — Score and filter
+
+For each result, calculate:
+
+```
+score = (confidence × 2)
+      + (3 if scope=global OR project matches current project)
+      + (2 if last_validated within 5 sessions)
+      + (2 if learning belongs to an active skill for this session)
+```
+
+Then apply filters in order:
+1. EXCLUDE `status: deprecated`
+2. EXCLUDE `status: pending-review` unless no better options exist
+3. EXCLUDE project-specific learnings from other projects
+4. SORT by score descending
+5. TAKE top 15
+
+### Step 3 — Load into context
+
+For each selected learning, load ONLY these fields:
+- `context`
+- `problem`
+- `solution`
+- `confidence` (as trust signal: 1-3 = tentative, 4-7 = reliable, 8-10 = established)
+
+Do NOT load: id, dates, validated_by, relationships, decay fields.
+This minimizes context window usage.
+
+### Step 4 — Present summary
+
+```
+📚 Loaded {N} learnings for this session:
+   🌐 Global ({N}): {brief tag summary}
+   📁 Project-specific ({N}): {project name}
+   🎯 Skill-specific ({N}): {skill names}
+
+   Highest confidence: L-{id} (confidence: {N})
+   Most recent: L-{id} (captured {date})
+   
+   ⚠️ Tentative (confidence ≤ 2): {N} — treat as suggestions, not rules
+```
+
+## When to reload mid-session
+
+- Session shifts significantly from debugging to UI work → reload with new focus
+- Project switches → full reload
+- Do NOT reload for every small task change — only major context shifts

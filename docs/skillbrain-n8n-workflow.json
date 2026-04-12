@@ -1,0 +1,136 @@
+{
+  "name": "SkillBrain — Pending Review Notifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "skillbrain-review",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.body.pending_count }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "node-if",
+      "name": "Ha pending reviews?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "6117100027" },
+            { "name": "parse_mode", "value": "Markdown" },
+            {
+              "name": "text",
+              "value": "=🧠 *SkillBrain — Pending Review*\n\n📋 Hai *{{ $json.body.pending_count }}* item da revisionare.\n\n{{ $json.body.items_summary }}\n\n📊 *Stats sessione*\n• Nuovi learnings: {{ $json.body.stats.new_learnings }}\n• Confidence aggiornati: {{ $json.body.stats.updated }}\n• Decay applicato: {{ $json.body.stats.decayed }}\n\n_Apri `pending-review.md` e dimmi **approve**, **reject** o **edit** per ogni item._"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-telegram-pending",
+      "name": "Telegram — Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 160]
+    },
+    {
+      "parameters": {
+        "fromEmail": "skillsbrain@dvesolutions.eu",
+        "toEmail": "hello@pixarts.eu",
+        "subject": "=🧠 SkillBrain — {{ $json.body.pending_count }} learnings da revisionare",
+        "text": "=SkillBrain — Pending Review\n\nHai {{ $json.body.pending_count }} item da revisionare.\n\n{{ $json.body.items_summary }}\n\nStats sessione:\n- Nuovi learnings: {{ $json.body.stats.new_learnings }}\n- Confidence aggiornati: {{ $json.body.stats.updated }}\n- Decay applicato: {{ $json.body.stats.decayed }}\n\nApri pending-review.md e dimmi 'approve', 'reject' o 'edit' per ogni item.\n\n— SkillBrain",
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "node-email-pending",
+      "name": "Email — Pending",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "credentials": {
+        "smtp": {
+          "id": "skillbrain-smtp",
+          "name": "SkillBrain SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "6117100027" },
+            { "name": "parse_mode", "value": "Markdown" },
+            {
+              "name": "text",
+              "value": "=✅ *SkillBrain — Sessione completata*\n\n📊 Nessun item in pending review.\n\n• Nuovi learnings: {{ $json.body.stats.new_learnings }}\n• Confidence aggiornati: {{ $json.body.stats.updated }}\n• Decay applicato: {{ $json.body.stats.decayed }}\n• Totale learnings: {{ $json.body.stats.total_learnings }}\n\n_Tutto in ordine_ 🟢"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-telegram-ok",
+      "name": "Telegram — OK",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 460]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Ha pending reviews?", "type": "main", "index": 0 }]]
+    },
+    "Ha pending reviews?": {
+      "main": [
+        [
+          { "node": "Telegram — Pending", "type": "main", "index": 0 },
+          { "node": "Email — Pending", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Telegram — OK", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": ["skillbrain", "automation"]
+}

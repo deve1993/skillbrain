@@ -1,0 +1,19 @@
+{
+  "skill": "next-best-practices",
+  "description": "Triggers when dealing with Next.js 15+ specific patterns like RSC boundaries, async params, hydration errors, metadata, or self-hosting",
+  "should_trigger": [
+    "Ho un errore di hydration mismatch in Next.js, come lo risolvo?",
+    "Come uso i params in modo asincrono in Next.js 15?",
+    "Sto usando async in un Client Component, è corretto?",
+    "Come genero metadata dinamici per le pagine del blog?",
+    "Ho un errore: cookies() should be called with await in Next.js 15",
+    "Come configuro Next.js per il self-hosting con Docker standalone output?",
+    "useSearchParams causa CSR bailout, come uso Suspense correttamente?"
+  ],
+  "should_not_trigger": [
+    "Come installo Payload CMS in un progetto esistente?",
+    "Crea un workflow n8n per automatizzare le notifiche",
+    "Come implemento le animazioni di scroll con GSAP?",
+    "Configura Stripe per le subscriptions mensili"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "skill": "finishing-a-development-branch",
+  "description": "Triggers when implementation is complete and the user needs to decide how to integrate the work — merge, PR, keep, or discard",
+  "should_trigger": [
+    "Ho finito di implementare la feature, come la integro nel branch main?",
+    "Tutti i task sono completati, cosa faccio adesso con il branch?",
+    "Implementation complete — should I merge or create a PR?",
+    "Come creo una pull request per il branch che ho sviluppato?",
+    "Posso eliminare il branch di sviluppo ora che ho finito?",
+    "Want to merge the feature branch back to main",
+    "Finish the development branch and clean up the worktree"
+  ],
+  "should_not_trigger": [
+    "Come creo un nuovo branch per lavorare sulla feature?",
+    "Esegui il piano di implementazione",
+    "Cosa faccio se i test falliscono?",
+    "Come uso git worktrees?"
+  ]
+}

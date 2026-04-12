@@ -1,0 +1,49 @@
+{
+  "skill": "web-design-guidelines",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "fetch-guidelines-before-review",
+      "description": "Verifies the skill fetches fresh guidelines from the source URL before reviewing",
+      "input": "Review my Button component for web interface guideline compliance.",
+      "expected_output_contains": [
+        "fetch",
+        "github.com/vercel-labs",
+        "web-interface-guidelines",
+        "guidelines"
+      ],
+      "expected_output_excludes": [
+        "use cached rules",
+        "skip fetch"
+      ]
+    },
+    {
+      "id": "file-line-output-format",
+      "description": "Verifies violations are reported in the terse file:line format",
+      "input": "Check this file: components/Button.tsx for web interface guideline violations.",
+      "expected_output_contains": [
+        "Button.tsx:",
+        "file:line",
+        "violation"
+      ],
+      "expected_output_excludes": [
+        "I found some issues in general",
+        "no specific line numbers"
+      ]
+    },
+    {
+      "id": "ask-for-files-if-not-specified",
+      "description": "Verifies the skill asks which files to review if none are provided",
+      "input": "Review my UI for web design guidelines.",
+      "expected_output_contains": [
+        "which files",
+        "file",
+        "pattern"
+      ],
+      "expected_output_excludes": [
+        "reviewing all files",
+        "skipping file selection"
+      ]
+    }
+  ]
+}
