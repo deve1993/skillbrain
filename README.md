@@ -3,7 +3,7 @@
 > **Your AI coding assistant forgets everything when you close the session.**  
 > This fixes that — permanently.
 
-![Skills](https://img.shields.io/badge/skills-129-blue)
+![Skills](https://img.shields.io/badge/skills-300+-blue)
 ![Learnings](https://img.shields.io/badge/learnings-self--improving-green)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-blueviolet)
 ![OpenCode](https://img.shields.io/badge/OpenCode-compatible-blueviolet)
@@ -208,6 +208,40 @@ This captures what was learned and sets the flywheel in motion.
 | `receiving-code-review` | Quality | Code review response protocol |
 | `finishing-a-development-branch` | Quality | Branch completion workflow |
 | `using-git-worktrees` | Quality | Isolated git worktrees |
+
+### Domain Skills (120 in `.claude/skill/`)
+
+| Category | Skills |
+|----------|--------|
+| **Core** | nextjs, tailwind, shadcn, payload, i18n, seo |
+| **Backend & API** | trpc, graphql (via graphql-architect), auth, forms, database |
+| **Real-time** | realtime (SSE, Socket.io, Pusher, Supabase RT) |
+| **Background Jobs** | background-jobs (BullMQ, Inngest, Trigger.dev, QStash) |
+| **Monitoring** | monitoring-nextjs (Sentry, Pino, OpenTelemetry), analytics |
+| **Security** | security-headers (CSP, CORS, rate limiting, OWASP), auth |
+| **CI/CD** | ci-cd (GitHub Actions, Docker, Changesets, Turborepo) |
+| **Performance** | performance (bundle, CWV, Lighthouse CI, caching) |
+| **PWA** | pwa (service workers, push notifications, offline) |
+| **Files** | file-handling (S3/R2, PDF gen, CSV/Excel, streaming) |
+| **Payments** | payments (Stripe, LemonSqueezy) |
+| **CMS** | payload, cms (Sanity, Strapi, Contentful) |
+| **Deploy** | coolify, docker |
+| **SEO** | 15+ skills (audit, technical, content, schema, geo, hreflang...) |
+| **Marketing** | 20+ skills (CRO, copy, ads, email, analytics, A/B testing...) |
+| **Legal** | gdpr, iubenda, legal-templates |
+| **Video** | remotion, ffmpeg |
+| **Frameworks** | astro, nuxt, sveltekit |
+
+### External Skills (from skills.sh)
+
+| Source | Count | Highlights |
+|--------|-------|-----------|
+| wshobson/agents | 149 | api-designer, graphql-architect, postgres-pro, typescript-pro, secure-code-guardian, monitoring-expert, sre-engineer, rag-architect, microservices-architect |
+| expo/skills | 12 | building-native-ui, expo-cicd-workflows, expo-api-routes, expo-deployment |
+| callstackincubator | 4 | react-native-best-practices, github-actions |
+| jeffallan/claude-skills | ~20 | devops-engineer, terraform-engineer, kubernetes-specialist, websocket-engineer |
+| redis/agent-skills | 1 | redis-development (data structures, caching, vector search) |
+| vercel/ai | 1 | ai-sdk (generateText, streamText, tool calling, useChat) |
 
 ---
 
