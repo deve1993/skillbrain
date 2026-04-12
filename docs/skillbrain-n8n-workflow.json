@@ -36,7 +36,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/sendMessage",
+        "url": "https://api.telegram.org/bot{{YOUR_TELEGRAM_BOT_TOKEN}}/sendMessage",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -87,7 +87,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/sendMessage",
+        "url": "https://api.telegram.org/bot{{YOUR_TELEGRAM_BOT_TOKEN}}/sendMessage",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
