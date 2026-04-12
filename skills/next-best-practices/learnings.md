@@ -65,4 +65,44 @@ superseded_by: null
 reinforces: []
 contradicts: []
 
+## Learning L-next-004
+id: "L-next-004"
+date: "2026-04-12"
+type: "bug-fix"
+status: "active"
+project: "global"
+scope: "global"
+tags: [next.js, server-actions, cookies, auth, app-router]
+confidence: 3
+context: "In Next.js 15 App Router, when calling a Server Action that reads cookies or auth session from a Client Component"
+problem: "Server Action returns null or unauthenticated result even when user is logged in"
+solution: "Use the direct action function reference (imported function) rather than a manual fetch call. Direct references automatically handle cookie forwarding. If using fetch, add 'credentials: include'."
+reason: "Next.js Server Actions via direct function reference automatically handle cookie forwarding. Manual fetch to the action endpoint bypasses this mechanism"
+validated_by: ["cold-start-2026-04-12"]
+created_in: "cold-start-2026-04-12"
+supersedes: null
+superseded_by: null
+reinforces: []
+contradicts: []
+
+## Learning L-next-005
+id: "L-next-005"
+date: "2026-04-12"
+type: "pattern"
+status: "active"
+project: "global"
+scope: "global"
+tags: [next.js, image, optimization, webp, core-web-vitals, lcp, cls]
+confidence: 3
+context: "In Next.js 15 projects with many images, when optimizing for Core Web Vitals"
+problem: "Images cause layout shift (CLS) or are slow to load (LCP) even with next/image"
+solution: "1) Always set explicit width+height on non-fill images. 2) Add priority={true} on FIRST visible image only. 3) fill images: parent must have position:relative and explicit height. 4) Use sizes prop: 'sizes=(max-width: 768px) 100vw, 50vw'. 5) Use WebP at source."
+reason: "next/image needs explicit dimensions to reserve space (CLS prevention). priority adds preload. fill requires a sized parent to calculate dimensions"
+validated_by: ["cold-start-2026-04-12"]
+created_in: "cold-start-2026-04-12"
+supersedes: null
+superseded_by: null
+reinforces: []
+contradicts: []
+
 <!-- LEARNINGS END -->

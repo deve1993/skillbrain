@@ -45,4 +45,44 @@ superseded_by: null
 reinforces: []
 contradicts: []
 
+## Learning L-debug-003
+id: "L-debug-003"
+date: "2026-04-12"
+type: "pattern"
+status: "active"
+project: "global"
+scope: "global"
+tags: [next.js, hydration, server-components, client-components, debugging]
+confidence: 3
+context: "In Next.js 15 App Router, when a component renders differently on server vs client"
+problem: "Hydration mismatch error: 'Warning: Prop X did not match. Server: Y Client: Z' — often happens with dates, Math.random(), localStorage reads, or window checks"
+solution: "1) For dates: normalize to UTC before rendering. 2) For random values: use a stable seed or move to useEffect. 3) For browser APIs (localStorage, window): wrap in useEffect(() => {...}, []) or use a 'mounted' state guard. 4) Add suppressHydrationWarning only as absolute last resort."
+reason: "React hydration requires server HTML to exactly match the first client render. Any non-deterministic or browser-only value breaks this contract and causes full re-render or warnings"
+validated_by: ["cold-start-2026-04-12"]
+created_in: "cold-start-2026-04-12"
+supersedes: null
+superseded_by: null
+reinforces: []
+contradicts: []
+
+## Learning L-debug-004
+id: "L-debug-004"
+date: "2026-04-12"
+type: "bug-fix"
+status: "active"
+project: "global"
+scope: "global"
+tags: [payload-cms, collections, access-control, tenancy]
+confidence: 3
+context: "In Payload CMS 3.0 multi-tenant setup, when a collection is created without explicit access control"
+problem: "New collection items created by any tenant are visible to all tenants. No data isolation."
+solution: "Every collection in multi-tenant Payload MUST have access control functions: read: ({req}) => ({ where: { tenant: { equals: req.user?.tenant?.id } } }), create: ({req}) => !!req.user, update/delete with same tenant check. Never skip access control for 'simple' collections."
+reason: "Payload's default access is fully permissive (everyone can read/write). In multi-tenant setups this leaks data across tenants silently — no error, just wrong data"
+validated_by: ["cold-start-2026-04-12"]
+created_in: "cold-start-2026-04-12"
+supersedes: null
+superseded_by: null
+reinforces: []
+contradicts: []
+
 <!-- LEARNINGS END -->
