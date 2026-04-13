@@ -111,7 +111,7 @@ Append new items to `.agents/skills/pending-review.md` using this format:
 ### Phase 7 — Re-index skills with embeddings
 
 ```bash
-gitnexus analyze "/Users/dan/Desktop/progetti-web/Fullstack session/.agents/skills" --skip-git 2>&1 | tail -3
+node "/Users/dan/Desktop/progetti-web/Fullstack session/packages/codegraph/dist/cli.js" analyze "/Users/dan/Desktop/progetti-web/Fullstack session/.agents/skills" --skip-git 2>&1 | tail -3
 ```
 
 This updates the structural index. Embeddings load automatically at query-time.

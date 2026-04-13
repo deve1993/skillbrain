@@ -2,9 +2,9 @@
 name: load-learnings
 description: >
   Loads the most relevant learnings at session start using semantic search
-  via GitNexus embeddings. Hard cap of 15 learnings to protect context window.
-  Called automatically by gitnexus-context after loading the knowledge graph.
-  Do not invoke manually — gitnexus-context handles this.
+  via CodeGraph. Hard cap of 15 learnings to protect context window.
+  Called automatically by codegraph-context after loading the knowledge graph.
+  Do not invoke manually — codegraph-context handles this.
 version: 1.0.0
 user-invocable: false
 ---
@@ -18,13 +18,13 @@ user-invocable: false
 ### Step 1 — Semantic query (dual-source)
 
 Skills live in **two locations**:
-- `.agents/skills/` — lifecycle, process, quality skills (indexed as `skills` in GitNexus)
+- `.agents/skills/` — lifecycle, process, quality skills (indexed as `skills` in CodeGraph)
 - `.opencode/skill/` — SEO, payments, auth, marketing, CMS, etc. (OpenCode plugin skills)
 
-**Source A — GitNexus semantic search** (`.agents/skills/`):
+**Source A — CodeGraph semantic search** (`.agents/skills/`):
 
 ```
-gitnexus_query(
+codegraph_query(
   query: "{current task description in natural language}",
   repo: "skills",
   limit: 20

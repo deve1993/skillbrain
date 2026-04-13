@@ -1,22 +1,22 @@
 ---
-name: gitnexus-context
+name: codegraph-context
 description: >
   Use at the START of any coding session or before touching code in a project.
   Triggers on: "lavora su X", "modifica X", "aggiungi feature a X", "fix in X",
   any request that implies working inside a specific project folder.
-  Ensures the GitNexus knowledge graph is indexed and fresh before writing a single line of code.
+  Ensures the CodeGraph index is fresh before writing a single line of code.
   Without this, you are working blind — no impact analysis, no call graph, no blast radius.
-version: 1.0.0
+version: 2.0.0
 user-invocable: true
 argument-hint: "percorso o nome del progetto su cui lavorare"
-allowed-tools: ["bash", "gitnexus_list_repos", "gitnexus_query", "gitnexus_context", "gitnexus_impact"]
+allowed-tools: ["bash", "codegraph_list_repos", "codegraph_query", "codegraph_context", "codegraph_impact"]
 ---
 
-# GitNexus Context — Carica il cervello prima di lavorare
+# CodeGraph Context — Carica il cervello prima di lavorare
 
 ## Perché questa skill esiste
 
-Lavorare su codice senza il grafo GitNexus è come operare bendati.
+Lavorare su codice senza il grafo CodeGraph è come operare bendati.
 Ogni modifica potrebbe rompere 10 altre cose che non conosco.
 
 Con il grafo attivo posso:
@@ -39,21 +39,17 @@ Se l'utente dice un nome ("lavora su Quickfy") cerca il percorso nei repo già i
 
 ```bash
 # Controlla quali repo sono già indicizzati
-curl -s http://localhost:4747/api/repos 2>/dev/null
+node packages/codegraph/dist/cli.js list
 # oppure usa il tool MCP
-# gitnexus_list_repos()
+# codegraph_list_repos()
 ```
-
-Se il server non risponde → il processo `gitnexus serve` non è attivo.
-In quel caso avvisa l'utente: **"Avvia `gitnexus serve` in un terminale separato per abilitare la web UI."**
-Il MCP funziona comunque — continua.
 
 ---
 
 ### Step 2 — Controlla se il repo è indicizzato
 
 ```bash
-gitnexus list 2>&1
+node packages/codegraph/dist/cli.js list 2>&1
 ```
 
 **Caso A — Repo già indicizzato:** vai allo Step 3.
@@ -62,10 +58,10 @@ gitnexus list 2>&1
 
 ```bash
 # Se è un repo git:
-gitnexus analyze /percorso/progetto
+node packages/codegraph/dist/cli.js analyze /percorso/progetto
 
 # Se NON è un repo git (no .git directory):
-gitnexus analyze /percorso/progetto --skip-git
+node packages/codegraph/dist/cli.js analyze /percorso/progetto --skip-git
 ```
 
 Attendi il completamento. Output atteso:
@@ -80,16 +76,15 @@ NNN nodes | NNN edges | NN clusters | NN flows
 
 L'indice è "fresco" se corrisponde all'ultimo stato del codice.
 
-**Per repo git** — confronta il lastCommit nell'indice con HEAD:
+**Per repo git** — usa il comando status:
 
 ```bash
-cd /percorso/progetto && git rev-parse HEAD
-# confronta con "lastCommit" restituito da gitnexus_list_repos
+node packages/codegraph/dist/cli.js status /percorso/progetto
 ```
 
-Se i commit **non coincidono** → re-indicizza:
+Se l'indice è stale → re-indicizza:
 ```bash
-gitnexus analyze /percorso/progetto
+node packages/codegraph/dist/cli.js analyze /percorso/progetto
 ```
 
 **Per repo senza git** — controlla se ci sono file modificati di recente rispetto alla data di indicizzazione:
@@ -107,7 +102,7 @@ find /percorso/progetto -name "*.ts" -o -name "*.js" -o -name "*.py" | \
 Con il repo indicizzato e fresco, esegui una query iniziale per orientarti:
 
 ```
-gitnexus_query(
+codegraph_query(
   query: "main entry point architecture overview",
   repo: "nome-repo",
   limit: 5
@@ -138,7 +133,7 @@ Without this step, past mistakes and patterns are invisible — the whole memory
 Comunica all'utente:
 
 ```
-✅ Contesto GitNexus caricato per [nome-repo]
+✅ Contesto CodeGraph caricato per [nome-repo]
    📊 NNN nodi | NNN relazioni | NN flussi
    🕐 Indice aggiornato al: [data]
    
@@ -168,19 +163,22 @@ Non serve re-indicizzare ad ogni modifica. Re-indicizza quando:
 
 ```bash
 # Lista repo indicizzati
-gitnexus list
+node packages/codegraph/dist/cli.js list
 
 # Indicizza (git repo)
-gitnexus analyze /percorso
+node packages/codegraph/dist/cli.js analyze /percorso
 
 # Indicizza (non-git)
-gitnexus analyze /percorso --skip-git
+node packages/codegraph/dist/cli.js analyze /percorso --skip-git
+
+# Indicizza forzato (full re-index)
+node packages/codegraph/dist/cli.js analyze /percorso --force
 
 # Verifica stato indice
-gitnexus status
+node packages/codegraph/dist/cli.js status /percorso
 
-# Avvia server per web UI (se non attivo)
-gitnexus serve
+# Avvia MCP server
+node packages/codegraph/dist/cli.js mcp
 ```
 
 ---
@@ -191,7 +189,7 @@ gitnexus serve
 |---------|--------|
 | "È una modifica piccola, non serve il grafo" | Le modifiche piccole rompono sistemi grandi. Controlla sempre. |
 | "Conosco già questo codice" | Il codice cambia. L'indice riflette la realtà attuale. |
-| "Il grafo rallenta tutto" | L'indicizzazione dura 3-10 secondi. Un bug da impact analysis evitato vale ore. |
+| "Il grafo rallenta tutto" | L'indicizzazione dura ~1 secondo. Un bug da impact analysis evitato vale ore. |
 | "Lo faccio dopo" | Farlo dopo significa che ho già scritto codice alla cieca. |
 
 ---
@@ -201,4 +199,4 @@ gitnexus serve
 - **Prima di** `systematic-debugging` → carica il grafo per tracciare il root cause
 - **Prima di** `writing-plans` → carica il grafo per un piano accurato
 - **Durante** `subagent-driven-development` → ogni subagent deve avere il nome del repo
-- **Prima di** qualsiasi refactoring → usa `gitnexus_impact` per il blast radius
+- **Prima di** qualsiasi refactoring → usa `codegraph_impact` per il blast radius

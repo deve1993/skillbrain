@@ -161,7 +161,7 @@ When running as a subagent, writes to `.agents/skills/_pending/learning-{date}-{
 
 Loads the most relevant learnings for the current session.
 
-**Invocation:** called automatically by `gitnexus-context` — not user-invocable
+**Invocation:** called automatically by `codegraph-context` — not user-invocable
 
 **Hard cap:** 15 learnings maximum per session
 
@@ -216,7 +216,7 @@ Mandatory end-of-session audit. Triggered by session-ending phrases.
 | 4. Version check | Flags version-sensitive learnings | ~30 sec |
 | 5. Promotion scan | Identifies global promotion candidates | ~30 sec |
 | 6. Update review queue | Appends to `pending-review.md` | ~30 sec |
-| 7. Re-index | Runs `gitnexus analyze .agents/skills --skip-git` | ~3 sec |
+| 7. Re-index | Runs `codegraph analyze .agents/skills --skip-git` | ~3 sec |
 
 **Output:**
 ```
@@ -231,7 +231,7 @@ Mandatory end-of-session audit. Triggered by session-ending phrases.
 
 ---
 
-### `gitnexus-context`
+### `codegraph-context`
 
 Loads the code knowledge graph for a project and then calls `load-learnings`.
 
@@ -239,9 +239,9 @@ Loads the code knowledge graph for a project and then calls `load-learnings`.
 
 **Steps:**
 1. Identify project path
-2. Check if indexed (`gitnexus list`)
-3. If not indexed → `gitnexus analyze /path --skip-git`
-4. Verify freshness (compare `lastCommit` vs `git rev-parse HEAD`)
+2. Check if indexed (`codegraph list`)
+3. If not indexed → `codegraph analyze /path --skip-git`
+4. Verify freshness (`codegraph status /path`)
 5. If stale → re-analyze
 6. Run initial graph query for orientation
 7. **Call `load-learnings`** with project + task context
@@ -249,7 +249,7 @@ Loads the code knowledge graph for a project and then calls `load-learnings`.
 
 **Output:**
 ```
-✅ Contesto GitNexus caricato per Quickfy-website
+✅ Contesto CodeGraph caricato per Quickfy-website
    📊 711 nodi | 1275 relazioni | 41 flussi
    🕐 Indice aggiornato al: 2025-01-20
    📚 12 learnings caricati
@@ -358,20 +358,20 @@ contradicts: []
 
 ---
 
-## GitNexus Integration
+## CodeGraph Integration
 
-The skills folder is indexed as a GitNexus repo named `skills`:
+The skills folder is indexed as a CodeGraph repo named `skills`:
 
 ```bash
-gitnexus analyze .agents/skills --skip-git
+node packages/codegraph/dist/cli.js analyze .agents/skills --skip-git
 ```
 
-This creates a structural knowledge graph of all skills and learnings (1,674+ nodes).
+This creates a structural knowledge graph of all skills and learnings (1,674+ nodes), stored in SQLite with FTS5 search.
 
 ### Query the skills graph
 
 ```
-gitnexus_query(
+codegraph_query(
   query: "next-intl middleware routing pattern",
   repo: "skills",
   limit: 10
@@ -380,26 +380,15 @@ gitnexus_query(
 
 Returns learnings and skill files semantically related to the query.
 
-### Note on `--embeddings` flag
-
-The `--embeddings` flag crashes during `analyze` on macOS (known GitNexus bug — threading issue in native binary). **Do not use it.** Embeddings load automatically at query time:
-
-```
-GitNexus: Loading embedding model (first search may take a moment)...
-GitNexus: Embedding model loaded (cpu)
-```
-
-Semantic search works correctly without `--embeddings` during indexing.
-
 ---
 
 ## Environment
 
 | Component | Requirement |
 |-----------|------------|
-| GitNexus CLI | `npm install -g gitnexus` |
+| CodeGraph | Built-in (`node packages/codegraph/dist/cli.js`) |
 | Claude Code | Latest version |
-| Node.js | ≥ 18 |
+| Node.js | >= 18 |
 | Git | For project indexing (not required for skills folder) |
 
 ---

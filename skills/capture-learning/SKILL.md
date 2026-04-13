@@ -30,7 +30,7 @@ Do NOT invoke for: typos, missing imports, obvious variable errors, one-off conf
 |--------|--------|
 | Debugging, error fixing | `systematic-debugging/learnings.md` |
 | Next.js, React, App Router | `next-best-practices/learnings.md` |
-| GitNexus usage | `gitnexus-context/learnings.md` |
+| CodeGraph usage | `codegraph-context/learnings.md` |
 | UI, components, styling | `frontend-design/learnings.md` |
 | Session/workflow patterns | `verification-before-completion/learnings.md` |
 | Vercel, React performance | `vercel-react-best-practices/learnings.md` |
@@ -108,7 +108,7 @@ Append the learning between `<!-- LEARNINGS START -->` and `<!-- LEARNINGS END -
 ### Step 6 — Re-index skills with embeddings
 
 ```bash
-gitnexus analyze "/Users/dan/Desktop/progetti-web/Fullstack session/.agents/skills" --skip-git 2>&1 | tail -3
+node "/Users/dan/Desktop/progetti-web/Fullstack session/packages/codegraph/dist/cli.js" analyze "/Users/dan/Desktop/progetti-web/Fullstack session/.agents/skills" --skip-git 2>&1 | tail -3
 ```
 
 This updates the structural index. Semantic search works at query-time via the embedding model (loaded automatically on first query).

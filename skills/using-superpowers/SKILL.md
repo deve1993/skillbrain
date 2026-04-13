@@ -76,7 +76,7 @@ These thoughts mean STOP—you're rationalizing:
 
 ## Session Start Protocol
 
-**When any message implies working on a specific project or codebase**, invoke `gitnexus-context` BEFORE anything else — before reading files, before exploring, before planning.
+**When any message implies working on a specific project or codebase**, invoke `codegraph-context` BEFORE anything else — before reading files, before exploring, before planning.
 
 Triggers (invoke immediately, no exceptions):
 - "lavora su X" / "work on X"
@@ -85,7 +85,7 @@ Triggers (invoke immediately, no exceptions):
 - Any coding request where the target project is clear
 
 ```
-User names a project → gitnexus-context FIRST → then other skills → then work
+User names a project → codegraph-context FIRST → then other skills → then work
 ```
 
 **Why this is non-negotiable:** without the knowledge graph, every code change is a guess. The graph loads in seconds. Skipping it costs hours.
@@ -94,12 +94,12 @@ User names a project → gitnexus-context FIRST → then other skills → then w
 
 When multiple skills could apply, use this order:
 
-1. **Context first** (gitnexus-context) - load the knowledge graph before touching code
+1. **Context first** (codegraph-context) - load the knowledge graph before touching code
 2. **Process skills second** (brainstorming, debugging) - these determine HOW to approach the task
 3. **Implementation skills third** (frontend-design, mcp-builder) - these guide execution
 
-"Let's build X" → gitnexus-context, then brainstorming, then implementation skills.
-"Fix this bug" → gitnexus-context, then debugging, then domain-specific skills.
+"Let's build X" → codegraph-context, then brainstorming, then implementation skills.
+"Fix this bug" → codegraph-context, then debugging, then domain-specific skills.
 
 ## Session End Protocol
 

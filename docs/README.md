@@ -26,7 +26,7 @@ This is not a Claude problem. It's an architecture problem. And it's solvable.
 **Claude Persistent Skills System** is a structured, self-improving knowledge layer that sits between you and your AI assistant. It gives the AI:
 
 - **Persistent memory** — learnings captured from every session, never lost
-- **Project intelligence** — code knowledge graphs via [GitNexus](https://github.com/abhigyanpatwari/GitNexus) indexed before every session
+- **Project intelligence** — code knowledge graphs via CodeGraph indexed before every session
 - **Anti-poisoning** — a confidence scoring system that prevents bad learnings from propagating
 - **Human-in-the-loop** — you approve promotions from project-specific to global knowledge
 - **Semantic retrieval** — loads the 15 most relevant learnings per session, not all of them
@@ -40,8 +40,8 @@ The result: each session is smarter than the last. Mistakes made once are never 
 ```mermaid
 graph TD
     subgraph Session Start
-        A[User names a project] --> B[gitnexus-context]
-        B --> C[Index repo in GitNexus]
+        A[User names a project] --> B[codegraph-context]
+        B --> C[Index repo in CodeGraph]
         C --> D[load-learnings]
         D --> E[Semantic query: top 15 relevant learnings]
         E --> F[AI starts with full context]
@@ -100,7 +100,7 @@ Not used in 30 sessions → deprecated
     │   └── SKILL.md
     ├── load-learnings/                 # Retrieval with hard cap
     │   └── SKILL.md
-    ├── gitnexus-context/               # Loads code graph + learnings
+    ├── codegraph-context/               # Loads code graph + learnings
     │   ├── SKILL.md
     │   └── learnings.md
     │
@@ -124,10 +124,11 @@ Each skill owns its learnings. The system is modular — add your own skills and
 ### Prerequisites
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or compatible agent (OpenCode, Cursor with MCP)
-- [GitNexus CLI](https://github.com/abhigyanpatwari/GitNexus) installed globally
+- CodeGraph (built-in, no external install needed)
 
 ```bash
-npm install -g gitnexus
+# CodeGraph is included in the project — build it once:
+cd packages/codegraph && npm run build
 ```
 
 ### Installation
@@ -142,7 +143,7 @@ cd skillbrain
 **2. Index the skills folder**
 
 ```bash
-gitnexus analyze .agents/skills --skip-git
+node packages/codegraph/dist/cli.js analyze .agents/skills --skip-git
 ```
 
 **3. Add to your Claude Code config**
@@ -161,7 +162,7 @@ Skills directory: .agents/skills/
 "Work on [your project]"
 ```
 
-The `gitnexus-context` skill triggers automatically, loads your code graph, and pulls the relevant learnings.
+The `codegraph-context` skill triggers automatically, loads your code graph, and pulls the relevant learnings.
 
 ### First Session
 
@@ -179,7 +180,7 @@ This captures what was learned and sets the flywheel in motion.
 
 | Skill | Type | Purpose |
 |-------|------|---------|
-| `gitnexus-context` | Lifecycle | Loads code graph + learnings at session start |
+| `codegraph-context` | Lifecycle | Loads code graph + learnings at session start |
 | `load-learnings` | Lifecycle | Retrieves top 15 relevant learnings |
 | `capture-learning` | Lifecycle | Writes validated learnings with schema enforcement |
 | `post-session-review` | Lifecycle | End-of-session audit, decay, re-index |
@@ -323,10 +324,10 @@ created_in: "manual-seed-YYYY-MM-DD"
 
 ```bash
 # Git repo
-gitnexus analyze /path/to/project
+node packages/codegraph/dist/cli.js analyze /path/to/project
 
 # Non-git folder
-gitnexus analyze /path/to/project --skip-git
+node packages/codegraph/dist/cli.js analyze /path/to/project --skip-git
 ```
 
 Then start a session and say "work on [project-name]".
@@ -336,19 +337,16 @@ Then start a session and say "work on [project-name]".
 ## FAQ
 
 **Q: Does this work with Cursor / Windsurf / OpenCode?**  
-A: Yes, any agent that supports MCP and skill/rules files. GitNexus MCP works with all major editors.
+A: Yes, any agent that supports MCP and skill/rules files. CodeGraph MCP works with all major editors.
 
 **Q: Will it work on Windows?**  
-A: The skill system works anywhere. GitNexus currently has best support on macOS/Linux.
-
-**Q: Does `--embeddings` work on macOS?**  
-A: The `--embeddings` flag during `analyze` crashes on macOS (threading bug in the native binary). Omit it — embeddings load automatically at query time and work correctly.
+A: The skill system works anywhere. CodeGraph works on macOS, Linux, and Windows (anywhere Node.js runs).
 
 **Q: How long until I see value?**  
 A: Sessions 1–2 are setup. Sessions 3–5 break even. From session 6+ you consistently save tokens and avoid repeated mistakes.
 
 **Q: Can I use this with multiple projects?**  
-A: Yes. GitNexus supports multiple indexed repos. The `scope: project-specific` field in learnings ensures project patterns don't bleed globally.
+A: Yes. CodeGraph supports multiple indexed repos. The `scope: project-specific` field in learnings ensures project patterns don't bleed globally.
 
 ---
 
@@ -382,4 +380,4 @@ MIT — use freely, attribute if you build on it.
 
 ---
 
-*Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + [GitNexus](https://github.com/abhigyanpatwari/GitNexus)*
+*Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + CodeGraph*
