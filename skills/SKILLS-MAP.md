@@ -12,12 +12,12 @@
 ```mermaid
 graph TD
     subgraph Lifecycle
-        US[using-superpowers] -->|session start| GC[gitnexus-context]
+        US[using-superpowers] -->|session start| GC[codegraph-context]
         GC -->|calls| LL[load-learnings]
         US -->|session end| PSR[post-session-review]
         PSR -->|calls| CL[capture-learning]
         PSR -->|updates| PR[pending-review.md]
-        PSR -->|re-indexes| EMB[GitNexus Embeddings]
+        PSR -->|re-indexes| EMB[CodeGraph Index]
         CL -->|validates against| SCH[_schema/]
         CL -->|writes to| LRN[(learnings.md)]
         LL -->|semantic query| EMB
@@ -73,7 +73,7 @@ graph TD
 | Skill | Type | Learnings | Confidence avg |
 |-------|------|-----------|---------------|
 | using-superpowers | lifecycle | 0 | — |
-| gitnexus-context | lifecycle | 2 | 4.0 |
+| codegraph-context | lifecycle | 2 | 4.0 |
 | load-learnings | lifecycle | 0 | — |
 | capture-learning | lifecycle | 0 | — |
 | post-session-review | lifecycle | 0 | — |
