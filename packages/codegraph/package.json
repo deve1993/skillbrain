@@ -1,0 +1,40 @@
+{
+  "name": "codegraph",
+  "version": "0.1.0",
+  "description": "Code intelligence knowledge graph — AST parsing, impact analysis, semantic search, MCP server. Zero heavy dependencies.",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "codegraph": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "analyze": "node dist/cli.js analyze",
+    "mcp": "node dist/cli.js mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "better-sqlite3": "^11.8.1",
+    "commander": "^13.1.0",
+    "ignore": "^7.0.5",
+    "ts-morph": "^25.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  },
+  "author": "Daniel De Vecchi",
+  "license": "MIT"
+}

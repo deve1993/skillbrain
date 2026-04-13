@@ -5,6 +5,7 @@
 
 ![Skills](https://img.shields.io/badge/skills-300+-blue)
 ![Agents](https://img.shields.io/badge/agents-19-orange)
+![CodeGraph](https://img.shields.io/badge/CodeGraph-built--in-ff6b35)
 ![Learnings](https://img.shields.io/badge/learnings-self--improving-green)
 ![Automation](https://img.shields.io/badge/automation-6%20scripts-red)
 ![Telegram](https://img.shields.io/badge/Telegram-bot%20included-26A5E4)
@@ -18,13 +19,14 @@
 
 ## What Is SkillBrain?
 
-SkillBrain is a **self-improving AI coding workspace** with 5 integrated systems:
+SkillBrain is a **self-improving AI coding workspace** with 6 integrated systems:
 
 1. **300+ Skills** — domain knowledge (Next.js, Stripe, Sentry, tRPC, PWA, etc.) loaded on demand
 2. **Self-Improving Memory** — learnings captured, validated, and decayed automatically across sessions
 3. **19 Specialized Agents** — parallel multi-agent architecture for complex tasks
-4. **Quality Gates** — 6 automation scripts for security, env validation, deploy checks
-5. **Telegram Bot** — remote control your workspace from your phone
+4. **CodeGraph** — built-in code intelligence engine (AST parsing, impact analysis, semantic search) — zero external dependencies
+5. **Quality Gates** — 6 automation scripts for security, env validation, deploy checks
+6. **Telegram Bot** — remote control your workspace from your phone
 
 The result: each session is smarter than the last. Mistakes made once are never repeated.
 
@@ -39,8 +41,9 @@ The result: each session is smarter than the last. Mistakes made once are never 
 - [1. Skill System (300+)](#1-skill-system-300)
 - [2. Self-Improving Memory](#2-self-improving-memory)
 - [3. Multi-Agent Architecture](#3-multi-agent-architecture)
-- [4. Quality Gates & Automation](#4-quality-gates--automation)
-- [5. Telegram Bot](#5-telegram-bot)
+- [4. CodeGraph — Built-in Code Intelligence](#4-codegraph--built-in-code-intelligence)
+- [5. Quality Gates & Automation](#5-quality-gates--automation)
+- [6. Telegram Bot](#6-telegram-bot)
 - [Why This Architecture](#why-this-architecture)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -437,7 +440,78 @@ Every request is auto-classified before execution:
 
 ---
 
-## 4. Quality Gates & Automation
+## 4. CodeGraph — Built-in Code Intelligence
+
+CodeGraph is our own code intelligence engine, built from scratch with zero heavy dependencies. It replaces GitNexus with faster indexing, SQLite storage, and full MCP integration.
+
+### How It Works
+
+```
+codegraph analyze /path/to/repo
+  → walks files (respects .gitignore)
+  → parses AST with ts-morph (JS/TS/JSX/TSX)
+  → extracts symbols (functions, classes, methods, interfaces)
+  → builds call graph (including JSX component usage)
+  → resolves cross-file calls via import analysis
+  → detects communities (Louvain algorithm)
+  → detects execution flows (BFS from entry points)
+  → stores everything in SQLite with FTS5 search
+  → registers in global registry
+```
+
+### Performance
+
+| Metric | GitNexus | CodeGraph |
+|--------|----------|-----------|
+| Index time (115 files) | ~8s | **1.0s** |
+| Storage size | 38MB (binary) | **~2MB** (SQLite) |
+| Runtime dependencies | 20+ | **5** |
+| Native binaries | closed-source | open (better-sqlite3) |
+
+### CLI Commands
+
+```bash
+codegraph analyze [path]    # Index a repo (incremental by default)
+codegraph analyze --force   # Full re-index
+codegraph status [path]     # Check index freshness vs git HEAD
+codegraph list              # Show all indexed repos
+codegraph clean [path]      # Remove index
+codegraph mcp               # Start MCP server on stdio
+```
+
+### MCP Tools (7)
+
+Available to Claude Code / AI agents via MCP protocol:
+
+| Tool | Purpose |
+|------|---------|
+| `codegraph_list_repos` | List all indexed repositories |
+| `codegraph_query` | Semantic search by concept, symptom, or keyword (FTS5 + BM25) |
+| `codegraph_context` | 360-degree view: callers, callees, processes, community |
+| `codegraph_impact` | Blast radius at depth 1/2/3 with confidence scores and risk level |
+| `codegraph_detect_changes` | Map git diff to affected symbols and processes |
+| `codegraph_rename` | Graph-aware multi-file rename with dry-run preview |
+| `codegraph_cypher` | Raw SQL queries against the graph database |
+
+### MCP Resources (7)
+
+| Resource | Content |
+|----------|---------|
+| `codegraph://repos` | All indexed repositories |
+| `codegraph://repo/{name}/context` | Codebase overview + staleness check |
+| `codegraph://repo/{name}/clusters` | Functional areas (communities) |
+| `codegraph://repo/{name}/processes` | Execution flows |
+| `codegraph://repo/{name}/schema` | Graph schema + SQL query examples |
+| `codegraph://repo/{name}/cluster/{name}` | Members of a community |
+| `codegraph://repo/{name}/process/{name}` | Step-by-step trace of an execution flow |
+
+### Auto-Indexing
+
+A post-commit hook automatically re-indexes the repo after every git commit (runs in background, non-blocking).
+
+---
+
+## 5. Quality Gates & Automation
 
 ### Automation Scripts (`~/.config/skillbrain/hooks/`)
 
@@ -494,7 +568,7 @@ New projects auto-copy shared keys via `new-project.sh`.
 
 ---
 
-## 5. Telegram Bot
+## 6. Telegram Bot
 
 An always-on Telegram bot provides remote control of your workspace from your phone.
 
