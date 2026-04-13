@@ -342,6 +342,60 @@ Project-specific patterns should only become global after validation across mult
 
 ---
 
+## Quality Gates & Automation
+
+SkillBrain includes a full automation layer for code quality, security, and operations.
+
+### Automation Scripts (`~/.config/skillbrain/hooks/`)
+
+| Script | Purpose |
+|--------|---------|
+| `secrets-scan.sh` | Pre-commit scanner — detects 15+ patterns (Stripe, AWS, Telegram, GitHub, JWT, DB strings, private keys) |
+| `env-check.sh <path>` | Validates env vars against `.env.template` + auto-detects required vars from `package.json` dependencies |
+| `new-project.sh <path>` | Bootstraps `.env.local` with generated secrets (`AUTH_SECRET`, `PAYLOAD_SECRET`) + copies shared keys from master env |
+| `pre-deploy.sh <path>` | Full deploy checklist: git status, build, lint, types, tests, env, security scan, bundle size |
+| `dep-audit.sh <path>` | Dependency audit: vulnerabilities, outdated packages, heavy bundles with lighter alternatives |
+| `commit-msg-check.sh` | Conventional commit format enforcement (`feat:`, `fix:`, `chore:`, etc.) |
+
+### Master Environment File
+
+All shared API keys live in `~/.config/skillbrain/.env` (never committed). Organized by service: Telegram, Database, Supabase, Auth, Stripe, Resend, Sentry, Analytics, AI/LLM, Upstash, S3/R2, Cloudinary, Odoo, Coolify.
+
+New projects auto-copy shared keys via `new-project.sh`.
+
+### Enforced Rules (in AGENTS.md)
+
+**Security:** No hardcoded secrets, no `any`/`@ts-ignore`, input sanitization with Zod, CSP headers in production.
+
+**Quality:** Conventional commits, branch naming (`feat/`, `fix/`, `chore/`), no `console.log` in production, proper error handling (try/catch + log).
+
+**Performance:** Bundle budget < 300KB first-load JS, no barrel imports from heavy libs, dependency weight check before `pnpm add`.
+
+**Accessibility:** Semantic HTML, ARIA labels, focus management, WCAG AA contrast.
+
+**Deploy:** `pre-deploy.sh` mandatory, health checks (`/api/health` + `/api/ready`), source maps to Sentry only.
+
+### Telegram Bot
+
+An always-on Telegram bot provides remote control of the workspace from your phone:
+
+| Command | Action |
+|---------|--------|
+| `/status` | Workspace stats (skills, learnings, projects, disk space) |
+| `/projects` | List all projects with env status |
+| `/env <name>` | Check env vars for a project |
+| `/audit <name>` | Run dependency audit |
+| `/deploy <name>` | Run pre-deploy checklist |
+| `/secrets <name>` | Scan for exposed secrets |
+| `/learnings` | Show recent captured learnings |
+| `/skills` | Skill count by category |
+| `/ip` | Public and local IP |
+| `/uptime` | System uptime and running processes |
+
+The bot runs as a macOS LaunchAgent — starts on boot, auto-restarts on crash.
+
+---
+
 ## Extending the System
 
 ### Adding a new skill
