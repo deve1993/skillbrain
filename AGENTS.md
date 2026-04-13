@@ -585,10 +585,70 @@ Mappa di delegazione per l'orchestrator. Ogni agente ha un'invocazione ottimale 
 
 ## Environment Variables
 
-Vedi skill `pixarts/template-architecture` per il template `.env.local` completo. Variabili chiave: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `TENANT_SLUG`, `REVALIDATION_SECRET`.
+Master env: `~/.config/skillbrain/.env` — contiene tutte le API keys condivise tra progetti.
+
+Per ogni progetto:
+- `bash ~/.config/skillbrain/hooks/new-project.sh <path>` → genera `.env.local` con secrets + copia dal master
+- `bash ~/.config/skillbrain/hooks/env-check.sh <path>` → valida env var obbligatorie
+
+Variabili chiave: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `TENANT_SLUG`, `REVALIDATION_SECRET`.
 
 ---
 
-**Versione**: 2.3.0  
+## ⛔ REGOLA FERREA: Automation & Quality Gates
+
+### Scripts disponibili (`~/.config/skillbrain/hooks/`)
+
+| Script | Cosa fa | Quando usare |
+|--------|---------|--------------|
+| `secrets-scan.sh` | Scansiona per token/password/chiavi API nel codice | Prima di ogni commit |
+| `env-check.sh <path>` | Valida env var obbligatorie per il progetto | Inizio sessione / prima di build |
+| `new-project.sh <path>` | Bootstrap `.env.local` da master + genera secrets | Nuovo progetto |
+| `pre-deploy.sh <path>` | Checklist completa: build, lint, test, env, security, bundle | Prima di deploy |
+| `dep-audit.sh <path>` | Vulnerabilita, pacchetti outdated, bundle weight | Settimanale / on-demand |
+| `commit-msg-check.sh` | Valida formato conventional commits | Ogni commit |
+
+### Regole obbligatorie per Claude
+
+#### Sicurezza
+- **Mai hardcodare secrets** — sempre `process.env.VAR_NAME`, mai stringhe letterali per token/password/chiavi
+- **Mai committare .env** — solo `.env.template` (senza valori) va nel repo
+- **No `any`** — mai `as any`, `@ts-ignore`, `as unknown as X`. Usa type guard o generics
+- **Sanitize input** — Zod validation su ogni API boundary (route handler, server action)
+- **CSP headers** — ogni progetto in produzione deve avere Content-Security-Policy
+
+#### Qualita Codice
+- **Conventional commits** — `type(scope): description` (feat, fix, chore, refactor, perf, test, docs, build, ci)
+- **Branch naming** — `feat/slug`, `fix/slug`, `chore/slug`, `refactor/slug`
+- **No console.log in prod** — usa `logger` (Pino) per server-side, rimuovi console.log prima di merge
+- **Error handling** — mai swallow errors. API routes: try/catch + log + proper HTTP status. Server Actions: try/catch + return error
+- **Type-safe env** — usa Zod per validare `process.env` in `env.ts`, non accedere direttamente
+
+#### Performance
+- **Bundle budget** — first-load JS < 300KB per route. Se supera, segnala e suggerisci code splitting
+- **No barrel imports da librerie heavy** — import diretto: `import { X } from 'lib/X'` non `import { X } from 'lib'`
+- **Image optimization** — sempre `next/image` con `sizes` e `priority` su LCP
+- **Dependency check** — prima di `pnpm add`, controlla se esiste alternativa leggera:
+  - moment → dayjs/date-fns
+  - lodash → lodash-es/native
+  - axios → native fetch
+  - uuid → crypto.randomUUID()
+  - chalk → picocolors
+  - node-fetch → native fetch (Node 18+)
+
+#### Accessibilita
+- **Semantic HTML** — `button` per azioni, `a` per navigazione, `h1-h6` in ordine
+- **ARIA labels** — su tutti gli elementi interattivi senza testo visibile
+- **Focus management** — tab order logico, focus trap su modali, visible focus ring
+- **Color contrast** — WCAG AA minimo (4.5:1 testo, 3:1 large text)
+
+#### Deploy
+- **Sempre pre-deploy.sh** — prima di deploy a produzione: `bash ~/.config/skillbrain/hooks/pre-deploy.sh <path>`
+- **Health check** — ogni progetto deve avere `/api/health` e `/api/ready`
+- **Source maps** — upload a Sentry, non esporre pubblicamente
+
+---
+
+**Versione**: 2.4.0  
 **Ultimo aggiornamento**: Aprile 2026  
 **Registro completo**: `.Claude/SYSTEM.md`
