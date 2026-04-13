@@ -209,6 +209,65 @@ This captures what was learned and sets the flywheel in motion.
 | `finishing-a-development-branch` | Quality | Branch completion workflow |
 | `using-git-worktrees` | Quality | Isolated git worktrees |
 
+---
+
+## Multi-Agent Architecture
+
+SkillBrain uses a **2-tier agent system** with parallel dispatch for complex tasks.
+
+### Agent Hierarchy
+
+```
+@planner (Opus — deep reasoning)          @builder (Sonnet — fast execution)
+    │                                          │
+    ├── ux-designer                            ├── component-builder
+    ├── ui-designer                            ├── api-developer
+    ├── motion-designer                        ├── i18n-engineer
+    ├── growth-architect                       ├── test-engineer
+    ├── cro-designer                           ├── devops-engineer
+    ├── seo-specialist                         ├── payload-cms
+    └── saas-copywriter                        ├── n8n-workflow
+                                               ├── performance-engineer
+                                               └── security-auditor
+```
+
+### How Parallel Dispatch Works
+
+```
+User: "Build the landing page for Restaurant Da Mario"
+
+1. Smart Intake → classifies as NEW_SITE → collects brief
+2. @planner dispatches IN PARALLEL:
+   ├── Agent(ux-designer): wireframes + user flow
+   ├── Agent(growth-architect): funnel strategy
+   └── Agent(cro-designer): conversion patterns
+   → synthesizes into structured brief
+
+3. @builder dispatches IN PARALLEL (git worktree isolation):
+   ├── Agent(component-builder): Hero + Nav
+   ├── Agent(component-builder): Content sections
+   └── Agent(component-builder): Contact form + Footer
+   → review + merge
+
+4. Sequential: SEO → Tests → Deploy
+```
+
+### Task Routing
+
+| Task Type | Lead | Parallel Subagents |
+|-----------|------|--------------------|
+| New site / landing | @planner → @builder | ux + ui + growth → component-builder × 3 |
+| Marketing strategy | @planner | growth + cro + copywriter + seo |
+| UI component | @builder | component-builder (+ ui-designer if needed) |
+| Bug fix | @builder | direct (or systematic-debugging skill) |
+| Full audit | @builder | security + performance + seo in parallel |
+| CMS setup | @builder | payload-cms + api-developer |
+| Deploy | @builder | devops-engineer |
+
+### Isolation with Git Worktrees
+
+Each parallel agent works in an **isolated git worktree** — no merge conflicts, no stepping on each other's changes. After completion, work is reviewed and merged back.
+
 ### Domain Skills (120 in `.claude/skill/`)
 
 | Category | Skills |
