@@ -22,8 +22,14 @@ program
   .option('--skip-git', 'Index non-git folders')
   .option('--no-progress', 'Suppress progress output')
   .action(async (targetPath: string, options: any) => {
-    if (options.noProgress) setQuiet(true)
-    await analyzeCommand(targetPath, options)
+    try {
+      if (options.noProgress) setQuiet(true)
+      await analyzeCommand(targetPath, options)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[codegraph] Fatal: ${msg}`)
+      process.exit(1)
+    }
   })
 
 program
@@ -53,8 +59,14 @@ program
   .command('mcp')
   .description('Start MCP server on stdio')
   .action(async () => {
-    const { startMcpServer } = await import('./mcp/server.js')
-    await startMcpServer()
+    try {
+      const { startMcpServer } = await import('./mcp/server.js')
+      await startMcpServer()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[codegraph] Fatal: ${msg}`)
+      process.exit(1)
+    }
   })
 
 program.parse()

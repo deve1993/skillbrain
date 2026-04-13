@@ -48,7 +48,9 @@ export function previewRename(
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
+      regex.lastIndex = 0
       if (regex.test(line)) {
+        regex.lastIndex = 0
         const isGraphRef = callers.some((c) => c.filePath === relativePath) ||
                            symbol.filePath === relativePath
         edits.push({
@@ -59,7 +61,6 @@ export function previewRename(
           source: isGraphRef ? 'graph' : 'text_search',
         })
       }
-      regex.lastIndex = 0
     }
 
     if (edits.length > 0) {

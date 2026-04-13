@@ -32,12 +32,18 @@ export async function analyzeCommand(targetPath: string, options: AnalyzeOptions
 
   const headCommit = getHeadCommit(repoPath)
 
-  // Check if incremental update is possible
+  // Determine indexing mode:
+  //   force=true                        → full rebuild  (incremental=false)
+  //   no existing meta                  → first index   (incremental=false)
+  //   meta exists, same commit          → skip (return early)
+  //   meta exists, different commit     → incremental   (incremental=true)
+  //   headCommit is null (--skip-git)   → always full   (incremental=false)
   const existingMeta = loadMeta(repoPath)
-  const incremental = !options.force && existingMeta !== null && existingMeta.lastCommit !== headCommit
+  const canIncrement = !options.force && existingMeta !== null && headCommit !== null
+  const incremental = canIncrement && existingMeta!.lastCommit !== headCommit
 
-  if (!options.force && existingMeta && existingMeta.lastCommit === headCommit) {
-    success(`Index is up to date (${existingMeta.stats.nodes} nodes, commit ${headCommit?.slice(0, 7)})`)
+  if (canIncrement && existingMeta!.lastCommit === headCommit) {
+    success(`Index is up to date (${existingMeta!.stats.nodes} nodes, commit ${headCommit?.slice(0, 7)})`)
     return
   }
 

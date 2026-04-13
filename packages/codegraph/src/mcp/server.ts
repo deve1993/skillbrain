@@ -239,7 +239,15 @@ export async function startMcpServer(): Promise<void> {
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
       try {
-        const results = withStore(resolved.path, (store) => store.rawQuery(sql))
+        const results = withStore(resolved.path, (store) => {
+          // Enforce read-only mode to prevent DROP/DELETE/UPDATE via user queries
+          store.exec('PRAGMA query_only = ON')
+          try {
+            return store.rawQuery(sql)
+          } finally {
+            store.exec('PRAGMA query_only = OFF')
+          }
+        })
         return {
           content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
         }

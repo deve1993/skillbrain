@@ -11,7 +11,7 @@ export function detectProcesses(store: GraphStore): number {
 
   const processNodes: GraphNode[] = []
   const stepEdges: GraphEdge[] = []
-  const seen = new Set<string>()
+  const previousProcessSets: Set<string>[] = []
   let processCount = 0
 
   for (const entry of entryPoints) {
@@ -19,22 +19,19 @@ export function detectProcesses(store: GraphStore): number {
     const steps = bfsForward(store, entry.id, 15)
     if (steps.length < 2) continue // Need at least 2 steps for a process
 
-    // Deduplicate: skip if > 80% overlap with existing process
+    // Deduplicate: skip if > 80% overlap with any single existing process
     const stepIds = new Set(steps.map((s) => s.id))
     let overlaps = false
-    for (const existing of seen) {
-      // Simple overlap check
-      if (stepIds.has(existing)) {
-        const overlap = [...stepIds].filter((id) => seen.has(id)).length
-        if (overlap / steps.length > 0.8) {
-          overlaps = true
-          break
-        }
+    for (const prevSet of previousProcessSets) {
+      const overlap = [...stepIds].filter((id) => prevSet.has(id)).length
+      if (overlap / steps.length > 0.8) {
+        overlaps = true
+        break
       }
     }
     if (overlaps) continue
 
-    for (const s of steps) seen.add(s.id)
+    previousProcessSets.push(stepIds)
 
     // Create process node
     const processId = `process_${processCount}`

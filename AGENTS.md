@@ -134,8 +134,8 @@ Delega al workflow appropriato con il brief come contesto:
 - `COMPLIANCE` → workflow `/gdpr-audit` o `/generate-legal`
 - `CMS_MODULE` → workflow `/cms-module`
 - `AUTOMATION` → subagent n8n-workflow
-- `REFACTOR` → carica skill `gitnexus`, esegui impact analysis → poi procedi
-- `CODICE` → carica skill `gitnexus`, usa tool `gitnexus_query` / `gitnexus_context`
+- `REFACTOR` → carica skill `codegraph`, esegui impact analysis → poi procedi
+- `CODICE` → carica skill `codegraph`, usa tool `codegraph_query` / `codegraph_context`
 
 ### Esempi Input
 
@@ -268,11 +268,11 @@ memory_read_graph()                                # Vista completa knowledge ba
 
 ---
 
-## ⛔ REGOLA FERREA: Code Intelligence (GitNexus)
+## ⛔ REGOLA FERREA: Code Intelligence (CodeGraph)
 
 **Questa regola ha priorità MASSIMA per qualsiasi task che tocca codice esistente.**
 
-GitNexus indicizza il codebase in un knowledge graph (AST → dipendenze → flussi di esecuzione). I tool MCP sono disponibili in ogni sessione. **Usarli è obbligatorio prima di modificare codice esistente.**
+CodeGraph indicizza il codebase in un knowledge graph (AST → dipendenze → flussi di esecuzione). I tool MCP sono disponibili in ogni sessione. **Usarli è obbligatorio prima di modificare codice esistente.**
 
 ### Repo Indicizzate
 
@@ -290,18 +290,18 @@ GitNexus indicizza il codebase in un knowledge graph (AST → dipendenze → flu
 **Prima di QUALSIASI modifica a una funzione, classe o metodo esistente:**
 
 ```
-1. gitnexus_impact({target: "NomeSymbol", direction: "upstream", repo: "nome-repo"})
+1. codegraph_impact({target: "NomeSymbol", direction: "upstream", repo: "nome-repo"})
    → Controlla depth=1 (WILL BREAK) e depth=2 (LIKELY AFFECTED)
    → Se risk=HIGH o CRITICAL: avvisa l'utente prima di procedere
 
-2. gitnexus_context({name: "NomeSymbol", repo: "nome-repo"})
+2. codegraph_context({name: "NomeSymbol", repo: "nome-repo"})
    → Vista 360°: chi chiama, chi viene chiamato, in quali flussi partecipa
 ```
 
 **Prima di QUALSIASI commit:**
 
 ```
-gitnexus_detect_changes({scope: "all"})
+codegraph_detect_changes({scope: "all"})
 → Verifica che solo i file attesi siano cambiati
 → Riporta i processi impattati
 ```
@@ -309,21 +309,21 @@ gitnexus_detect_changes({scope: "all"})
 **Per debugging:**
 
 ```
-1. gitnexus_query({query: "sintomo o concetto", repo: "nome-repo"})
+1. codegraph_query({query: "sintomo o concetto", repo: "nome-repo"})
    → Trova flussi di esecuzione legati al problema (meglio del grep)
-2. gitnexus_context({name: "funzione sospetta"})
+2. codegraph_context({name: "funzione sospetta"})
    → Vedi tutti i caller e capisce da dove arriva il bug
-3. READ gitnexus://repo/{nome}/process/{processName}
+3. READ codegraph://repo/{nome}/process/{processName}
    → Traccia il flusso completo step by step
 ```
 
 **Per esplorare un'area sconosciuta:**
 
 ```
-READ gitnexus://repo/{nome}/clusters
+READ codegraph://repo/{nome}/clusters
 → Lista di tutte le aree funzionali rilevate (con cohesion score)
 
-READ gitnexus://repo/{nome}/cluster/{nomeCluster}
+READ codegraph://repo/{nome}/cluster/{nomeCluster}
 → File chiave, simboli, entry point dell'area
 ```
 
@@ -331,10 +331,10 @@ READ gitnexus://repo/{nome}/cluster/{nomeCluster}
 
 | Regola | Descrizione |
 |--------|-------------|
-| **R1** | MAI modificare una funzione/classe senza prima eseguire `gitnexus_impact` |
-| **R2** | MAI rinominare con find-and-replace → usare `gitnexus_rename` (capisce il call graph) |
+| **R1** | MAI modificare una funzione/classe senza prima eseguire `codegraph_impact` |
+| **R2** | MAI rinominare con find-and-replace → usare `codegraph_rename` (capisce il call graph) |
 | **R3** | MAI ignorare warning HIGH o CRITICAL da impact analysis |
-| **R4** | MAI fare commit senza `gitnexus_detect_changes` per verificare lo scope |
+| **R4** | MAI fare commit senza `codegraph_detect_changes` per verificare lo scope |
 | **R5** | SEMPRE specificare il parametro `repo` quando si lavora su più progetti |
 
 ### Aggiornare l'Indice
@@ -342,7 +342,7 @@ READ gitnexus://repo/{nome}/cluster/{nomeCluster}
 Dopo sessioni di lavoro intense (molti file modificati), rieseguire:
 
 ```bash
-gitnexus analyze   # dalla root del progetto
+codegraph analyze   # dalla root del progetto
 ```
 
 ---
@@ -431,7 +431,7 @@ Solo questi file possono stare nella ROOT:
 | `/check [target]` | Audit completo progetto/sistema (struttura, SEO, GDPR, i18n, TS, a11y, perf) | Verifica completezza |
 | `/new-project "Nome"` | Bootstrap automatico progetto client (Next.js + i18n + shadcn + Dockerfile) | Nuovo progetto da zero senza design |
 | `/update-project "Nome"` | Aggiorna progetto esistente: dipendenze, automation, build, check qualità | Aggiornare progetto già live |
-| `/system-sync` | Audit sistema: drift AGENTS.md↔opencode.json, gitnexus stale, skill inventory, memory report | Inizio settimana / dopo modifiche sistema |
+| `/system-sync` | Audit sistema: drift AGENTS.md↔opencode.json, codegraph stale, skill inventory, memory report | Inizio settimana / dopo modifiche sistema |
 
 ---
 
@@ -441,7 +441,7 @@ Le skill forniscono knowledge base specializzata. **Caricare SOLO quelle pertine
 
 | Area | Skills disponibili |
 |------|--------------------|
-| **Code Intelligence** | `gitnexus` — knowledge graph, blast radius, call chains |
+| **Code Intelligence** | `codegraph` — knowledge graph, blast radius, call chains |
 | **Framework** | `nextjs`, `astro`, `sveltekit`, `nuxt` |
 | **UI/Design** | `shadcn`, `tailwind`, `animations`, `motion-system`, `fonts` |
 | **CMS/DB** | `payload`, `database` |
@@ -485,7 +485,7 @@ Mappa di delegazione per l'orchestrator. Ogni agente ha un'invocazione ottimale 
 | Agente | `subagent_type` | `load_skills` | Quando |
 |--------|-----------------|---------------|--------|
 | @planner | `planner` | `["frontend-ui-ux", "landing-architecture"]` | Analisi, pianificazione, strategia, design UX/UI |
-| @builder | `builder` | `["frontend-ui-ux", "nextjs", "gitnexus"]` | Implementazione, bug fix, deploy, feature building |
+| @builder | `builder` | `["frontend-ui-ux", "nextjs", "codegraph"]` | Implementazione, bug fix, deploy, feature building |
 | @ux-designer | `ux-designer` | `["frontend-ui-ux"]` | User flows, wireframes, architettura info |
 | @ui-designer | `ui-designer` | `["frontend-ui-ux"]` | Visual design, color palette, typography |
 | @motion-designer | `motion-designer` | `["frontend-ui-ux"]` | Animazioni, transizioni, micro-interactions |
@@ -494,14 +494,14 @@ Mappa di delegazione per l'orchestrator. Ogni agente ha un'invocazione ottimale 
 | @component-builder | `component-builder` | `["frontend-ui-ux"]` | Componenti UI, shadcn/ui, Tailwind |
 | @api-developer | `api-developer` | `["cms-setup"]` | Backend, API, validazione, CMS integration |
 | @i18n-engineer | `i18n-engineer` | `["frontend-ui-ux"]` | Traduzioni IT/EN/CZ, localizzazione |
-| @test-engineer | `test-engineer` | `["playwright", "gitnexus"]` | Unit, E2E, visual regression, a11y test |
-| @code-reviewer | `code-reviewer` | `["gitnexus"]` | Code review approfondita |
+| @test-engineer | `test-engineer` | `["playwright", "codegraph"]` | Unit, E2E, visual regression, a11y test |
+| @code-reviewer | `code-reviewer` | `["codegraph"]` | Code review approfondita |
 | @documentation-writer | `documentation-writer` | `[]` | README, guide, docs tecniche |
 | @web-analyst | `web-analyst` | `["playwright", "dev-browser"]` | Scraping, reverse engineering, competitor, `/clone` pipeline |
 | @payload-cms | `payload-cms` | `["cms-setup"]` | Collections, access control, hooks, multi-tenancy |
 | @seo-specialist | `seo-specialist` | `[]` | Meta tags, schema.org, sitemap, keyword |
-| @performance-engineer | `performance-engineer` | `["frontend-ui-ux", "gitnexus"]` | Bundle size, CWV, lazy loading |
-| @security-auditor | `security-auditor` | `["gitnexus"]` | Headers, CSP, vulnerabilità, audit |
+| @performance-engineer | `performance-engineer` | `["frontend-ui-ux", "codegraph"]` | Bundle size, CWV, lazy loading |
+| @security-auditor | `security-auditor` | `["codegraph"]` | Headers, CSP, vulnerabilità, audit |
 | @devops-engineer | `devops-engineer` | `[]` | Docker, Coolify, CI/CD, monitoring |
 | @accessibility-specialist | `accessibility-specialist` | `["frontend-ui-ux"]` | WCAG 2.1, ARIA, screen reader |
 | @n8n-workflow | `n8n-workflow` | `["n8n"]` | Workflow automation, webhook, integrazioni, MCP tools |

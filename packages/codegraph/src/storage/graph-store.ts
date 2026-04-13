@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 import type { GraphNode, GraphEdge, FileRecord } from '../core/graph/types.js'
 import { randomId } from '../utils/hash.js'
+import { warn } from '../utils/logger.js'
 
 export class GraphStore {
   private stmts: ReturnType<typeof this.prepareStatements>
@@ -117,8 +118,9 @@ export class GraphStore {
         const searchText = expandForSearch(n.name, n.filePath)
         try {
           insertFts.run(n.id, n.name, n.filePath ?? null, searchText)
-        } catch {
-          // FTS insert can fail if rowid not found, ignore
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err)
+          warn(`FTS insert failed for node "${n.name}" (${n.id}): ${msg}`)
         }
       }
     })
@@ -216,6 +218,10 @@ export class GraphStore {
 
   rawQuery(sql: string): unknown[] {
     return this.db.prepare(sql).all()
+  }
+
+  exec(sql: string): void {
+    this.db.exec(sql)
   }
 
   private rowToNode(row: any): GraphNode {

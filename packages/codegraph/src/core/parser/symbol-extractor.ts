@@ -77,6 +77,7 @@ export function extractSymbols(sourceFile: SourceFile, relativePath: string): Gr
   // Interfaces
   for (const iface of sourceFile.getInterfaces()) {
     const name = iface.getName()
+    if (!name) continue
     nodes.push(interfaceNode(iface, name, relativePath))
   }
 

@@ -24,7 +24,7 @@ SkillBrain is a **self-improving AI coding workspace** with 6 integrated systems
 1. **300+ Skills** — domain knowledge (Next.js, Stripe, Sentry, tRPC, PWA, etc.) loaded on demand
 2. **Self-Improving Memory** — learnings captured, validated, and decayed automatically across sessions
 3. **19 Specialized Agents** — parallel multi-agent architecture for complex tasks
-4. **CodeGraph** — built-in code intelligence engine (AST parsing, impact analysis, semantic search) — zero external dependencies
+4. **CodeGraph** — built-in code intelligence engine (AST parsing, impact analysis, semantic search) -- zero external dependencies
 5. **Quality Gates** — 6 automation scripts for security, env validation, deploy checks
 6. **Telegram Bot** — remote control your workspace from your phone
 
@@ -63,8 +63,8 @@ This is not a Claude problem. It's an architecture problem. And it's solvable.
 ```mermaid
 graph TD
     subgraph Session Start
-        A[User names a project] --> B[gitnexus-context]
-        B --> C[Index repo in GitNexus]
+        A[User names a project] --> B[codegraph-context]
+        B --> C[Index repo in CodeGraph]
         C --> D[load-learnings]
         D --> E[Semantic query: top 15 relevant learnings]
         E --> F[AI starts with full context]
@@ -113,7 +113,7 @@ graph TD
   skill/INDEX.md                  → Full routing table
 
 .agents/skills/                   → 112 external/lifecycle skills
-  gitnexus-context/               →   Code intelligence (session start)
+  codegraph-context/               →   Code intelligence (session start)
   capture-learning/               →   Persist learnings (during session)
   post-session-review/            →   Audit + decay (session end)
   ai-sdk/                         →   Vercel AI SDK
@@ -149,10 +149,11 @@ Progetti/                         → Client project directories
 ### Prerequisites
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or compatible agent (OpenCode, Cursor with MCP)
-- [GitNexus CLI](https://github.com/abhigyanpatwari/GitNexus) installed globally
+- CodeGraph (built-in, no external install needed)
 
 ```bash
-npm install -g gitnexus
+# CodeGraph is included in the project — build it once:
+cd packages/codegraph && npm run build
 ```
 
 ### Installation
@@ -191,7 +192,7 @@ cp scripts/.env.template ~/.config/skillbrain/.env
 **4. Index and start**
 
 ```bash
-gitnexus analyze . --skip-git
+node packages/codegraph/dist/cli.js analyze . --skip-git
 ```
 
 Start a session and say: `"Work on [your project]"`
@@ -410,7 +411,7 @@ User: "Build the landing page for Restaurant Da Mario"
 | Full audit | @builder | security + performance + seo in parallel |
 | CMS setup | @builder | payload-cms + api-developer |
 | Deploy | @builder | devops-engineer |
-| Refactor | @builder | GitNexus impact analysis → component-builder |
+| Refactor | @builder | CodeGraph impact analysis → component-builder |
 
 ### Isolation with Git Worktrees
 
@@ -427,7 +428,7 @@ Every request is auto-classified before execution:
 | "fix", "bug", "errore" | FIX | Start directly (systematic-debugging if complex) |
 | "audit", "performance", "SEO" | AUDIT | Parallel agents |
 | "form" (any form) | FORM | **Stop and ask:** where to send data? (Odoo CRM / Payload / Email / Custom) |
-| "refactor" | REFACTOR | GitNexus impact analysis first |
+| "refactor" | REFACTOR | CodeGraph impact analysis first |
 
 ### Effort Levels
 
@@ -442,7 +443,7 @@ Every request is auto-classified before execution:
 
 ## 4. CodeGraph — Built-in Code Intelligence
 
-CodeGraph is our own code intelligence engine, built from scratch with zero heavy dependencies. It replaces GitNexus with faster indexing, SQLite storage, and full MCP integration.
+CodeGraph is our own code intelligence engine, built from scratch with zero heavy dependencies. Faster indexing, SQLite storage, and full MCP integration.
 
 ### How It Works
 
@@ -691,7 +692,7 @@ The system automatically creates `learnings.md` on next `post-session-review`.
 bash ~/.config/skillbrain/hooks/new-project.sh ./Progetti/new-project "ProjectName"
 
 # Index for code intelligence
-gitnexus analyze ./Progetti/new-project
+node packages/codegraph/dist/cli.js analyze ./Progetti/new-project
 ```
 
 ### Installing More Skills
@@ -716,7 +717,7 @@ A: The skill system works anywhere. LaunchAgents are macOS-specific (use systemd
 A: Sessions 1–2 are setup. Sessions 3–5 break even. From session 6+ you consistently save tokens and avoid repeated mistakes.
 
 **Q: Can I use this with multiple projects?**  
-A: Yes. GitNexus supports multiple indexed repos. The `scope` field in learnings prevents cross-project bleed.
+A: Yes. CodeGraph supports multiple indexed repos. The `scope` field in learnings prevents cross-project bleed.
 
 **Q: Can I use a different Telegram bot for notifications vs commands?**  
 A: Yes, but the default setup uses one bot for both. Configure in `~/.config/skillbrain/.env`.
@@ -764,4 +765,4 @@ MIT — use freely, attribute if you build on it.
 
 ---
 
-*Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + [GitNexus](https://github.com/abhigyanpatwari/GitNexus)*
+*Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + CodeGraph*

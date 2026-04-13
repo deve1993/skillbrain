@@ -18,7 +18,7 @@
   skill/INDEX.md             → full skill catalog with "when to load" routing table
 
 .agents/skills/              → 112 lifecycle/process/quality/external skills
-  gitnexus-context/          → code intelligence loader (session start)
+  codegraph-context/          → code intelligence loader (session start)
   capture-learning/          → persist learnings (during session)
   post-session-review/       → audit + decay + re-index (session end)
   load-learnings/            → semantic retrieval of top-15 learnings
@@ -26,7 +26,7 @@
   _pending/                  → subagent temp files for learning merge
   SKILLS-MAP.md              → visual ecosystem graph
 
-AGENTS.md                    → Smart Intake Protocol + Form Protocol + ESLint Protocol + GitNexus Protocol
+AGENTS.md                    → Smart Intake Protocol + Form Protocol + ESLint Protocol + CodeGraph Protocol
 Progetti/                    → client project directories
 ```
 
@@ -94,7 +94,7 @@ These are invocable directly: `brainstorming`, `systematic-debugging`, `writing-
 
 | When | Skill | Action |
 |------|-------|--------|
-| Session start on a project | `.agents/skills/gitnexus-context/SKILL.md` | Index repo + load top-15 learnings |
+| Session start on a project | `.agents/skills/codegraph-context/SKILL.md` | Index repo + load top-15 learnings |
 | Bug fixed non-obviously (2+ attempts) | `.agents/skills/capture-learning/SKILL.md` | Write validated learning |
 | User corrected my approach | `.agents/skills/capture-learning/SKILL.md` | Write preference/anti-pattern learning |
 | Pattern discovered | `.agents/skills/capture-learning/SKILL.md` | Write pattern learning |
@@ -113,7 +113,7 @@ These are invocable directly: `brainstorming`, `systematic-debugging`, `writing-
 | "fix", "bug", "errore" | FIX | Start directly (use `systematic-debugging` if complex) |
 | "audit", "performance", "SEO" | AUDIT | Start directly → `/audit` |
 | "nuovo cliente", "client" | CLIENT | Brief required → `/new-client` |
-| "refactor", "rinomina" | REFACTOR | GitNexus impact analysis first |
+| "refactor", "rinomina" | REFACTOR | CodeGraph impact analysis first |
 | "form" (any form) | **FORM PROTOCOL** | Ask where to send data before implementing |
 | "marketing", "conversione" | MARKETING | Brief required → `/marketing` |
 
@@ -136,12 +136,12 @@ On any ESLint/TypeScript error during build/lint/test:
 3. Never use `// eslint-disable`, `@ts-ignore`, `as any`
 4. Re-run the original command to verify
 
-### 3. GitNexus Code Intelligence
+### 3. CodeGraph Code Intelligence
 Before modifying any existing function/class/method:
-1. `gitnexus_impact({target: "symbolName", direction: "upstream"})` — check blast radius
-2. `gitnexus_context({name: "symbolName"})` — 360-degree view
+1. `codegraph_impact({target: "symbolName", direction: "upstream"})` — check blast radius
+2. `codegraph_context({name: "symbolName"})` — 360-degree view
 3. If risk = HIGH/CRITICAL → warn user before proceeding
-4. Before commit: `gitnexus_detect_changes()` to verify scope
+4. Before commit: `codegraph_detect_changes()` to verify scope
 
 ### 4. Directory Rule
 Client projects go in `Progetti/<slug-cliente>/`. Never create project files in the workspace root.
@@ -225,7 +225,7 @@ Learnings have confidence scores (1-10). Trust high-confidence learnings. Questi
 | Audit completo | @builder | security-auditor + performance-engineer + seo-specialist in parallelo |
 | Deploy | @builder | devops-engineer |
 | CMS setup | @builder | payload-cms + api-developer |
-| Refactor | @builder | (GitNexus impact analysis prima, poi component-builder) |
+| Refactor | @builder | (CodeGraph impact analysis prima, poi component-builder) |
 
 ### Come funziona il dispatch
 
