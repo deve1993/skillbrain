@@ -350,7 +350,7 @@ SkillBrain uses a **2-tier agent system** with parallel dispatch for complex tas
 ```mermaid
 graph LR
     U[User Request] --> SI[Smart Intake]
-    SI --> P[@planner]
+    SI --> P[Planner - Opus]
     
     P --> UX[ux-designer]
     P --> GA[growth-architect]
@@ -360,7 +360,7 @@ graph LR
     GA --> Brief
     CRO --> Brief
     
-    Brief --> B[@builder]
+    Brief --> B[Builder - Sonnet]
     
     B --> CB1[component-builder: Hero + Nav]
     B --> CB2[component-builder: Content]
