@@ -75,6 +75,20 @@ program
   })
 
 program
+  .command('mcp-proxy')
+  .description('Start stdio→HTTP proxy (connects local Claude Code/Desktop to remote MCP server)')
+  .action(async () => {
+    try {
+      const { startProxy } = await import('./mcp/proxy.js')
+      await startProxy()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[codegraph] Proxy failed: ${msg}`)
+      process.exit(1)
+    }
+  })
+
+program
   .command('mcp')
   .description('Start MCP server (stdio by default, or HTTP with --http)')
   .option('--http', 'Start HTTP server instead of stdio')
