@@ -59,6 +59,75 @@ The result: each session is smarter than the last. Mistakes made once are never 
 
 ---
 
+## See It In Action
+
+### Search collective memory in 2 seconds
+
+```
+> memory_search({ query: "payload cms access control multi-tenant" })
+
+M-bugfix-c78b31c6e002 [BugFix, confidence: 3]
+  Context:  "In Payload CMS 3.0 multi-tenant setup, when a collection
+             is created without explicit access control"
+  Solution: "Every collection in multi-tenant Payload MUST have access
+             control functions: read: ({req}) => ({ where: { tenant:
+             { equals: req.user?.tenant?.id } } })"
+  Tags:     [payload-cms, collections, access-control, tenancy]
+```
+
+This bug was fixed once, 3 sessions ago. Without SkillBrain, you'd spend 20 minutes rediscovering it. With SkillBrain, it surfaces in 2 seconds — from any session.
+
+### Session start: load top memories automatically
+
+```
+> memory_load({ project: "global", limit: 5 })
+
+📚 Loaded 5 memories
+   AntiPattern: 1
+   Pattern: 2
+   BugFix: 2
+
+  [AntiPattern conf:4] "Before claiming any implementation is complete,
+   especially for deployments to Coolify — ALWAYS run npm run build locally"
+
+  [Pattern conf:4] "In GitNexus CLI, when indexing a non-git folder,
+   use --skip-git flag"
+
+  [BugFix conf:4] "On macOS, embeddings threading causes crash —
+   use single-threaded mode"
+```
+
+### Check Memory Graph health
+
+```
+> memory_stats()
+
+{
+  "total": 13,
+  "byType": { "Pattern": 7, "BugFix": 4, "AntiPattern": 2 },
+  "byStatus": { "active": 13 },
+  "edges": 0,
+  "activeContradictions": 0
+}
+```
+
+---
+
+## Before vs After
+
+| | Without SkillBrain | With SkillBrain |
+|---|---|---|
+| **Same bug, 3rd time** | Spend 20 min rediscovering the fix | `memory_search` → exact solution in 2 seconds |
+| **New session** | Start from zero, re-explain everything | Cortex loads 5-layer context + top 15 memories automatically |
+| **Multiple sessions** | Frontend doesn't know what Mobile fixed | Collective memory — one shared database, instant cross-session search |
+| **"Don't use X"** | Forgotten by next session | Stored as `AntiPattern` with confidence decay — survives across sessions |
+| **Architectural decision** | Lost in chat history | Stored as `Decision` with `PartOf` edges — queryable forever |
+| **Stale knowledge** | Old patterns pollute context | Automatic decay: unused memories lose confidence → pending-review → deprecated |
+| **Contradictions** | Two conflicting patterns coexist silently | Auto-detected on save, flagged as `Contradicts` edge for human review |
+| **Context window** | 16k–35k tokens wasted on rediscovery | 4k–12k tokens — the rest is actual work |
+
+---
+
 ## The Problem
 
 You've been using Claude Code (or Cursor, Windsurf, OpenCode) for months. You've fixed the same bug three times. You've re-explained your preferred code style dozens of times. Every new session, the AI starts from zero — no memory of what you've built, how you work, or what went wrong last time.
@@ -260,6 +329,17 @@ Skills are domain knowledge files loaded on demand when a task matches.
 | **Quality** | 5 | verification-before-completion, code-review, git-worktrees, quality-gates |
 
 The routing table is in `.claude/skill/INDEX.md` — 360+ lines mapping every task to its skill(s).
+
+### External Skills (from [skills.sh](https://skills.sh))
+
+| Source | Count | Highlights |
+|--------|-------|-----------|
+| [wshobson/agents](https://skills.sh/wshobson/agents) | 149 | api-designer, graphql-architect, postgres-pro, typescript-pro, monitoring-expert |
+| [expo/skills](https://skills.sh/expo/skills) | 12 | building-native-ui, expo-cicd-workflows, expo-api-routes, expo-deployment |
+| [callstackincubator](https://skills.sh/callstackincubator/agent-skills) | 4 | react-native-best-practices, github-actions |
+| [jeffallan/claude-skills](https://skills.sh/jeffallan/claude-skills) | ~20 | devops-engineer, terraform-engineer, kubernetes-specialist |
+| [redis/agent-skills](https://skills.sh/redis/agent-skills) | 1 | redis-development (data structures, caching, vector search) |
+| [vercel/ai](https://skills.sh/vercel/ai) | 1 | ai-sdk (generateText, streamText, tool calling, useChat) |
 
 ---
 
@@ -632,6 +712,26 @@ Loading all memories would fill the context window. The hard cap of 15 ensures r
 ### Why Human-in-the-Loop
 
 Project-specific patterns should only become global after validation across multiple projects and explicit human approval. Automatic promotion risks converting a coincidence into a rule.
+
+---
+
+## How It Compares
+
+| Feature | CLAUDE.md / .cursorrules | Mem0 / Zep | Spacebot | **SkillBrain** |
+|---------|--------------------------|------------|----------|----------------|
+| Persistent memory | Manual text file | Vector DB | Typed graph (Rust) | **Typed graph (SQLite + MCP)** |
+| Cross-session | No (per-project file) | API calls | Discord/Slack channels | **Shared SQLite via global MCP** |
+| Memory types | Untyped text | Key-value | 8 types + edges | **8 types + 5 edge types** |
+| Contradiction detection | No | No | No | **Auto-detect on save** |
+| Confidence decay | No | No | No | **Automatic (5/15/30 session thresholds)** |
+| Code intelligence | No | No | No | **CodeGraph: AST, impact, call graph** |
+| Domain skills | No | No | Generic | **300+ (Next.js, Stripe, SEO, CRO, etc.)** |
+| Multi-agent | No | No | Workers | **19 specialized agents with parallel dispatch** |
+| Works with | Claude Code, Cursor | Any LLM | Discord/Slack | **Claude Code, Claude Desktop, any MCP client** |
+| Self-hosted | N/A | Cloud API | Rust binary | **SQLite local + optional Coolify deploy** |
+| Setup time | 0 (just a file) | API integration | Cargo build | **5 min (npm build + MCP register)** |
+
+**SkillBrain is not a memory API.** It's a complete workspace: skills + memory + code intelligence + agents + automation. The memory is one layer of seven.
 
 ---
 
