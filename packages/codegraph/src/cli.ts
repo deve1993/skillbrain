@@ -75,6 +75,25 @@ program
   })
 
 program
+  .command('import-skills')
+  .description('Import skills, agents, and commands from filesystem into SQLite')
+  .argument('[path]', 'Path to workspace root', '.')
+  .action(async (targetPath: string) => {
+    try {
+      const { importSkills } = await import('./storage/import-skills.js')
+      const result = importSkills(targetPath)
+      console.log(`✅ Import complete:`)
+      console.log(`   Skills: ${result.skills}`)
+      console.log(`   Agents: ${result.agents}`)
+      console.log(`   Commands: ${result.commands}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[codegraph] Import failed: ${msg}`)
+      process.exit(1)
+    }
+  })
+
+program
   .command('mcp-proxy')
   .description('Start stdio→HTTP proxy (connects local Claude Code/Desktop to remote MCP server)')
   .action(async () => {

@@ -103,6 +103,35 @@ export const NOTIFICATIONS_SQL = `
   CREATE INDEX IF NOT EXISTS idx_notif_sent ON notifications(sent_at);
 `
 
+export const SKILLS_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS skills (
+    name TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    content TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN (
+      'domain', 'lifecycle', 'process', 'agent', 'command'
+    )),
+    tags TEXT NOT NULL DEFAULT '[]',
+    lines INTEGER DEFAULT 0,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_skills_category ON skills(category);
+  CREATE INDEX IF NOT EXISTS idx_skills_type ON skills(type);
+`
+
+export const SKILLS_FTS_SQL = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(
+    name,
+    description,
+    content,
+    tags,
+    content='skills',
+    content_rowid='rowid'
+  );
+`
+
 export const MEMORY_FTS_SQL = `
   CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
     context,
