@@ -1,5 +1,4 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { openDb, closeDb } from '../storage/db.js'
 import { GraphStore } from '../storage/graph-store.js'
@@ -60,7 +59,7 @@ function withMemoryStore<T>(repoPath: string, fn: (store: MemoryStore) => T): T 
   }
 }
 
-export async function startMcpServer(): Promise<void> {
+export function createMcpServer(): McpServer {
   const server = new McpServer({
     name: 'codegraph',
     version: '0.1.0',
@@ -744,7 +743,12 @@ export async function startMcpServer(): Promise<void> {
     return { contents: [{ uri: uri.toString(), text: JSON.stringify(steps, null, 2), mimeType: 'application/json' }] }
   })
 
-  // Connect transport
+  return server
+}
+
+export async function startMcpServer(): Promise<void> {
+  const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js')
+  const server = createMcpServer()
   const transport = new StdioServerTransport()
   await server.connect(transport)
 }

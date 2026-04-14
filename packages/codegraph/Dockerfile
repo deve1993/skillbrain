@@ -50,5 +50,5 @@ USER codegraph
 
 EXPOSE 3737
 
-# Start dashboard (serves both web UI and API)
-CMD ["node", "dist/dashboard/server.js"]
+# Start MCP server in HTTP mode (serves MCP protocol + dashboard + API)
+CMD ["node", "dist/cli.js", "mcp", "--http"]

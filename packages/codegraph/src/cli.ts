@@ -76,11 +76,21 @@ program
 
 program
   .command('mcp')
-  .description('Start MCP server on stdio')
-  .action(async () => {
+  .description('Start MCP server (stdio by default, or HTTP with --http)')
+  .option('--http', 'Start HTTP server instead of stdio')
+  .option('--port <port>', 'HTTP port (default: 3737)', '3737')
+  .option('--auth-token <token>', 'Bearer token for HTTP auth (or CODEGRAPH_AUTH_TOKEN env)')
+  .action(async (options: { http?: boolean; port?: string; authToken?: string }) => {
     try {
-      const { startMcpServer } = await import('./mcp/server.js')
-      await startMcpServer()
+      if (options.http) {
+        const { startHttpServer } = await import('./mcp/http-server.js')
+        const port = parseInt(options.port || process.env.PORT || '3737', 10)
+        const authToken = options.authToken || process.env.CODEGRAPH_AUTH_TOKEN
+        await startHttpServer(port, authToken)
+      } else {
+        const { startMcpServer } = await import('./mcp/server.js')
+        await startMcpServer()
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error(`[codegraph] Fatal: ${msg}`)
