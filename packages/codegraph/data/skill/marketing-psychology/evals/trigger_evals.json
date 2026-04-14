@@ -1,0 +1,19 @@
+{
+  "skill": "marketing-psychology",
+  "description": "Triggers when user wants to apply psychological principles, cognitive biases, or behavioral science to marketing decisions, copy, or UX",
+  "should_trigger": [
+    "Come uso la scarcity e l'urgency nella landing page senza sembrare falso?",
+    "Quali principi psicologici posso applicare alla pagina di pricing?",
+    "Come sfrutto il social proof per aumentare le conversioni?",
+    "Spiega come funziona l'anchoring nel pricing del SaaS",
+    "Quali bias cognitivi influenzano la decisione di acquisto dei miei clienti?",
+    "Come applico la loss aversion nel copy della landing page?",
+    "Perché la gente non si iscrive anche se il prodotto è gratuito? (psicologia)"
+  ],
+  "should_not_trigger": [
+    "Crea il copy della landing page",
+    "Come imposto i prezzi del mio SaaS?",
+    "Progetta il flusso di onboarding",
+    "Come struttura la sezione testimonial?"
+  ]
+}

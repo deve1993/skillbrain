@@ -1,0 +1,18 @@
+{
+  "skill": "programmatic-seo",
+  "description": "Triggers when the user wants to create SEO-optimized pages at scale using templates and data — location pages, integration pages, comparison pages, directory pages",
+  "should_trigger": [
+    "I want to create hundreds of location pages for my local service business — like 'plumber in [city]'",
+    "Build a programmatic SEO strategy using integration pages for my SaaS product",
+    "How do I generate template-based pages at scale for SEO without thin content penalties?",
+    "I want to create a directory of AI tools like best-of category pages",
+    "Create comparison pages for my product vs each competitor",
+    "Implement programmatic SEO with Next.js generateStaticParams for 500 cities"
+  ],
+  "should_not_trigger": [
+    "Audit the SEO of my existing homepage",
+    "Write a single blog post about JavaScript performance",
+    "Check my hreflang tags",
+    "Fix my page title tags"
+  ]
+}

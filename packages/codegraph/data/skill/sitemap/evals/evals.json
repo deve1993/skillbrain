@@ -1,0 +1,56 @@
+{
+  "skill": "sitemap",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "nextjs-multilingual-sitemap",
+      "description": "Verifies correct Next.js App Router sitemap.ts with hreflang alternates for IT/EN/CZ locales",
+      "input": "Create a sitemap.ts for my Next.js multilingual site with IT, EN, and CZ locales. Include static pages and blog posts from Payload CMS.",
+      "expected_output_contains": [
+        "MetadataRoute.Sitemap",
+        "alternates",
+        "languages",
+        "it",
+        "en",
+        "cs",
+        "payload"
+      ],
+      "expected_output_excludes": [
+        "sitemap.xml route",
+        "manual XML string"
+      ]
+    },
+    {
+      "id": "xsl-styled-sitemap",
+      "description": "Verifies correct XSL stylesheet and custom route handler for human-readable sitemap",
+      "input": "How do I add XSL styling to my sitemap so it looks nice in the browser?",
+      "expected_output_contains": [
+        "xsl:stylesheet",
+        "sitemap.xsl",
+        "xml-stylesheet",
+        "Route Handler",
+        "app/sitemap.xml/route.ts"
+      ],
+      "expected_output_excludes": [
+        "MetadataRoute.Sitemap supports XSL natively"
+      ]
+    },
+    {
+      "id": "sitemap-priority-values",
+      "description": "Verifies correct priority values are assigned per page type",
+      "input": "What priority values should I use for different page types in my sitemap?",
+      "expected_output_contains": [
+        "1.0",
+        "0.8",
+        "0.6",
+        "0.3",
+        "home",
+        "legal"
+      ],
+      "expected_output_excludes": [
+        "all pages should be 1.0",
+        "priority doesn't matter"
+      ]
+    }
+  ]
+}

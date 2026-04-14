@@ -1,0 +1,18 @@
+{
+  "skill": "scraping",
+  "description": "Triggers when the user wants to scrape websites, reverse-engineer layouts, extract design tokens, analyze competitor sites, or clone page structure using Playwright",
+  "should_trigger": [
+    "Scrape this competitor's landing page and extract the color palette and font stack",
+    "Reverse engineer the navbar component structure from this SaaS website",
+    "Clone this website's HTML and assets for offline analysis",
+    "Analyze this site to identify what CSS framework and UI library they're using",
+    "Extract the design system tokens (colors, spacing, typography) from this site",
+    "Write a Playwright script to scrape product data from this e-commerce site"
+  ],
+  "should_not_trigger": [
+    "Audit my own site's SEO performance",
+    "Scrape my own CMS API for data migration",
+    "Set up monitoring for my website uptime",
+    "Create a web crawler for indexing my blog"
+  ]
+}

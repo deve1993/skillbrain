@@ -1,0 +1,19 @@
+{
+  "skill": "ad-creative",
+  "description": "Triggered when the user wants to generate, iterate, or scale ad creative including headlines, descriptions, and primary text for any paid advertising platform.",
+  "should_trigger": [
+    "Generate 15 RSA headlines for our Google Ads campaign",
+    "Write ad copy variations for our Meta Facebook ads",
+    "I have performance data from LinkedIn — help me iterate on my ad creative",
+    "Create bulk ad copy for our B2B SaaS product targeting CTOs",
+    "We need creative testing variations for our TikTok ad campaign",
+    "Write primary text and headline for a Meta ad with a 30-day free trial offer",
+    "Analyze these ad results and generate new variations based on what's working"
+  ],
+  "should_not_trigger": [
+    "Write copy for our landing page hero section",
+    "Design an A/B test for our homepage CTA button",
+    "How do I set up a Google Ads campaign budget?",
+    "What email subject lines work best for B2B outreach?"
+  ]
+}

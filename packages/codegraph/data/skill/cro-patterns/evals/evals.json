@@ -1,0 +1,53 @@
+{
+  "skill": "cro-patterns",
+  "version": "2.0.0",
+  "test_cases": [
+    {
+      "id": "conversion-formula",
+      "description": "Verifies the skill applies the conversion formula (Motivation × Value / Friction × Anxiety) when analyzing a page",
+      "input": "Our landing page has 1.2% conversion rate. What's the framework for improving it?",
+      "expected_output_contains": [
+        "friction",
+        "trust",
+        "social proof",
+        "value proposition",
+        "objection"
+      ],
+      "expected_output_excludes": [
+        "just change the button color",
+        "add more text"
+      ]
+    },
+    {
+      "id": "pricing-anchoring",
+      "description": "Verifies the skill implements pricing with psychological anchoring and featured plan",
+      "input": "Create a 3-tier pricing component with a featured middle plan and annual/monthly toggle",
+      "expected_output_contains": [
+        "featured",
+        "Most Popular",
+        "anchoring",
+        "Switch",
+        "isAnnual"
+      ],
+      "expected_output_excludes": [
+        "all plans equal",
+        "no recommendation"
+      ]
+    },
+    {
+      "id": "exit-intent",
+      "description": "Verifies the skill implements mouse-leave exit intent detection correctly",
+      "input": "Add exit intent detection that shows a popup when a user tries to leave the page",
+      "expected_output_contains": [
+        "mouseleave",
+        "clientY",
+        "setShowExitPopup",
+        "hasShownExit"
+      ],
+      "expected_output_excludes": [
+        "scroll to bottom",
+        "timer-based only"
+      ]
+    }
+  ]
+}

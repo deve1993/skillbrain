@@ -1,0 +1,52 @@
+{
+  "skill": "social-content",
+  "version": "1.1.0",
+  "test_cases": [
+    {
+      "id": "linkedin-post-hook",
+      "description": "Verifies the skill creates LinkedIn posts with a strong hook formula",
+      "input": "Write a LinkedIn post about how we reduced our customer churn by 40% using in-app messaging.",
+      "expected_output_contains": [
+        "hook",
+        "40%",
+        "story"
+      ],
+      "expected_output_excludes": [
+        "Click here",
+        "🎉🎉🎉"
+      ]
+    },
+    {
+      "id": "content-repurposing",
+      "description": "Verifies the skill provides a multi-platform repurposing plan from a single content piece",
+      "input": "I wrote a 2000-word blog post about reducing SaaS churn. How do I turn it into social content?",
+      "expected_output_contains": [
+        "LinkedIn",
+        "Twitter",
+        "thread",
+        "carousel",
+        "key insights"
+      ],
+      "expected_output_excludes": [
+        "post the whole article",
+        "only share on one platform"
+      ]
+    },
+    {
+      "id": "content-pillars-framework",
+      "description": "Verifies the skill helps establish content pillars with percentage allocation",
+      "input": "I'm a SaaS founder. What content pillars should I use for my social media strategy?",
+      "expected_output_contains": [
+        "pillar",
+        "educational",
+        "behind-the-scenes",
+        "promotional",
+        "%"
+      ],
+      "expected_output_excludes": [
+        "only post product updates",
+        "post randomly"
+      ]
+    }
+  ]
+}

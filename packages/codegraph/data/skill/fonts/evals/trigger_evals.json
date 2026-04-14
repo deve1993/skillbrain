@@ -1,0 +1,19 @@
+{
+  "skill": "fonts",
+  "description": "Triggers when user needs to manage fonts in Next.js — self-hosting, next/font setup, variable fonts, font licensing, or typography configuration",
+  "should_trigger": [
+    "Come aggiungo Inter e Playfair Display al mio progetto Next.js?",
+    "Configura self-hosting dei font con next/font/local",
+    "Come scarico i font da Google Fonts per self-hostarli?",
+    "Aggiungi la font variable Geist al layout root del progetto",
+    "Come configuro le famiglie font in Tailwind con CSS variables?",
+    "Quale licenza ha il font Satoshi? Posso usarlo commercialmente?",
+    "Come ottimizo il caricamento dei font per evitare FOIT?"
+  ],
+  "should_not_trigger": [
+    "Come cambio il colore del testo nel componente?",
+    "Aggiungi animazioni Framer Motion al titolo",
+    "Come installo e configuro Tailwind CSS?",
+    "Crea la tipografia del design system"
+  ]
+}

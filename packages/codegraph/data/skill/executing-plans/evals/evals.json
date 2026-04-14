@@ -1,0 +1,27 @@
+{
+  "skill": "executing-plans",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "exec-plan-announce",
+      "description": "Verifies the skill announces itself at start and reads the plan critically before executing",
+      "input": "Execute the plan in PLAN.md for the dark mode feature",
+      "expected_output_contains": ["executing-plans", "review", "batch", "3 tasks", "checkpoint"],
+      "expected_output_excludes": ["skip review", "all at once", "no questions"]
+    },
+    {
+      "id": "exec-plan-blocker",
+      "description": "Verifies the skill stops and asks for help when hitting a blocker rather than guessing",
+      "input": "Durante l'esecuzione del piano ho trovato che manca una dipendenza. Cosa fai?",
+      "expected_output_contains": ["STOP", "ask", "clarification", "blocker"],
+      "expected_output_excludes": ["guess", "workaround", "skip", "ignore"]
+    },
+    {
+      "id": "exec-plan-finish",
+      "description": "Verifies finishing-a-development-branch is invoked after all tasks complete",
+      "input": "Tutti i task del piano sono stati completati con successo. Come concludiamo?",
+      "expected_output_contains": ["finishing-a-development-branch", "tests", "complete"],
+      "expected_output_excludes": ["merge without tests", "skip cleanup"]
+    }
+  ]
+}

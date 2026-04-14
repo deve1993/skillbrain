@@ -1,0 +1,51 @@
+{
+  "skill": "seo-hreflang",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "return-tags-bidirectional",
+      "description": "Verifies skill mandates bidirectional return tags — if A links to B, B must link to A",
+      "input": "My English page has hreflang pointing to my French page but the French page doesn't link back — is this a problem?",
+      "expected_output_contains": [
+        "return tags",
+        "bidirectional",
+        "ignored",
+        "Critical"
+      ],
+      "expected_output_excludes": [
+        "one direction is fine",
+        "not a problem"
+      ]
+    },
+    {
+      "id": "invalid-language-codes",
+      "description": "Verifies skill identifies common invalid codes like 'en-uk' and 'jp'",
+      "input": "I'm using 'en-uk' for British English and 'jp' for Japanese in my hreflang — correct?",
+      "expected_output_contains": [
+        "en-GB",
+        "ja",
+        "ISO 639-1",
+        "ISO 3166-1"
+      ],
+      "expected_output_excludes": [
+        "en-uk is correct",
+        "jp is correct"
+      ]
+    },
+    {
+      "id": "sitemap-vs-html-for-scale",
+      "description": "Verifies sitemap method is recommended for large sites with many language variants",
+      "input": "I have 1000 pages in 5 languages — should I use HTML link tags or sitemap for hreflang?",
+      "expected_output_contains": [
+        "sitemap",
+        "scale",
+        "50+",
+        "recommended"
+      ],
+      "expected_output_excludes": [
+        "HTML link tags for 1000 pages",
+        "use HTML for all sizes"
+      ]
+    }
+  ]
+}

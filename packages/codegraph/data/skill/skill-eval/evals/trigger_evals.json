@@ -1,0 +1,16 @@
+{
+  "skill": "skill-eval",
+  "should_trigger": [
+    "Test the brainstorming skill",
+    "Run evals for frontend-design",
+    "Check if this skill works correctly",
+    "Verify skill quality after my changes",
+    "Run the skill tests"
+  ],
+  "should_not_trigger": [
+    "Create a new skill",
+    "Fix this bug",
+    "Build a component",
+    "Deploy the app"
+  ]
+}

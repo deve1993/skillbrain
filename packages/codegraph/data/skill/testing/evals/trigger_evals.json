@@ -1,0 +1,18 @@
+{
+  "skill": "testing",
+  "description": "Triggers when user needs to setup a test suite, write unit tests, E2E tests, component tests, or accessibility tests",
+  "should_trigger": [
+    "Setup Vitest for my Next.js project",
+    "Write Playwright E2E tests for my contact form",
+    "Test my React Button component with Testing Library",
+    "Add accessibility tests with axe-core",
+    "Visual regression testing with Playwright screenshots",
+    "Write unit tests for my utility functions"
+  ],
+  "should_not_trigger": [
+    "Setup CI/CD pipeline",
+    "Optimize bundle performance",
+    "Implement TDD for a new feature",
+    "Security audit my application"
+  ]
+}

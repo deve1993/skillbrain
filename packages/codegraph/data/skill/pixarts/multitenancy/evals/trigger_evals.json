@@ -1,0 +1,19 @@
+{
+  "skill": "pixarts/multitenancy",
+  "description": "Triggers when setting up multi-tenant CMS architecture, configuring tenant isolation, implementing filterByTenant access control, or managing tenant-scoped collections",
+  "should_trigger": [
+    "Configura il sistema multi-tenant in Payload CMS per Pixarts",
+    "Implementa il filterByTenant access control per le collection Pages",
+    "Crea il tenantField riutilizzabile con auto-assign dall'utente corrente",
+    "Come verifico che il super-admin non rompa l'isolamento tra tenant?",
+    "Aggiungi il validateTenantAccess hook per prevenire cross-tenant writes",
+    "Come gestisco i Globals con multi-tenancy in Payload? (no singleton)",
+    "Query API dal frontend: come filtro sempre per tenant nelle chiamate pubbliche?"
+  ],
+  "should_not_trigger": [
+    "Crea una nuova feature per un singolo sito cliente",
+    "Come faccio query MongoDB per trovare pagine draft?",
+    "Aggiungi il modulo prenotazioni al CMS",
+    "Come configuro l'autenticazione OAuth per il CMS?"
+  ]
+}

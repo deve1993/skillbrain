@@ -1,0 +1,19 @@
+{
+  "skill": "verification-before-completion",
+  "description": "Tests that verification activates before claiming work is done",
+  "should_trigger": [
+    "I think this is done now",
+    "The implementation is complete",
+    "I've fixed the bug",
+    "Everything should be working now",
+    "Ready to commit",
+    "This looks good to merge",
+    "I finished the feature"
+  ],
+  "should_not_trigger": [
+    "What is TypeScript?",
+    "Show me the project structure",
+    "Start building the auth system",
+    "Help me plan this feature"
+  ]
+}

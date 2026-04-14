@@ -1,0 +1,19 @@
+{
+  "skill": "seo",
+  "description": "Triggers when implementing SEO in Next.js — metadata API, robots.txt, sitemap, structured data, Open Graph, Core Web Vitals, or llms.txt for AI crawlers",
+  "should_trigger": [
+    "Set up metadata, robots.txt and sitemap.ts for my Next.js 15 app",
+    "Implement Organization JSON-LD schema and Open Graph tags for my homepage",
+    "Create a llms.txt file to optimize my site for AI search engines",
+    "Configure robots.txt to allow GPTBot, ClaudeBot and PerplexityBot",
+    "Add hreflang alternates for my Italian/English/Czech multilingual Next.js site",
+    "What Core Web Vitals optimizations should I apply to improve LCP and CLS?",
+    "Generate a dynamic sitemap that includes blog posts and service pages"
+  ],
+  "should_not_trigger": [
+    "Audit my competitor's SEO and find ranking opportunities",
+    "Write keyword-optimized blog content for my SaaS",
+    "Set up Google Analytics 4 for conversion tracking",
+    "Fix my hreflang implementation errors"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "skill": "sales-enablement",
+  "description": "Triggers when the user needs B2B sales collateral — pitch decks, one-pagers, objection handling docs, demo scripts, ROI calculators, or sales playbooks",
+  "should_trigger": [
+    "Create a 10-slide sales deck for our enterprise B2B SaaS product",
+    "Write an objection handling document covering price, timing, and competition objections",
+    "I need a one-pager leave-behind for after demo calls to help champions sell internally",
+    "Build an ROI calculator for our HR automation tool showing payback period",
+    "Create a demo script for a 45-minute technical deep-dive call with a CTO",
+    "Design buyer persona cards for our three main buying personas",
+    "Write a sales playbook for our new market segment"
+  ],
+  "should_not_trigger": [
+    "Write copy for my marketing landing page",
+    "Create a cold outreach email sequence",
+    "Set up a referral program for existing customers",
+    "Design a comparison page vs our competitors"
+  ]
+}

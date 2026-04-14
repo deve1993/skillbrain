@@ -1,0 +1,51 @@
+{
+  "skill": "using-superpowers",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "skill-check-before-response",
+      "description": "Verifies the skill requires invoking relevant skills BEFORE responding or taking action",
+      "input": "I need to fix a React performance issue. Just tell me the answer quickly.",
+      "expected_output_contains": [
+        "skill",
+        "check",
+        "invoke",
+        "before"
+      ],
+      "expected_output_excludes": [
+        "skip skill check",
+        "just answer directly"
+      ]
+    },
+    {
+      "id": "process-skill-priority",
+      "description": "Verifies process skills (brainstorming, debugging) are invoked before implementation skills",
+      "input": "I want to build a new authentication feature. Which skills should I invoke and in what order?",
+      "expected_output_contains": [
+        "brainstorming",
+        "process",
+        "first",
+        "implementation"
+      ],
+      "expected_output_excludes": [
+        "jump straight to coding",
+        "no ordering needed"
+      ]
+    },
+    {
+      "id": "one-percent-rule",
+      "description": "Verifies even a 1% chance a skill applies means invoking it",
+      "input": "I just have a simple question about a React hook. I don't think any skills apply here.",
+      "expected_output_contains": [
+        "1%",
+        "check",
+        "even simple",
+        "invoke"
+      ],
+      "expected_output_excludes": [
+        "skip skills for simple questions",
+        "no skill needed"
+      ]
+    }
+  ]
+}

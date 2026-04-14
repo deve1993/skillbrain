@@ -1,0 +1,27 @@
+{
+  "skill": "pixarts/design-system",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "brand-css-variables",
+      "description": "Verifies correct CSS variable structure with brand overrides",
+      "input": "Come configuro i colori brand del cliente nel design system Pixarts?",
+      "expected_output_contains": ["--color-primary", "--brand-primary", "var(", "@theme", "globals.css"],
+      "expected_output_excludes": ["hardcoded hex in components", "no CSS variables"]
+    },
+    {
+      "id": "container-component-standard",
+      "description": "Verifies standard Container component dimensions",
+      "input": "Crea il componente Container standard Pixarts",
+      "expected_output_contains": ["max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8"],
+      "expected_output_excludes": ["max-w-full", "no responsive padding"]
+    },
+    {
+      "id": "mobile-first-breakpoints",
+      "description": "Verifies mobile-first grid pattern in Pixarts design system",
+      "input": "Come devo scrivere una grid responsive nel design system Pixarts?",
+      "expected_output_contains": ["grid-cols-1", "md:grid-cols-2", "lg:grid-cols-3", "mobile-first"],
+      "expected_output_excludes": ["grid-cols-3 sm:grid-cols-1", "desktop-first"]
+    }
+  ]
+}

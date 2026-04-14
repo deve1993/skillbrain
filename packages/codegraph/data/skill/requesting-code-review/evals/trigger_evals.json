@@ -1,0 +1,18 @@
+{
+  "skill": "requesting-code-review",
+  "description": "Triggers when the user needs to request or prepare a code review — after completing a task, before merging, or after implementing a major feature",
+  "should_trigger": [
+    "I just finished implementing the authentication system — how do I request a code review?",
+    "What should I include when requesting code review before merging to main?",
+    "How do I dispatch a code-reviewer subagent after completing Task 3?",
+    "I need a fresh perspective on my complex refactoring — request a review",
+    "How do I get git SHAs to include in a code review request?",
+    "Request code review after completing each task in subagent-driven development"
+  ],
+  "should_not_trigger": [
+    "I received code review comments — how should I respond?",
+    "Fix the bug the reviewer found in my auth module",
+    "Write a PR description for my feature branch",
+    "How do I set up GitHub branch protection rules?"
+  ]
+}

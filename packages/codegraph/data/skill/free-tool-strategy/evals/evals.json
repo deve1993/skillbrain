@@ -1,0 +1,27 @@
+{
+  "skill": "free-tool-strategy",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "free-tool-ideation",
+      "description": "Verifies the skill asks about audience pain points and validates tool idea before building",
+      "input": "Ho un SaaS per la gestione progetti. Che free tool posso creare per acquisire lead?",
+      "expected_output_contains": ["pain point", "audience", "search demand", "lead", "adjacent"],
+      "expected_output_excludes": ["build immediately", "just build it", "skip validation"]
+    },
+    {
+      "id": "free-tool-scorecard",
+      "description": "Verifies the evaluation scorecard criteria are applied to assess viability",
+      "input": "Valuta questa idea: un tool gratuito per calcolare il costo di un progetto software",
+      "expected_output_contains": ["search demand", "audience match", "build feasibility", "score"],
+      "expected_output_excludes": ["100% sure to work", "no need to evaluate"]
+    },
+    {
+      "id": "free-tool-lead-capture",
+      "description": "Verifies lead capture gating options and best practices are provided",
+      "input": "Come dovrei catturare lead con il mio tool gratuito?",
+      "expected_output_contains": ["gated", "email", "friction", "value exchange"],
+      "expected_output_excludes": ["collect all data", "no capture needed", "fully blocked"]
+    }
+  ]
+}

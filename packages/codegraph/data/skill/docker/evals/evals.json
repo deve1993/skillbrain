@@ -1,0 +1,27 @@
+{
+  "skill": "docker",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "docker-debug-502",
+      "description": "Verifies the skill provides the correct 5-step debugging workflow for a 502 error on a running container",
+      "input": "Il mio sito su Coolify restituisce 502. Il container risulta running. Come debuggo?",
+      "expected_output_contains": ["list_containers", "stats", "get_logs", "exec_run", "health"],
+      "expected_output_excludes": ["docker-compose", "kubectl", "stop the container"]
+    },
+    {
+      "id": "docker-container-crash",
+      "description": "Verifies step-by-step diagnosis for a container that exits immediately after deploy",
+      "input": "Dopo il deploy il container è in stato exited. Cosa faccio?",
+      "expected_output_contains": ["list_containers", "get_logs", "MODULE_NOT_FOUND", "inspect_container"],
+      "expected_output_excludes": ["ssh", "restart", "ignore"]
+    },
+    {
+      "id": "docker-post-deploy-check",
+      "description": "Verifies the routine post-deploy verification workflow is described correctly",
+      "input": "Come verifico che il deploy sia andato a buon fine?",
+      "expected_output_contains": ["list_containers", "stats", "/api/health", "get_logs"],
+      "expected_output_excludes": ["trust the dashboard", "skip verification"]
+    }
+  ]
+}

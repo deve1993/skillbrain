@@ -1,0 +1,20 @@
+{
+  "skill": "writing-plans",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "atomic-actionable-steps",
+      "description": "Plan should have specific, actionable, atomic steps",
+      "input": "Write an implementation plan for adding user authentication with email/password",
+      "expected_output_contains": ["step", "file", "test", "verify"],
+      "expected_output_excludes": ["implement auth", "setup everything", "make it work"]
+    },
+    {
+      "id": "includes-testing",
+      "description": "Plan should include testing steps",
+      "input": "Plan the implementation of the payment integration with Stripe",
+      "expected_output_contains": ["test", "verify", "check"],
+      "expected_output_excludes": ["deploy immediately", "skip tests"]
+    }
+  ]
+}

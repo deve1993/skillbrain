@@ -1,0 +1,18 @@
+{
+  "skill": "signup-flow-cro",
+  "description": "Triggers when user wants to optimize signup, registration, account creation, or trial activation flows",
+  "should_trigger": [
+    "Optimize my signup form to improve conversions",
+    "My free trial signup has a high dropoff rate",
+    "Reduce friction in my registration flow",
+    "Which fields should I require in my account creation form?",
+    "Improve my B2B SaaS trial signup conversion",
+    "My signup form completion rate is only 20%"
+  ],
+  "should_not_trigger": [
+    "Optimize my contact form for lead generation",
+    "Improve my checkout flow for ecommerce",
+    "What is conversion rate optimization?",
+    "How do I onboard new users after signup?"
+  ]
+}

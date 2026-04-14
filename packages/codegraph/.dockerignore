@@ -1,6 +1,7 @@
 node_modules
 dist
 .codegraph
-*.md
 .git
 .gitignore
+*.test.ts
+docker-compose.yml

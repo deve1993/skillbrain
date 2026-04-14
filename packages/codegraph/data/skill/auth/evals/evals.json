@@ -1,0 +1,53 @@
+{
+  "skill": "auth",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "authjs-middleware-protection",
+      "description": "Verifies the skill creates correct middleware for route protection with Auth.js",
+      "input": "How do I protect /dashboard and /settings routes so only logged-in users can access them?",
+      "expected_output_contains": [
+        "middleware.ts",
+        "auth",
+        "protectedRoutes",
+        "redirect",
+        "/login"
+      ],
+      "expected_output_excludes": [
+        "client-side only check",
+        "useSession in page only"
+      ]
+    },
+    {
+      "id": "rbac-pattern",
+      "description": "Verifies the skill implements role-based access control with requireRole helper",
+      "input": "Create an admin-only Server Action that only ADMIN role users can execute",
+      "expected_output_contains": [
+        "requireRole",
+        "ADMIN",
+        "auth()",
+        "Forbidden"
+      ],
+      "expected_output_excludes": [
+        "trust client-side role",
+        "no server check needed"
+      ]
+    },
+    {
+      "id": "password-hashing",
+      "description": "Verifies the skill uses bcryptjs for password hashing with appropriate cost factor",
+      "input": "How do I hash passwords when users register and verify them on login?",
+      "expected_output_contains": [
+        "bcryptjs",
+        "hash",
+        "compare",
+        "12"
+      ],
+      "expected_output_excludes": [
+        "md5",
+        "SHA-1",
+        "plain text"
+      ]
+    }
+  ]
+}

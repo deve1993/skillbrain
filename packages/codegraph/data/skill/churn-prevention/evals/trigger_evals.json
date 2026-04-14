@@ -1,0 +1,19 @@
+{
+  "skill": "churn-prevention",
+  "description": "Triggered when the user wants to reduce churn, design cancel flows, implement save offers, set up dunning for failed payments, or build retention strategies for SaaS products.",
+  "should_trigger": [
+    "Help me design a cancellation flow for our SaaS with exit survey and save offers",
+    "How do I reduce involuntary churn from failed payments?",
+    "Set up a dunning email sequence for Stripe failed payments",
+    "What discount should I offer when users try to cancel?",
+    "Create save offer logic that matches the reason users give for cancelling",
+    "How do I implement a subscription pause option to prevent cancellations?",
+    "Design win-back strategy for customers who already cancelled"
+  ],
+  "should_not_trigger": [
+    "Write a promotional email for our new feature launch",
+    "How do I set up Stripe subscriptions from scratch?",
+    "Create an onboarding checklist for new users",
+    "How do I design a pricing page with anchoring?"
+  ]
+}

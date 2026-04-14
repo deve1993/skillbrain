@@ -1,0 +1,50 @@
+{
+  "skill": "seo-competitor-pages",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "vs-page-structure",
+      "description": "Verifies X vs Y page includes feature matrix, social proof, CTAs, and fairness guidelines",
+      "input": "Create a 'Monday.com vs Asana' comparison page for my project management tool",
+      "expected_output_contains": [
+        "feature",
+        "comparison",
+        "CTA",
+        "social proof",
+        "last updated"
+      ],
+      "expected_output_excludes": [
+        "false claims",
+        "skip competitor strengths"
+      ]
+    },
+    {
+      "id": "schema-for-comparison",
+      "description": "Verifies correct schema type is recommended for comparison pages",
+      "input": "What schema markup should I use for a software comparison page?",
+      "expected_output_contains": [
+        "SoftwareApplication",
+        "Product",
+        "AggregateRating"
+      ],
+      "expected_output_excludes": [
+        "no schema needed",
+        "Article schema"
+      ]
+    },
+    {
+      "id": "title-formula",
+      "description": "Verifies correct title tag formula from the skill for alternatives pages",
+      "input": "What title tag should I use for an 'alternatives to Figma' page?",
+      "expected_output_contains": [
+        "alternatives",
+        "year",
+        "Free"
+      ],
+      "expected_output_excludes": [
+        "just 'Figma Alternatives'",
+        "skip the year"
+      ]
+    }
+  ]
+}

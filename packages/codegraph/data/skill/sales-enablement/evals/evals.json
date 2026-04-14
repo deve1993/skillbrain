@@ -1,0 +1,51 @@
+{
+  "skill": "sales-enablement",
+  "version": "1.1.0",
+  "test_cases": [
+    {
+      "id": "sales-deck-structure",
+      "description": "Verifies 10-12 slide framework is followed with story arc not feature tour",
+      "input": "Create a sales deck outline for our DevOps automation platform targeting VP Engineering",
+      "expected_output_contains": [
+        "problem",
+        "proof",
+        "ROI",
+        "next steps",
+        "case study"
+      ],
+      "expected_output_excludes": [
+        "feature tour",
+        "list all features",
+        "30+ slides"
+      ]
+    },
+    {
+      "id": "objection-response-framework",
+      "description": "Verifies objection handling covers all categories with proof point and follow-up question",
+      "input": "Help me build an objection handling doc for 'we already use a competitor' and 'not the right time'",
+      "expected_output_contains": [
+        "objection",
+        "proof point",
+        "follow-up"
+      ],
+      "expected_output_excludes": [
+        "just say yes",
+        "skip the proof"
+      ]
+    },
+    {
+      "id": "demo-without-discovery",
+      "description": "Verifies skill mandates discovery before demo — never demo without knowing the pain",
+      "input": "Give me a demo script I can use for any prospect who books a call",
+      "expected_output_contains": [
+        "discovery",
+        "pain",
+        "customize"
+      ],
+      "expected_output_excludes": [
+        "same script for everyone",
+        "skip discovery"
+      ]
+    }
+  ]
+}

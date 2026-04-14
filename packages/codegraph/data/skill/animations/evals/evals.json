@@ -1,0 +1,51 @@
+{
+  "skill": "animations",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "scroll-animation-viewport",
+      "description": "Verifies the skill uses whileInView with once:true for scroll-triggered animations",
+      "input": "Animate a features section so each card fades in as it scrolls into view",
+      "expected_output_contains": [
+        "whileInView",
+        "viewport",
+        "once: true",
+        "opacity",
+        "framer-motion"
+      ],
+      "expected_output_excludes": [
+        "window.scroll",
+        "IntersectionObserver manually"
+      ]
+    },
+    {
+      "id": "reduced-motion-respect",
+      "description": "Verifies the skill includes reduced motion support in animation implementations",
+      "input": "Add entrance animations to this component but make sure it respects accessibility preferences",
+      "expected_output_contains": [
+        "useReducedMotion",
+        "prefers-reduced-motion",
+        "shouldReduceMotion"
+      ],
+      "expected_output_excludes": [
+        "ignore accessibility",
+        "motion is fine for everyone"
+      ]
+    },
+    {
+      "id": "stagger-children",
+      "description": "Verifies the skill correctly implements staggered children animations",
+      "input": "Create a list of testimonial cards that animate in one by one with a slight delay between each",
+      "expected_output_contains": [
+        "staggerChildren",
+        "variants",
+        "container",
+        "item"
+      ],
+      "expected_output_excludes": [
+        "setTimeout for each",
+        "manual delay calculation"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "skill": "sitemap",
+  "description": "Triggers when user needs to implement a sitemap.xml in a Next.js app, including hreflang alternates, XSL styling, or sitemap index",
+  "should_trigger": [
+    "Add a sitemap to my Next.js app",
+    "Generate XML sitemap with hreflang for multilingual site",
+    "Create a sitemap for my IT/EN/CZ website",
+    "Sitemap index for a large Next.js site with many pages",
+    "Add XSL styling to make my sitemap human-readable",
+    "Include dynamic CMS pages in my sitemap"
+  ],
+  "should_not_trigger": [
+    "Plan my site navigation structure",
+    "Add meta tags to my pages",
+    "Analyze my existing sitemap for errors",
+    "Create a robots.txt file"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "skill": "marketing-psychology",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "mktg-psych-pricing",
+      "description": "Verifies correct pricing psychology principles (anchoring, decoy, charm pricing) are explained with examples",
+      "input": "Come applico la psicologia del pricing alla pagina prezzi del mio SaaS?",
+      "expected_output_contains": ["anchoring", "decoy", "left-digit", "round", "premium"],
+      "expected_output_excludes": ["just pick a number", "price doesn't matter", "no psychology in B2B"]
+    },
+    {
+      "id": "mktg-psych-loss-aversion",
+      "description": "Verifies loss aversion is correctly applied with framing examples",
+      "input": "Come uso la loss aversion nel copy della CTA?",
+      "expected_output_contains": ["loss", "twice", "miss", "frame", "don't lose"],
+      "expected_output_excludes": ["ignore fear", "always positive framing only", "loss aversion is unethical"]
+    },
+    {
+      "id": "mktg-psych-social-proof",
+      "description": "Verifies correct psychological models behind social proof are cited (mimetic desire, authority bias)",
+      "input": "Quali principi psicologici stanno dietro al social proof e come implementarlo?",
+      "expected_output_contains": ["mimetic", "authority", "social proof", "testimonial", "numbers"],
+      "expected_output_excludes": ["fake reviews", "social proof is optional", "no psychology here"]
+    }
+  ]
+}

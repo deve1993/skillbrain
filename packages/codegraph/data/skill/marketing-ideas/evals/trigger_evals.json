@@ -1,0 +1,19 @@
+{
+  "skill": "marketing-ideas",
+  "description": "Triggers when user needs marketing ideas, growth tactics, or promotional strategies for their SaaS or software product",
+  "should_trigger": [
+    "Dammi idee di marketing per far crescere il mio SaaS B2B",
+    "Come posso promuovere il mio tool senza budget pubblicitario?",
+    "Quali sono le strategie di growth marketing più efficaci per uno stage early?",
+    "Idee per aumentare la visibilità del mio prodotto SaaS su Reddit",
+    "Come posso sfruttare il community marketing per crescere?",
+    "Strategie di marketing a basso costo per un SaaS developer tools",
+    "How can I market my product with limited resources and no team?"
+  ],
+  "should_not_trigger": [
+    "Crea il piano di lancio del prodotto",
+    "Scrivi il copy per la landing page",
+    "Come gestisco una campagna Google Ads?",
+    "Strategia di pricing per il mio SaaS"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "skill": "scraping",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "framework-detection",
+      "description": "Verifies correct DOM signals are used for framework/library detection",
+      "input": "How can I tell if a competitor's site is built with Next.js and Tailwind CSS?",
+      "expected_output_contains": [
+        "__NEXT_DATA__",
+        "Tailwind",
+        "text-xl"
+      ],
+      "expected_output_excludes": [
+        "you can't tell",
+        "ask them directly"
+      ]
+    },
+    {
+      "id": "rate-limiting",
+      "description": "Verifies skill mandates rate limiting with waitForTimeout between requests",
+      "input": "Write a Playwright script to scrape 50 pages from a competitor's documentation site",
+      "expected_output_contains": [
+        "waitForTimeout",
+        "rate",
+        "User-Agent"
+      ],
+      "expected_output_excludes": [
+        "no delay needed",
+        "concurrent all requests"
+      ]
+    },
+    {
+      "id": "lazy-loading-scroll",
+      "description": "Verifies scroll-to-bottom technique is used to trigger lazy-loaded content",
+      "input": "The page I'm scraping has lazy-loaded images that don't appear in the HTML until scroll — how do I handle this?",
+      "expected_output_contains": [
+        "scroll",
+        "lazy",
+        "networkidle"
+      ],
+      "expected_output_excludes": [
+        "ignore lazy images",
+        "skip scrolling"
+      ]
+    }
+  ]
+}

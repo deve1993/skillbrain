@@ -1,0 +1,52 @@
+{
+  "skill": "subagent-driven-development",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "two-stage-review-order",
+      "description": "Verifies the skill enforces spec compliance review BEFORE code quality review",
+      "input": "I want to execute my implementation plan. What's the review process after each task?",
+      "expected_output_contains": [
+        "spec compliance",
+        "code quality",
+        "first",
+        "then"
+      ],
+      "expected_output_excludes": [
+        "skip review",
+        "code quality first",
+        "one review"
+      ]
+    },
+    {
+      "id": "fresh-subagent-per-task",
+      "description": "Verifies each task gets a fresh subagent, not the same accumulated context",
+      "input": "Should I use the same subagent for all tasks or dispatch fresh ones for each?",
+      "expected_output_contains": [
+        "fresh",
+        "per task",
+        "context pollution",
+        "independent"
+      ],
+      "expected_output_excludes": [
+        "same subagent",
+        "reuse the agent"
+      ]
+    },
+    {
+      "id": "review-loop-enforcement",
+      "description": "Verifies the skill enforces re-review after fixes, not skipping forward",
+      "input": "The spec reviewer found issues. The implementer fixed them. Can I skip the re-review and go to code quality?",
+      "expected_output_contains": [
+        "re-review",
+        "spec reviewer",
+        "must review again",
+        "cannot skip"
+      ],
+      "expected_output_excludes": [
+        "proceed to code quality",
+        "skip is fine"
+      ]
+    }
+  ]
+}

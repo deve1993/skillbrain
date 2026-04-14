@@ -1,0 +1,19 @@
+{
+  "skill": "auth",
+  "description": "Triggered when the user wants to implement authentication, login/register flows, session management, OAuth, JWT tokens, or role-based access control in a Next.js app.",
+  "should_trigger": [
+    "Set up Auth.js v5 with Google OAuth in my Next.js app",
+    "Implement a login and registration form with credentials provider",
+    "How do I protect routes so only authenticated users can access /dashboard?",
+    "Add role-based access control so only admins can access /admin",
+    "Set up JWT tokens with refresh token rotation",
+    "Implement rate limiting on the login endpoint",
+    "Create a Prisma schema for users with Auth.js session management"
+  ],
+  "should_not_trigger": [
+    "How do I fetch data from an external API in Next.js?",
+    "Set up Stripe payments with webhook handling",
+    "Create a contact form that sends emails",
+    "How do I deploy my app with SSL certificates?"
+  ]
+}

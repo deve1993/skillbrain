@@ -1,0 +1,52 @@
+{
+  "skill": "ab-testing",
+  "version": "2.0.0",
+  "test_cases": [
+    {
+      "id": "hypothesis-framework",
+      "description": "Verifies the skill produces a structured hypothesis using the documented framework",
+      "input": "Help me write a hypothesis for testing a shorter signup form (from 6 fields to 3 fields) on our SaaS product",
+      "expected_output_contains": [
+        "Because",
+        "we believe",
+        "will cause",
+        "We'll know",
+        "metric"
+      ],
+      "expected_output_excludes": [
+        "let's see what happens",
+        "might increase"
+      ]
+    },
+    {
+      "id": "sample-size-calculation",
+      "description": "Verifies the skill correctly calculates or references sample size requirements",
+      "input": "Our landing page has a 3% conversion rate and we want to detect a 20% improvement. How many visitors do we need per variant?",
+      "expected_output_contains": [
+        "1,250",
+        "95%",
+        "confidence",
+        "per variant"
+      ],
+      "expected_output_excludes": [
+        "just run it for a week",
+        "no formula needed"
+      ]
+    },
+    {
+      "id": "anti-pattern-peeking",
+      "description": "Verifies the skill warns against statistical mistakes like peeking at results",
+      "input": "We started an A/B test yesterday and the variant is already showing 15% improvement with 95% confidence. Should we stop and ship it?",
+      "expected_output_contains": [
+        "peek",
+        "false positive",
+        "sample size",
+        "duration"
+      ],
+      "expected_output_excludes": [
+        "Yes, ship it",
+        "looks good, stop now"
+      ]
+    }
+  ]
+}

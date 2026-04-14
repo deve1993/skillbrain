@@ -1,0 +1,27 @@
+{
+  "skill": "payload",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "tenant-access-control",
+      "description": "Verifies correct multi-tenant access control pattern",
+      "input": "Come implemento il read access control su una collection per isolare i dati per tenant?",
+      "expected_output_contains": ["tenant", "equals", "user.tenant", "super-admin", "Access", "filterByTenant"],
+      "expected_output_excludes": ["return true", "no tenant filter", "public access all"]
+    },
+    {
+      "id": "payload-client-singleton",
+      "description": "Verifies singleton pattern for Payload client",
+      "input": "Come creo il client Payload CMS per evitare connessioni multiple in Next.js?",
+      "expected_output_contains": ["getPayload", "cached", "global", "singleton", "promise"],
+      "expected_output_excludes": ["new Payload()", "multiple instances"]
+    },
+    {
+      "id": "revalidation-hook",
+      "description": "Verifies afterChange hook for cache revalidation",
+      "input": "Come revalidate il cache Next.js dopo che una pagina viene pubblicata in Payload CMS?",
+      "expected_output_contains": ["afterChange", "hook", "revalidateTag", "revalidatePath", "REVALIDATION_SECRET"],
+      "expected_output_excludes": ["revalidate on every request", "no cache"]
+    }
+  ]
+}

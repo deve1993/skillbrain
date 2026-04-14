@@ -1,0 +1,17 @@
+{
+  "skill": "using-superpowers",
+  "description": "Triggers at the start of any conversation or before any task to ensure relevant skills are loaded before responding",
+  "should_trigger": [
+    "Which skills should I use for this task?",
+    "Before I start this project, what skills apply?",
+    "I'm about to implement a new feature, what should I check first?",
+    "Help me with my Next.js app - where do I begin?",
+    "I want to make sure I use the right approach for this"
+  ],
+  "should_not_trigger": [
+    "Create a new skill file",
+    "Deploy my application to production",
+    "Write unit tests for my code",
+    "Commit my changes to git"
+  ]
+}

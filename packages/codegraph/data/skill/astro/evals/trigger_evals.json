@@ -1,0 +1,19 @@
+{
+  "skill": "astro",
+  "description": "Triggered when the user is working on an Astro project, building a static site, using Content Collections, Islands architecture, or migrating from another framework to Astro.",
+  "should_trigger": [
+    "Set up a blog with Astro 5 using Content Collections",
+    "How do I add a React island component to my Astro page?",
+    "Create an Astro layout with i18n support for Italian and English",
+    "How do I implement SSR mode in Astro with a node adapter?",
+    "Set up image optimization in Astro using astro:assets",
+    "Create an API endpoint in Astro for a contact form",
+    "How do I add Tailwind CSS to my Astro project?"
+  ],
+  "should_not_trigger": [
+    "Set up a Next.js app with App Router and server components",
+    "How do I add React components to a SvelteKit project?",
+    "Create a Nuxt 3 page with SSR data fetching",
+    "Deploy my Express.js API to a Docker container"
+  ]
+}

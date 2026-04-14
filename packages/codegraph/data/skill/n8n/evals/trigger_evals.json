@@ -1,0 +1,19 @@
+{
+  "skill": "n8n",
+  "description": "Triggers when building n8n workflows, automating processes, configuring webhooks, creating MCP tools, or integrating external services via n8n",
+  "should_trigger": [
+    "Crea un workflow n8n che riceve un webhook e notifica su Slack",
+    "Come automatizzare l'invio di email quando un form viene compilato?",
+    "Configura un workflow di monitoring che controlla l'uptime dei siti ogni 5 minuti",
+    "Come creo un tool MCP custom in n8n?",
+    "Automatizza la pipeline: nuovo post CMS → pubblica su Telegram",
+    "Crea un workflow n8n per il deploy notification da GitHub",
+    "Come uso le espressioni Luxon per le date in n8n?"
+  ],
+  "should_not_trigger": [
+    "Crea una Server Action per inviare dati a Stripe",
+    "Come configuro MongoDB Atlas per Payload CMS?",
+    "Aggiungi animazioni Framer Motion alla homepage",
+    "Ottimizza il bundle size dell'app Next.js"
+  ]
+}

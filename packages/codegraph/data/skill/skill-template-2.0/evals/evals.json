@@ -1,0 +1,28 @@
+{
+  "skill": "your-skill-name",
+  "version": "1.0.0",
+  "description": "Test qualità output — sostituire con i propri test cases",
+  "test_cases": [
+    {
+      "id": "basic-functionality",
+      "description": "Verifica funzionalità principale",
+      "input": "Request base che usa la skill",
+      "expected_output_contains": ["keyword-atteso-1", "keyword-atteso-2"],
+      "expected_output_excludes": ["anti-pattern", "errore-comune"]
+    },
+    {
+      "id": "edge-case-handling",
+      "description": "Gestione caso limite o input incompleto",
+      "input": "Request con informazioni mancanti o ambigue",
+      "expected_output_contains": ["richiesta chiarimento", "gestione graceful"],
+      "expected_output_excludes": ["crash", "output vuoto"]
+    },
+    {
+      "id": "quality-check",
+      "description": "Verifica standard qualità output",
+      "input": "Request complessa con requisiti specifici",
+      "expected_output_contains": ["struttura corretta", "completezza"],
+      "expected_output_excludes": ["placeholder", "TODO"]
+    }
+  ]
+}

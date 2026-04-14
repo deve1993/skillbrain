@@ -1,0 +1,19 @@
+{
+  "skill": "odoo-crm-lead",
+  "description": "Triggers when building forms that submit to Odoo CRM, creating lead capture integrations, or handling the form protocol with Odoo as destination",
+  "should_trigger": [
+    "Crea un form di contatto che invia i lead a Odoo CRM",
+    "Integra il form preventivo con l'endpoint Odoo API CRM",
+    "Come implemento OdooLeadForm per catturare lead dalla landing page?",
+    "Il form invia dati ma il lead non viene creato in Odoo, come debuggo?",
+    "Crea la Server Action per inviare dati a https://fl1.cz/odoo/api/crm/contatto",
+    "Come passo l'apikey header nella chiamata all'endpoint Odoo CRM?",
+    "Gestisci i JSON annidati nel payload inviato a Odoo CRM"
+  ],
+  "should_not_trigger": [
+    "Crea una query Odoo per leggere i lead esistenti dal database",
+    "Aggiungi un campo custom al modello crm.lead in Odoo",
+    "Come configuro Payload CMS per salvare i form submission?",
+    "Crea un form che invia dati via email con Resend"
+  ]
+}

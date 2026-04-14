@@ -1,0 +1,52 @@
+{
+  "skill": "seo",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "metadata-api-setup",
+      "description": "Verifies Next.js Metadata API is used with metadataBase, title template, robots, and OG image",
+      "input": "Add complete SEO metadata to my Next.js app layout",
+      "expected_output_contains": [
+        "metadataBase",
+        "template",
+        "openGraph",
+        "robots"
+      ],
+      "expected_output_excludes": [
+        "<meta>",
+        "react-helmet",
+        "head tag manually"
+      ]
+    },
+    {
+      "id": "ai-crawlers-allowed",
+      "description": "Verifies robots.ts allows GEO crawlers: GPTBot, ClaudeBot, PerplexityBot",
+      "input": "Set up robots.txt for my Next.js site — I want good SEO and AI search visibility",
+      "expected_output_contains": [
+        "GPTBot",
+        "ClaudeBot",
+        "PerplexityBot",
+        "allow"
+      ],
+      "expected_output_excludes": [
+        "block all bots",
+        "Disallow: / for AI"
+      ]
+    },
+    {
+      "id": "llms-txt-structure",
+      "description": "Verifies llms.txt uses correct Markdown format with title, description, and sections",
+      "input": "Create a llms.txt file for my SaaS documentation site",
+      "expected_output_contains": [
+        "llms.txt",
+        "#",
+        ">",
+        "public/"
+      ],
+      "expected_output_excludes": [
+        "robots.txt format",
+        "XML format"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "skill": "website-cloning",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "pipeline-step-order",
+      "description": "Verifies the 5-step pipeline is followed in the correct order",
+      "input": "I want to clone https://example.com. What's the process?",
+      "expected_output_contains": [
+        "Firecrawl",
+        "Design Copier",
+        "Playwright",
+        "Step 1",
+        "Step 2",
+        "screenshot"
+      ],
+      "expected_output_excludes": [
+        "skip Firecrawl",
+        "Playwright first"
+      ]
+    },
+    {
+      "id": "source-priority",
+      "description": "Verifies correct source priority when sources disagree on design values",
+      "input": "Firecrawl says the primary color is #3b82f6 but Design Copier says #2563eb. Which should I use?",
+      "expected_output_contains": [
+        "Design Copier",
+        "priority",
+        "more accurate"
+      ],
+      "expected_output_excludes": [
+        "use Firecrawl",
+        "doesn't matter"
+      ]
+    },
+    {
+      "id": "css-to-tailwind-conversion",
+      "description": "Verifies correct Tailwind mapping for extracted CSS values from cloning",
+      "input": "The Playwright extraction found: font-size: 48px, padding: 64px, gap: 24px, border-radius: 12px. Convert to Tailwind.",
+      "expected_output_contains": [
+        "text-5xl",
+        "p-16",
+        "gap-6",
+        "rounded-xl"
+      ],
+      "expected_output_excludes": [
+        "keep as inline styles",
+        "use px values"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "skill": "seo-sitemap-advanced",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "sitemap-validation-checks",
+      "description": "Verifies the skill runs all critical validation checks when analyzing an existing sitemap",
+      "input": "Here is my sitemap. Can you validate it? It has 60,000 URLs and all lastmod dates are 2024-01-01.",
+      "expected_output_contains": [
+        "50,000",
+        "split",
+        "sitemap index",
+        "lastmod",
+        "identical"
+      ],
+      "expected_output_excludes": [
+        "looks good",
+        "no issues"
+      ]
+    },
+    {
+      "id": "generation-safe-pages",
+      "description": "Verifies the skill distinguishes safe vs risky programmatic page patterns",
+      "input": "I want to generate a sitemap for 200 location pages, one per city with just the city name swapped in.",
+      "expected_output_contains": [
+        "WARNING",
+        "unique content",
+        "penalty",
+        "thin content"
+      ],
+      "expected_output_excludes": [
+        "great idea",
+        "proceed"
+      ]
+    },
+    {
+      "id": "sitemap-xml-output",
+      "description": "Verifies valid XML sitemap format is generated on request",
+      "input": "Generate a valid XML sitemap for a small blog with 5 pages: home, about, blog index, and 2 blog posts.",
+      "expected_output_contains": [
+        "urlset",
+        "xmlns",
+        "loc",
+        "lastmod",
+        "http://www.sitemaps.org"
+      ],
+      "expected_output_excludes": [
+        "priority",
+        "changefreq"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "skill": "pixarts/multitenancy",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "filter-by-tenant-roles",
+      "description": "Verifies correct role-based tenant filtering logic",
+      "input": "Come funziona il filterByTenant access control per super-admin vs editor?",
+      "expected_output_contains": ["super-admin", "return true", "tenant.equals", "user.tenant", "published"],
+      "expected_output_excludes": ["everyone sees all", "no role distinction"]
+    },
+    {
+      "id": "tenant-field-auto-assign",
+      "description": "Verifies tenant field auto-assigns from current user on create",
+      "input": "Il tenantField deve auto-assegnarsi dal tenant dell'utente che crea il documento",
+      "expected_output_contains": ["beforeChange", "operation === 'create'", "req.user.tenant", "hook"],
+      "expected_output_excludes": ["manual assignment only", "no hook"]
+    },
+    {
+      "id": "frontend-tenant-query",
+      "description": "Verifies frontend queries always include tenant filter",
+      "input": "Come fetcho le pagine dal CMS API nel frontend garantendo l'isolamento tenant?",
+      "expected_output_contains": ["where[tenant][equals]", "TENANT_SLUG", "getTenantBySlug", "explicit filter"],
+      "expected_output_excludes": ["no tenant filter", "fetch all pages"]
+    }
+  ]
+}

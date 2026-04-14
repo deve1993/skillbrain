@@ -1,0 +1,19 @@
+{
+  "skill": "email-sequence",
+  "description": "Triggers when user needs to design drip campaigns, nurture sequences, onboarding email flows, or lifecycle email programs",
+  "should_trigger": [
+    "Crea una sequenza di email di onboarding per i nuovi utenti del mio SaaS",
+    "Progetta un drip campaign B2B di 7 email per convertire i lead",
+    "Come struttura una welcome sequence per chi si iscrive alla newsletter?",
+    "Voglio fare re-engagement per gli utenti inattivi da 30 giorni",
+    "Crea una sequenza di email nurturing per accompagnare i lead alla demo",
+    "Come scrivo l'email di objection handling nella sequenza di vendita?",
+    "Progetta una campagna di email automation post-download risorse"
+  ],
+  "should_not_trigger": [
+    "Come invio email transazionali con Resend?",
+    "Crea un template React Email per reset password",
+    "Come configuro SPF e DKIM per il mio dominio?",
+    "Implementa il form di iscrizione alla newsletter"
+  ]
+}

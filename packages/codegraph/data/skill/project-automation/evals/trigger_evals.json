@@ -1,0 +1,18 @@
+{
+  "skill": "project-automation",
+  "description": "Triggers when setting up project automation: Husky pre-commit hooks, GitHub Actions CI/CD, n8n monitoring workflows, or quality check scripts for client projects",
+  "should_trigger": [
+    "Set up Husky pre-commit hooks with ESLint and TypeScript for my Next.js project",
+    "Create a GitHub Actions CI/CD pipeline that runs lint, typecheck, and Lighthouse tests",
+    "Add an n8n monitoring workflow to check uptime every 6 hours for my client site",
+    "Configure lint-staged to run ESLint and Prettier before every commit",
+    "Set up the 4-layer automation system for a new Pixarts client project",
+    "Add npm scripts for check, check:fix, and check:ci to my package.json"
+  ],
+  "should_not_trigger": [
+    "Create a Next.js component for a contact form",
+    "Set up Payload CMS multi-tenancy",
+    "Write unit tests for my React hooks",
+    "Configure n8n to send a lead notification email"
+  ]
+}

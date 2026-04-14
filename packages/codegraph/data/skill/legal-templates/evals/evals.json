@@ -1,0 +1,27 @@
+{
+  "skill": "legal-templates",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "legal-privacy-sections",
+      "description": "Verifies a Privacy Policy contains all mandatory sections required by GDPR/Italian law",
+      "input": "Genera la struttura completa di una Privacy Policy per un sito e-commerce italiano",
+      "expected_output_contains": ["Titolare", "Dati Raccolti", "Base Giuridica", "Finalità", "Conservazione", "Diritti", "Cookie"],
+      "expected_output_excludes": ["optional all", "skip user rights", "no legal basis needed"]
+    },
+    {
+      "id": "legal-footer-links",
+      "description": "Verifies mandatory footer links and P.IVA requirement for Italian sites are mentioned",
+      "input": "Quali link legali obbligatori devo mettere nel footer del sito?",
+      "expected_output_contains": ["Privacy", "Cookie", "P.IVA", "footer", "obbligatori"],
+      "expected_output_excludes": ["optional", "only one needed", "no P.IVA required"]
+    },
+    {
+      "id": "legal-nextjs-routes",
+      "description": "Verifies correct Next.js route structure for legal pages in multi-locale setup",
+      "input": "Come implemento le pagine dei documenti legali nel progetto Next.js multilingua?",
+      "expected_output_contains": ["[locale]", "privacy", "cookie-policy", "terms", "prose"],
+      "expected_output_excludes": ["single route only", "no i18n", "external link only"]
+    }
+  ]
+}

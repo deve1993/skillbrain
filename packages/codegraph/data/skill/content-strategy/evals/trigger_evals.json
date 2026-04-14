@@ -1,0 +1,19 @@
+{
+  "skill": "content-strategy",
+  "description": "Triggered when the user wants to plan what content to create, define content pillars, build topic clusters, or prioritize blog topics based on customer research and SEO data.",
+  "should_trigger": [
+    "Help me build a content strategy for our B2B SaaS blog",
+    "What topics should we write about for our project management tool?",
+    "Create a content pillar structure with topic clusters for our marketing site",
+    "I have keyword data from Ahrefs — help me prioritize what to write",
+    "We want to do thought leadership content — how should we approach it?",
+    "What content gaps exist that our competitors haven't covered?",
+    "Help me plan a content calendar for Q2 based on buyer journey stages"
+  ],
+  "should_not_trigger": [
+    "Write a blog post about how to use our project management tool",
+    "Create the copy for our features page",
+    "Fix the SEO metadata on my existing blog posts",
+    "Audit my website for technical SEO issues"
+  ]
+}

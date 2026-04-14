@@ -1,0 +1,19 @@
+{
+  "skill": "email",
+  "description": "Triggers when user needs to implement transactional email sending, build React Email templates, or configure email providers like Resend/Postmark",
+  "should_trigger": [
+    "Come invio email di benvenuto dopo la registrazione con Resend?",
+    "Crea un template React Email per il reset della password",
+    "Come configuro Resend nel mio progetto Next.js?",
+    "Implementa il template email per la notifica di pagamento riuscito",
+    "Come faccio preview delle email React in development?",
+    "Aggiungi il magic link email per l'autenticazione passwordless",
+    "Come gestisco una coda di email per invii massivi?"
+  ],
+  "should_not_trigger": [
+    "Crea una sequenza di email di nurturing per i lead",
+    "Come ottimizo il tasso di apertura delle mie email marketing?",
+    "Cosa è SPF, DKIM e DMARC?",
+    "Implementa la funzionalità di contatto nel form"
+  ]
+}

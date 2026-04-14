@@ -1,0 +1,27 @@
+{
+  "skill": "finishing-a-development-branch",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "finish-branch-options",
+      "description": "Verifies exactly 4 options are presented after tests pass",
+      "input": "I test passano tutti. Come concludo il branch feature/dark-mode?",
+      "expected_output_contains": ["Merge", "Pull Request", "Keep", "Discard", "4"],
+      "expected_output_excludes": ["force push", "skip tests", "rebase -i"]
+    },
+    {
+      "id": "finish-branch-test-fail",
+      "description": "Verifies the skill stops and refuses to present options when tests fail",
+      "input": "Ho 3 test che falliscono. Posso comunque fare merge?",
+      "expected_output_contains": ["fix", "failing", "cannot proceed", "tests pass"],
+      "expected_output_excludes": ["merge anyway", "ignore failures", "skip tests"]
+    },
+    {
+      "id": "finish-branch-discard-confirm",
+      "description": "Verifies typed confirmation is required before discarding work",
+      "input": "Voglio scartare tutto il lavoro sul branch feature/experiment",
+      "expected_output_contains": ["discard", "confirm", "permanently delete", "type"],
+      "expected_output_excludes": ["deleted automatically", "no confirmation needed"]
+    }
+  ]
+}

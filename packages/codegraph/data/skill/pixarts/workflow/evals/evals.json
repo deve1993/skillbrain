@@ -1,0 +1,27 @@
+{
+  "skill": "pixarts/workflow",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "workflow-phases-order",
+      "description": "Verifies correct 5-phase workflow sequence",
+      "input": "Descrivi le fasi del workflow Pixarts per creare un sito cliente da zero",
+      "expected_output_contains": ["Intake", "CMS Setup", "Scaffold", "Build", "Deploy", "QA", "brief.json", "tenant"],
+      "expected_output_excludes": ["skip phases", "deploy before build"]
+    },
+    {
+      "id": "tenant-filter-critical-rule",
+      "description": "Verifies tenant filter is always mentioned as critical rule",
+      "input": "Quali sono le regole critiche del workflow Pixarts che non posso mai ignorare?",
+      "expected_output_contains": ["tenant", "filter", "i18n", "mobile-first", "Lighthouse > 90", "brief"],
+      "expected_output_excludes": ["optional", "skip if you want"]
+    },
+    {
+      "id": "agent-delegation-map",
+      "description": "Verifies correct agent assignment for each phase",
+      "input": "Quale agente si occupa dello scaffold del progetto Next.js nel workflow Pixarts?",
+      "expected_output_contains": ["site-scaffolder", "FASE 2", "Scaffold", "@site-scaffolder"],
+      "expected_output_excludes": ["site-builder", "site-deployer", "client-intake"]
+    }
+  ]
+}

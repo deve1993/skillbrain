@@ -1,0 +1,18 @@
+{
+  "skill": "state",
+  "description": "Triggers when user needs to implement or choose a state management solution in React/Next.js",
+  "should_trigger": [
+    "Setup a Zustand store for my React app",
+    "How do I use TanStack Query for API data fetching?",
+    "Implement optimistic updates with React Query",
+    "Manage global client state in my Next.js app",
+    "Use React Context for theme switching",
+    "Handle server state and caching in my React components"
+  ],
+  "should_not_trigger": [
+    "Manage form state with react-hook-form",
+    "Use URL search params for filter state",
+    "Setup server-side caching with Redis",
+    "Setup Redux in my application"
+  ]
+}

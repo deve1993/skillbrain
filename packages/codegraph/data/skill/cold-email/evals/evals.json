@@ -1,0 +1,51 @@
+{
+  "skill": "cold-email",
+  "version": "1.1.0",
+  "test_cases": [
+    {
+      "id": "peer-not-vendor-voice",
+      "description": "Verifies the skill writes cold email that sounds like a peer, not a sales template",
+      "input": "Write a cold email to a VP of Engineering at a 100-person SaaS company about our code review automation tool",
+      "expected_output_contains": [
+        "you",
+        "your"
+      ],
+      "expected_output_excludes": [
+        "I hope this email finds you well",
+        "My name is",
+        "I work at",
+        "synergy",
+        "leverage",
+        "best-in-class"
+      ]
+    },
+    {
+      "id": "low-friction-cta",
+      "description": "Verifies the skill uses interest-based CTAs rather than meeting requests in first touch",
+      "input": "Write a first-touch cold email asking to connect with a CTO about our infrastructure monitoring product",
+      "expected_output_contains": [
+        "Worth"
+      ],
+      "expected_output_excludes": [
+        "30-minute call",
+        "schedule a demo",
+        "book a meeting",
+        "Would you have 30 minutes"
+      ]
+    },
+    {
+      "id": "subject-line-style",
+      "description": "Verifies the skill writes short, internal-looking subject lines without sales pitches",
+      "input": "Give me 3 subject line options for a cold email about a product analytics tool to startup founders",
+      "expected_output_contains": [
+        "subject"
+      ],
+      "expected_output_excludes": [
+        "EXCLUSIVE OFFER",
+        "🚀",
+        "Game-changing",
+        "Your company + our solution"
+      ]
+    }
+  ]
+}
