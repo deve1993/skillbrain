@@ -8,6 +8,7 @@
 ![CodeGraph](https://img.shields.io/badge/CodeGraph-built--in-ff6b35)
 ![Memory Graph](https://img.shields.io/badge/Memory%20Graph-typed%20SQLite-8b5cf6)
 ![MCP Tools](https://img.shields.io/badge/MCP%20tools-17-34d399)
+![Dual Mode](https://img.shields.io/badge/MCP-stdio%20%2B%20HTTP-f59e0b)
 ![Automation](https://img.shields.io/badge/automation-6%20scripts-red)
 ![Telegram](https://img.shields.io/badge/Telegram-bot%20included-26A5E4)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-blueviolet)
@@ -170,7 +171,7 @@ cd ../..
 
 **3. Register MCP server globally**
 
-Add to `~/.claude.json` under `mcpServers`:
+Add to `~/.claude.json` (Claude Code) under `mcpServers`:
 
 ```json
 {
@@ -182,7 +183,18 @@ Add to `~/.claude.json` under `mcpServers`:
 }
 ```
 
-This makes all 17 MCP tools available to **every** Claude Code session.
+For **Claude Desktop**, add the same to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "codegraph": {
+    "command": "/opt/homebrew/opt/node@20/bin/node",
+    "args": ["/path/to/skillbrain/packages/codegraph/dist/cli.js", "mcp"]
+  }
+}
+```
+
+This makes all 17 MCP tools available to **every** Claude Code and Claude Desktop session — shared collective memory across all of them.
 
 **4. Index and migrate**
 
@@ -506,41 +518,84 @@ Session review notifications are sent to all configured channels:
 
 ---
 
+## MCP Dual Mode — Local + Remote
+
+The MCP server supports two transport modes from the same codebase:
+
+### stdio (default — local, fast)
+
+```bash
+node packages/codegraph/dist/cli.js mcp
+```
+
+Used by Claude Code and Claude Desktop via their `command`-based MCP config. Reads SQLite directly from disk — zero network latency.
+
+### Streamable HTTP (remote — always online)
+
+```bash
+node packages/codegraph/dist/cli.js mcp --http [--port 3737] [--auth-token SECRET]
+```
+
+Starts an Express server that serves:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /mcp` | MCP tool calls (Streamable HTTP protocol) |
+| `GET /mcp` | SSE stream for active sessions |
+| `DELETE /mcp` | Close MCP session |
+| `GET /` | Web dashboard |
+| `GET /api/health` | Health check |
+| `GET /api/data` | Full dashboard data (Memory Graph, repos, sessions) |
+
+Optional Bearer token auth protects the `/mcp` routes (`--auth-token` or `CODEGRAPH_AUTH_TOKEN` env).
+
+### Architecture
+
+```
+Claude Code (local)  ──stdio──┐
+Claude Desktop (local) ──stdio──┤    ┌─────────────────────┐
+                               ├───→│  createMcpServer()   │
+Any MCP client (remote) ──HTTP──┤    │  17 tools            │
+Browser (dashboard)  ──HTTP──┘    │  7 resources           │
+                                  └──────────┬────────────┘
+                                             │
+                                    .codegraph/graph.db
+                                    (shared collective memory)
+```
+
+When Anthropic adds URL-based MCP to Claude Code/Desktop, switch the config from `command` to `url: "https://codegraph.yourdomain.com/mcp"` — zero server changes needed.
+
+---
+
 ## Deploy on Coolify
 
-The dashboard and Memory Graph API can be deployed as a monolith container on Coolify.
+The MCP HTTP server can be deployed as a monolith container on Coolify.
 
 ### Docker
 
 ```bash
 cd packages/codegraph
 docker build -t codegraph .
-docker run -p 3737:3737 -v codegraph-data:/data codegraph
+docker run -p 3737:3737 -v codegraph-data:/data \
+  -e CODEGRAPH_AUTH_TOKEN=your-secret \
+  codegraph
 ```
 
 ### Coolify Setup
 
-1. Create a new service pointing to the `packages/codegraph/Dockerfile`
+1. Create a new service pointing to `packages/codegraph/Dockerfile`
 2. Set domain: `codegraph.yourdomain.com`
 3. Enable SSL (Let's Encrypt auto-renewal)
 4. Add persistent volume for `/data`
-5. Health check: `GET /api/health`
+5. Set env: `CODEGRAPH_AUTH_TOKEN=your-secret`
+6. Health check: `GET /api/health`
 
-### Dashboard
+### What You Get
 
-The dashboard runs on port 3737 and shows:
-
-- **Code Intelligence** — indexed repos, symbols, edges, communities, processes
-- **Memory Graph** — memories by type, status, confidence, relationships
-- **Skills** — 300+ skills organized by category
-- **Automation** — hook scripts and bot status
-
-### API Endpoints
-
-| Endpoint | Returns |
-|----------|---------|
-| `GET /api/health` | `{ status, memories, repos, uptime }` |
-| `GET /api/data` | Full dashboard data (repos, skills, memories, automation) |
+- **Dashboard** — Memory Graph stats, indexed repos, active MCP sessions, recent memories
+- **MCP over HTTP** — any Streamable HTTP MCP client can connect remotely
+- **REST API** — `/api/health` and `/api/data` for monitoring and integrations
+- **Always online** — works even when your laptop is off
 
 ---
 
@@ -562,6 +617,10 @@ Flat markdown files can't express relationships. When a BugFix is `CausedBy` a P
 ### Why Collective Memory
 
 Running 3+ Claude Code sessions on different projects shouldn't mean 3 isolated knowledge silos. A bug discovered in the mobile session should be instantly findable from the fullstack session. One shared SQLite database, accessed via global MCP server, solves this.
+
+### Why Dual Mode (stdio + HTTP)
+
+Claude Code and Claude Desktop currently only support `command`-based MCP (they spawn a local process). But the MCP protocol supports HTTP transport. By building both into the same codebase, we get: fast local access today, remote Coolify deployment today (for dashboard + API), and seamless remote MCP when clients add URL support — zero migration needed.
 
 ### Why 15 Memories Max Per Session
 
