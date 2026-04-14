@@ -23,8 +23,8 @@ RUN pnpm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# better-sqlite3 native addon needs libstdc++
-RUN apk add --no-cache sqlite libstdc++
+# better-sqlite3 needs libstdc++, curl needed for Coolify healthcheck
+RUN apk add --no-cache sqlite libstdc++ curl
 
 # Non-root user
 RUN addgroup --system --gid 1001 codegraph && \
@@ -45,7 +45,7 @@ ENV SKILLBRAIN_ROOT=/data
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3737/api/health || exit 1
+  CMD curl -f http://localhost:3737/api/health || exit 1
 
 USER codegraph
 

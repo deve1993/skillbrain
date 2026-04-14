@@ -380,4 +380,10 @@ const server = http.createServer((req, res) => {
     res.end(HTML)
   }
 })
-server.listen(PORT, () => console.log(`\n  SkillBrain Dashboard: http://localhost:${PORT}\n`))
+// Only start standalone when run directly (not when imported by http-server)
+const isDirectRun = process.argv[1]?.includes('dashboard/server')
+if (isDirectRun) {
+  server.listen(PORT, () => console.log(`\n  SkillBrain Dashboard: http://localhost:${PORT}\n`))
+}
+
+export { server, HTML, getRepoDetails, getSkillsGrouped, getLearnings, getMemoryGraph, getAutomation }
