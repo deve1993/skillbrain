@@ -56,6 +56,25 @@ program
   })
 
 program
+  .command('migrate-learnings')
+  .description('Migrate learnings.md files into the Memory Graph database')
+  .argument('[path]', 'Path to workspace root', '.')
+  .action(async (targetPath: string) => {
+    try {
+      const { migrate } = await import('./storage/migrate-learnings.js')
+      const result = migrate(targetPath)
+      console.log(`✅ Migration complete:`)
+      console.log(`   Migrated: ${result.migrated}`)
+      console.log(`   Skipped: ${result.skipped}`)
+      console.log(`   Edges created: ${result.edges}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[codegraph] Migration failed: ${msg}`)
+      process.exit(1)
+    }
+  })
+
+program
   .command('mcp')
   .description('Start MCP server on stdio')
   .action(async () => {

@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3'
 import { SCHEMA_SQL, FTS_SCHEMA_SQL, FTS_TRIGGERS_SQL } from './schema.js'
+import { MEMORY_SCHEMA_SQL, MEMORY_FTS_SQL, SESSION_LOG_SQL, NOTIFICATIONS_SQL } from './memory-schema.js'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -30,6 +31,10 @@ export function openDb(repoPath: string): Database.Database {
   db.exec(SCHEMA_SQL)
   db.exec(FTS_SCHEMA_SQL)
   db.exec(FTS_TRIGGERS_SQL)
+  db.exec(MEMORY_SCHEMA_SQL)
+  db.exec(MEMORY_FTS_SQL)
+  db.exec(SESSION_LOG_SQL)
+  db.exec(NOTIFICATIONS_SQL)
 
   return db
 }
