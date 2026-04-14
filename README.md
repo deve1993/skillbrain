@@ -3,6 +3,8 @@
 > **Your AI coding assistant forgets everything when you close the session.**  
 > This fixes that — permanently.
 
+**Collective memory across all your AI sessions.** Every bug fix, pattern, and decision is captured in a typed knowledge graph — shared between Claude Code, Claude Desktop, and any MCP client. Each session starts smarter than the last.
+
 ![Skills](https://img.shields.io/badge/skills-300+-blue)
 ![Agents](https://img.shields.io/badge/agents-19-orange)
 ![CodeGraph](https://img.shields.io/badge/CodeGraph-built--in-ff6b35)
@@ -12,6 +14,7 @@
 ![Automation](https://img.shields.io/badge/automation-6%20scripts-red)
 ![Telegram](https://img.shields.io/badge/Telegram-bot%20included-26A5E4)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-blueviolet)
+![Claude Desktop](https://img.shields.io/badge/Claude%20Desktop-compatible-blueviolet)
 ![OpenCode](https://img.shields.io/badge/OpenCode-compatible-blueviolet)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
