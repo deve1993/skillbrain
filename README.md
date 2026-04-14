@@ -9,7 +9,7 @@
 ![Agents](https://img.shields.io/badge/agents-19-orange)
 ![CodeGraph](https://img.shields.io/badge/CodeGraph-built--in-ff6b35)
 ![Memory Graph](https://img.shields.io/badge/Memory%20Graph-typed%20SQLite-8b5cf6)
-![MCP Tools](https://img.shields.io/badge/MCP%20tools-17-34d399)
+![MCP Tools](https://img.shields.io/badge/MCP%20tools-26-34d399)
 ![Dual Mode](https://img.shields.io/badge/MCP-stdio%20%2B%20HTTP-f59e0b)
 ![Automation](https://img.shields.io/badge/automation-6%20scripts-red)
 ![Telegram](https://img.shields.io/badge/Telegram-bot%20included-26A5E4)
@@ -30,7 +30,7 @@ SkillBrain is a **self-improving AI coding workspace** with 7 integrated systems
 2. **Memory Graph** — typed knowledge graph with 8 memory types, 5 relationship types, FTS search, and confidence scoring — shared across all sessions
 3. **Cortex** — 5-layer working memory that assembles context at session start (identity, events, cross-session history, project status, knowledge synthesis)
 4. **19 Specialized Agents** — parallel multi-agent architecture for complex tasks
-5. **CodeGraph** — built-in code intelligence engine (AST parsing, impact analysis, semantic search) with 17 MCP tools
+5. **CodeGraph** — built-in code intelligence engine (AST parsing, impact analysis, semantic search) with 26 MCP tools
 6. **Quality Gates** — 6 automation scripts for security, env validation, deploy checks
 7. **Telegram Bot** — remote control your workspace from your phone + multi-platform notifications (Discord, Slack)
 
@@ -197,7 +197,9 @@ packages/codegraph/               → Code intelligence + Memory Graph engine
       graph-store.ts              → GraphStore: code intelligence queries
       migrate-learnings.ts        → learnings.md → SQLite migration
     mcp/
-      server.ts                   → 17 MCP tools (7 codegraph + 7 memory + 3 session)
+      server.ts                   → 26 MCP tools (7 codegraph + 7 memory + 3 session + 9 skills)
+      proxy.ts                    → stdio→HTTP proxy for remote server
+      http-server.ts              → Express HTTP server for Coolify
     dashboard/
       server.ts                   → Web dashboard (port 3737)
   Dockerfile                      → Monolith container for Coolify
@@ -218,12 +220,51 @@ packages/codegraph/               → Code intelligence + Memory Graph engine
 
 ## Quick Start
 
-### Prerequisites
+### Option A: Connect to a hosted server (2 minutes)
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or compatible agent (OpenCode, Cursor with MCP)
-- Node.js 20+
+If you (or your team) have a SkillBrain server running on Coolify, you just need the proxy:
 
-### Installation
+**1. Clone and build the proxy**
+
+```bash
+git clone https://github.com/deve1993/skillbrain
+cd skillbrain/packages/codegraph
+npm install && npm run build
+```
+
+**2. Add to Claude Code** (`~/.claude.json` under `mcpServers`):
+
+```json
+"codegraph": {
+  "command": "node",
+  "args": ["/path/to/packages/codegraph/dist/cli.js", "mcp-proxy"],
+  "env": {
+    "SKILLBRAIN_MCP_URL": "https://your-server.com/mcp",
+    "CODEGRAPH_AUTH_TOKEN": "your-token"
+  }
+}
+```
+
+**3. Add to Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+"codegraph": {
+  "command": "/opt/homebrew/opt/node@20/bin/node",
+  "args": ["/path/to/packages/codegraph/dist/cli.js", "mcp-proxy"],
+  "env": {
+    "SKILLBRAIN_MCP_URL": "https://your-server.com/mcp",
+    "CODEGRAPH_AUTH_TOKEN": "your-token"
+  }
+}
+```
+
+Restart Claude Code/Desktop. You now have 26 MCP tools, 253 skills, collective memory — all from the server.
+
+---
+
+### Option B: Self-hosted (full setup)
+
+Run everything locally without a remote server.
 
 **1. Clone the repo**
 
@@ -236,45 +277,26 @@ cd skillbrain
 
 ```bash
 cd packages/codegraph
-npm install
-npm run build
+npm install && npm run build
 cd ../..
 ```
 
-**3. Register MCP server globally**
+**3. Register local MCP server**
 
-Add to `~/.claude.json` (Claude Code) under `mcpServers`:
+Add to `~/.claude.json` under `mcpServers`:
 
 ```json
-{
-  "codegraph": {
-    "command": "node",
-    "args": ["/path/to/skillbrain/packages/codegraph/dist/cli.js", "mcp"],
-    "type": "stdio"
-  }
+"codegraph": {
+  "command": "node",
+  "args": ["/path/to/packages/codegraph/dist/cli.js", "mcp"]
 }
 ```
 
-For **Claude Desktop**, add the same to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "codegraph": {
-    "command": "/opt/homebrew/opt/node@20/bin/node",
-    "args": ["/path/to/skillbrain/packages/codegraph/dist/cli.js", "mcp"]
-  }
-}
-```
-
-This makes all 17 MCP tools available to **every** Claude Code and Claude Desktop session — shared collective memory across all of them.
-
-**4. Index and migrate**
+**4. Index and import skills**
 
 ```bash
-# Index the skill system
 node packages/codegraph/dist/cli.js analyze . --skip-git
-
-# Migrate existing learnings to Memory Graph
+node packages/codegraph/dist/cli.js import-skills .
 node packages/codegraph/dist/cli.js migrate-learnings .
 ```
 
@@ -510,9 +532,9 @@ A post-commit hook automatically re-indexes after every git commit (background, 
 
 ---
 
-## 6. 17 MCP Tools
+## 6. 26 MCP Tools
 
-All tools are available to any Claude Code session via the global MCP server.
+All tools are available to any Claude Code/Desktop session via the MCP server (local or remote).
 
 ### CodeGraph Tools (7)
 
@@ -537,6 +559,20 @@ All tools are available to any Claude Code session via the global MCP server.
 | `memory_add_edge` | Create a relationship between two memories |
 | `memory_stats` | Memory Graph statistics and active contradictions |
 | `memory_decay` | Apply decay cycle (reinforce used, decay unused) |
+
+### Skills-as-a-Service Tools (9)
+
+| Tool | Purpose |
+|------|---------|
+| `skill_list` | List all 253 skills, filter by type/category |
+| `skill_read` | Read the full content of any skill |
+| `skill_route` | Given a task, find the best skills to load (FTS search) |
+| `skill_stats` | Statistics: skills by type and category |
+| `agent_list` | List all 19 agents with descriptions |
+| `agent_read` | Read the full prompt of an agent |
+| `command_list` | List all 23 slash commands |
+| `command_read` | Read the full content of a command |
+| `cortex_briefing` | Generate 5-layer working memory briefing |
 
 ### Session Tools (3)
 
