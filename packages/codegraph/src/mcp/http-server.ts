@@ -19,6 +19,14 @@ import { MemoryStore } from '../storage/memory-store.js'
 
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session'
 
+function loadRegistrySafe() {
+  try {
+    return loadRegistry()
+  } catch {
+    return []
+  }
+}
+
 // ── Dashboard data functions (imported from dashboard logic) ──
 
 function getMemoryGraphStats() {
@@ -140,7 +148,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   // ── Dashboard: Health ──
   app.get('/api/health', (_req, res) => {
     const mg = getMemoryGraphStats()
-    const repos = loadRegistry()
+    const repos = loadRegistrySafe()
     res.json({
       status: 'ok',
       memories: mg.total,
@@ -155,10 +163,10 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   // ── Dashboard: Data API ──
   app.get('/api/data', (_req, res) => {
     const mg = getMemoryGraphStats()
-    const repos = loadRegistry()
+    const repos = loadRegistrySafe()
     res.json({
       memoryGraph: mg,
-      repos: repos.map((r) => ({ name: r.name, path: r.path, stats: r.stats })),
+      repos: repos.map((r: any) => ({ name: r.name, path: r.path, stats: r.stats })),
       activeSessions: transports.size,
       timestamp: new Date().toISOString(),
     })
@@ -190,7 +198,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
 
 function getStatusPage(activeSessions: number): string {
   const mg = getMemoryGraphStats()
-  const repos = loadRegistry()
+  const repos = loadRegistrySafe()
   return `<!DOCTYPE html>
 <html><head>
 <meta charset="utf-8"><title>SkillBrain MCP</title>

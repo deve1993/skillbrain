@@ -12,6 +12,7 @@ import { previewRename, executeRename } from '../core/analysis/rename.js'
 import { getHeadCommit } from '../utils/git.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
+const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || ''
 
 function resolveRepo(nameOrPath?: string): { path: string; name: string } | null {
   if (nameOrPath) {
@@ -36,6 +37,8 @@ function resolveMemoryRepo(nameOrPath?: string): { path: string; name: string } 
   // Fallback to single-repo behavior
   const entries = loadRegistry()
   if (entries.length === 1) return { path: entries[0].path, name: entries[0].name }
+  // Last resort: use SKILLBRAIN_ROOT env (for Docker/Coolify where no registry exists)
+  if (SKILLBRAIN_ROOT) return { path: SKILLBRAIN_ROOT, name: 'skillbrain' }
   return null
 }
 
