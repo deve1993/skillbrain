@@ -998,6 +998,37 @@ export function createMcpServer(): McpServer {
     },
   )
 
+  // --- Tool: project_list ---
+  server.tool(
+    'project_list',
+    'List all projects with their status, last session, memories, and next steps',
+    { repo: z.string().optional() },
+    async ({ repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      const projects = withMemoryStore(resolved.path, (store) => store.listProjects())
+
+      if (projects.length === 0) {
+        return { content: [{ type: 'text', text: 'No projects found. Projects are auto-created when you use session_start with a project name.' }] }
+      }
+
+      const formatted = projects.map((p) => ({
+        name: p.name,
+        status: p.lastSession?.status || 'unknown',
+        lastWorked: p.lastSession?.date?.split('T')[0] || 'never',
+        task: p.lastSession?.task || null,
+        nextSteps: p.lastSession?.nextSteps || null,
+        blockers: p.blockers || null,
+        sessions: p.totalSessions,
+        memories: p.totalMemories,
+        branch: p.lastBranch || null,
+      }))
+
+      return { content: [{ type: 'text', text: JSON.stringify(formatted, null, 2) }] }
+    },
+  )
+
   // --- Resources ---
   server.resource('codegraph://repos', 'codegraph://repos', async () => {
     const entries = loadRegistry()

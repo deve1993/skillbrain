@@ -600,6 +600,77 @@ export class MemoryStore {
     return rows.map(this.rowToSession)
   }
 
+  // ── Projects (auto-derived from sessions) ──────────
+
+  listProjects(): { name: string; lastSession: any; totalSessions: number; totalMemories: number; memoriesByType: Record<string, number>; lastBranch?: string; blockers?: string }[] {
+    // Get all unique projects from sessions
+    const sessionStats = this.db.prepare(`
+      SELECT project, COUNT(*) as total,
+        MAX(started_at) as last_date
+      FROM session_log
+      WHERE project IS NOT NULL AND project != ''
+      GROUP BY project
+      ORDER BY last_date DESC
+    `).all() as any[]
+
+    return sessionStats.map((ps) => {
+      // Last session for this project
+      const last = this.db.prepare(
+        'SELECT * FROM session_log WHERE project = ? ORDER BY started_at DESC LIMIT 1'
+      ).get(ps.project) as any
+
+      // Memory count
+      const memCount = this.db.prepare(
+        "SELECT COUNT(*) as c FROM memories WHERE project = ? AND status = 'active'"
+      ).get(ps.project) as any
+
+      // Memory by type
+      const memTypes = this.db.prepare(
+        "SELECT type, COUNT(*) as c FROM memories WHERE project = ? AND status = 'active' GROUP BY type"
+      ).all(ps.project) as any[]
+
+      return {
+        name: ps.project,
+        lastSession: last ? {
+          date: last.started_at,
+          status: last.status || 'completed',
+          task: last.task_description,
+          nextSteps: last.next_steps,
+          summary: last.summary,
+        } : null,
+        totalSessions: ps.total,
+        totalMemories: memCount?.c || 0,
+        memoriesByType: memTypes.reduce((acc: any, r: any) => ({ ...acc, [r.type]: r.c }), {}),
+        lastBranch: last?.branch ?? undefined,
+        blockers: last?.blockers ?? undefined,
+      }
+    })
+  }
+
+  projectDetail(project: string): { name: string; sessions: SessionLog[]; memories: any[]; stats: any } {
+    const sessions = this.projectSessions(project, 10)
+    const memories = this.query({ project, limit: 20 }).map((m) => ({
+      ...m, edges: this.getEdges(m.id),
+    }))
+
+    // Also include global memories that mention this project in context
+    const searchResults = this.search(project, 10)
+    const relatedMemories = searchResults
+      .filter((r) => !memories.find((m) => m.id === r.memory.id))
+      .map((r) => ({ ...r.memory, edges: r.edges }))
+
+    return {
+      name: project,
+      sessions,
+      memories: [...memories, ...relatedMemories],
+      stats: {
+        totalSessions: sessions.length,
+        totalMemories: memories.length,
+        relatedMemories: relatedMemories.length,
+      },
+    }
+  }
+
   private rowToSession(r: any): SessionLog {
     return {
       id: r.id, sessionName: r.session_name, startedAt: r.started_at,

@@ -274,6 +274,31 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
+  // ── API: Projects ──
+  app.get('/api/projects', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      const projects = store.listProjects()
+      closeDb(db)
+      res.json({ projects })
+    } catch {
+      res.json({ projects: [] })
+    }
+  })
+
+  app.get('/api/projects/:name', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      const detail = store.projectDetail(_req.params.name)
+      closeDb(db)
+      res.json(detail)
+    } catch {
+      res.status(500).json({ error: 'Internal error' })
+    }
+  })
+
   // ── Static files (dashboard SPA) ──
   const publicDir = path.resolve(__dirname, '..', '..', 'public')
   app.use(express.static(publicDir))

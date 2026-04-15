@@ -24,6 +24,7 @@ function route() {
     : 'Search skills and memories...'
 
   switch (page) {
+    case 'projects': renderProjects(); break
     case 'skills': renderSkills(); break
     case 'memories': renderMemories(); break
     case 'sessions': renderSessions(); break
@@ -394,11 +395,115 @@ async function searchGlobal(q) {
   `
 }
 
+// ── PROJECTS ──
+async function renderProjects() {
+  const data = await fetch(`${API}/api/projects`).then(r => r.json())
+  const projects = data.projects || []
+
+  const statusColors = {
+    'in-progress': 'var(--blue)', 'completed': 'var(--green)',
+    'paused': 'var(--yellow)', 'blocked': 'var(--red)', 'unknown': 'var(--text-muted)'
+  }
+
+  $('#page').innerHTML = `
+    <div class="section-title">Projects <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${projects.length} projects</span></div>
+
+    ${projects.length === 0 ? '<p style="color:var(--text-muted);font-size:13px">No projects yet. Projects are auto-created when you use <code>session_start</code> with a project name.</p>' : ''}
+
+    <div class="item-list">
+      ${projects.map(p => {
+        const status = p.lastSession?.status || 'unknown'
+        const statusColor = statusColors[status] || 'var(--text-muted)'
+        const date = p.lastSession?.date?.split('T')[0] || 'never'
+        return `
+        <div class="item" onclick="openProjectDetail('${p.name}')">
+          <div class="item-header">
+            <span class="item-name">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusColor};margin-right:8px"></span>
+              ${p.name}
+            </span>
+            <span class="item-meta">${p.totalSessions} sessions &middot; ${p.totalMemories} memories</span>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:6px;font-size:12px">
+            <span style="color:var(--text-muted)">Status: <strong style="color:${statusColor}">${status}</strong></span>
+            <span style="color:var(--text-muted)">Last: ${date}</span>
+            ${p.lastBranch ? `<span style="color:var(--text-muted)">Branch: <code>${p.lastBranch}</code></span>` : ''}
+          </div>
+          ${p.lastSession?.task ? `<div class="item-desc" style="margin-top:4px">Task: ${escHtml(p.lastSession.task)}</div>` : ''}
+          ${p.lastSession?.nextSteps ? `<div style="margin-top:4px;font-size:12px;color:var(--green)">Next: ${escHtml(p.lastSession.nextSteps)}</div>` : ''}
+          ${p.blockers ? `<div style="margin-top:4px;font-size:12px;color:var(--red)">Blocker: ${escHtml(p.blockers)}</div>` : ''}
+          ${Object.keys(p.memoriesByType || {}).length ? `
+            <div class="tags" style="margin-top:6px">
+              ${Object.entries(p.memoriesByType).map(([t,c]) => `<span class="tag">${t}: ${c}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>`
+      }).join('')}
+    </div>
+  `
+}
+
+async function openProjectDetail(name) {
+  const data = await fetch(`${API}/api/projects/${encodeURIComponent(name)}`).then(r => r.json())
+  if (data.error) { openDetail(name, `<p style="color:var(--red)">${data.error}</p>`); return }
+
+  const sessions = data.sessions || []
+  const memories = data.memories || []
+  const last = sessions[0]
+
+  let html = ''
+
+  // Status header
+  if (last) {
+    const statusColors = {'in-progress':'var(--blue)','completed':'var(--green)','paused':'var(--yellow)','blocked':'var(--red)'}
+    const sc = statusColors[last.status] || 'var(--text-muted)'
+    html += `<div style="margin-bottom:16px;padding:12px;background:rgba(167,139,250,.05);border:1px solid var(--border);border-radius:8px">
+      <div style="font-size:13px;margin-bottom:4px">Status: <strong style="color:${sc}">${last.status}</strong></div>
+      ${last.taskDescription ? `<div style="font-size:12px;color:var(--text-dim)">Task: ${escHtml(last.taskDescription)}</div>` : ''}
+      ${last.nextSteps ? `<div style="font-size:12px;color:var(--green);margin-top:4px">Next: ${escHtml(last.nextSteps)}</div>` : ''}
+      ${last.blockers ? `<div style="font-size:12px;color:var(--red);margin-top:4px">Blocker: ${escHtml(last.blockers)}</div>` : ''}
+      ${last.branch ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Branch: <code>${last.branch}</code></div>` : ''}
+    </div>`
+  }
+
+  // Sessions timeline
+  if (sessions.length) {
+    html += `<div class="card"><div class="card-title">Sessions <span class="count">${sessions.length}</span></div>
+    <div class="timeline">`
+    for (const s of sessions) {
+      const date = s.startedAt?.replace('T',' ').slice(0,16) || '?'
+      html += `<div class="timeline-item">
+        <div class="timeline-name">${s.sessionName} <span style="font-size:11px;color:var(--text-muted)">[${s.status}]</span></div>
+        <div class="timeline-date">${date}</div>
+        <div class="timeline-summary">${s.summary || s.taskDescription || 'No summary'}</div>
+        <div class="timeline-stats">+${s.memoriesCreated || 0} memories${s.branch ? ' &middot; ' + s.branch : ''}</div>
+      </div>`
+    }
+    html += '</div></div>'
+  }
+
+  // Memories
+  if (memories.length) {
+    html += `<div class="card"><div class="card-title">Memories <span class="count">${memories.length}</span></div>`
+    for (const m of memories) {
+      html += `<div class="row" onclick="event.stopPropagation();openMemoryDetail('${m.id}')">
+        <span class="row-label">${badge(m.type)} ${(m.context || '').slice(0, 80)}</span>
+        <span class="row-val">${confBar(m.confidence)}</span>
+      </div>`
+    }
+    html += '</div>'
+  }
+
+  openDetail(name, html)
+}
+
 // ── Make functions global for onclick handlers ──
 window.renderSkills = renderSkills
 window.renderMemories = renderMemories
 window.openSkillDetail = openSkillDetail
 window.openMemoryDetail = openMemoryDetail
+window.openProjectDetail = openProjectDetail
+window.renderProjects = renderProjects
 
 // ── Init ──
 route()
