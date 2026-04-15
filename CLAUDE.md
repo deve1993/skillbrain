@@ -74,6 +74,13 @@ session_end({
 4. **Always search before implementing** — `memory_search` before coding, `skill_route` before designing
 5. **Include project name in EVERY session** — sessions without project are uncategorized noise
 
+### What's automatic (you DON'T need to do these):
+- Session tracking: the MCP proxy auto-creates a session on connect and auto-closes on disconnect
+- Project detection: auto-derived from working directory (`package.json` name or folder name)
+- Branch detection: auto-read from `git branch --show-current`
+
+You only need to manually call `session_start` if you want to set a specific **task description**. Otherwise it happens automatically.
+
 ---
 
 ## Architecture
