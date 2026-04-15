@@ -550,75 +550,194 @@ export function createMcpServer(): McpServer {
   // --- Tool: session_start ---
   server.tool(
     'session_start',
-    'Log the start of a new Claude Code session (for cross-session awareness)',
+    'Log the start of a new session. Include project and task for context continuity.',
     {
       sessionName: z.string().describe('Session name (e.g., "MASTER_Fullstack", "Mobile")'),
-      project: z.string().optional().describe('Current project name'),
-      workspacePath: z.string().optional().describe('Workspace path'),
+      project: z.string().optional().describe('Project name (e.g., "Quickfy", "pixarts-landing")'),
+      task: z.string().optional().describe('What you are working on (e.g., "add stripe payments", "fix auth bug")'),
+      branch: z.string().optional().describe('Git branch name'),
+      workspacePath: z.string().optional(),
       repo: z.string().optional(),
     },
-    async ({ sessionName, project, workspacePath, repo }) => {
+    async ({ sessionName, project, task, branch, workspacePath, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
       const session = withMemoryStore(resolved.path, (store) =>
-        store.startSession(sessionName, project, workspacePath),
+        store.startSession(sessionName, project, workspacePath, task, branch),
       )
 
-      return { content: [{ type: 'text', text: `Session started: ${session.id} (${sessionName})` }] }
+      // Check if there's a previous session for this project
+      let resumeContext = ''
+      if (project) {
+        const prev = withMemoryStore(resolved.path, (store) => store.lastProjectSession(project))
+        if (prev && prev.id !== session.id) {
+          resumeContext = `\n\nPrevious session on "${project}":`
+          resumeContext += `\n  Last worked: ${prev.startedAt.split('T')[0]}`
+          resumeContext += `\n  Task: ${prev.taskDescription || 'not specified'}`
+          resumeContext += `\n  Status: ${prev.status}`
+          if (prev.summary) resumeContext += `\n  Summary: ${prev.summary}`
+          if (prev.nextSteps) resumeContext += `\n  Next steps: ${prev.nextSteps}`
+          if (prev.blockers) resumeContext += `\n  Blockers: ${prev.blockers}`
+          resumeContext += `\n\nUse session_resume for full project history.`
+        }
+      }
+
+      return { content: [{ type: 'text', text: `Session started: ${session.id} (${sessionName}${project ? ` / ${project}` : ''})${resumeContext}` }] }
     },
   )
 
   // --- Tool: session_end ---
   server.tool(
     'session_end',
-    'Log the end of a session with summary and stats',
+    'Log the end of a session with summary, next steps, and status',
     {
       sessionId: z.string().describe('Session ID from session_start'),
-      summary: z.string().describe('Brief session summary'),
+      summary: z.string().describe('What was accomplished this session'),
+      nextSteps: z.string().optional().describe('What should be done next (critical for continuity)'),
+      blockers: z.string().optional().describe('Any blockers or issues preventing progress'),
+      status: z.enum(['completed', 'paused', 'blocked']).optional().default('completed'),
       memoriesCreated: z.number().default(0),
       memoriesValidated: z.number().default(0),
       filesChanged: z.array(z.string()).default([]),
+      commits: z.array(z.string()).default([]).describe('Commit hashes made this session'),
       repo: z.string().optional(),
     },
-    async ({ sessionId, summary, memoriesCreated, memoriesValidated, filesChanged, repo }) => {
+    async ({ sessionId, summary, nextSteps, blockers, status, memoriesCreated, memoriesValidated, filesChanged, commits, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
       withMemoryStore(resolved.path, (store) =>
-        store.endSession(sessionId, summary, memoriesCreated, memoriesValidated, filesChanged),
+        store.endSession(sessionId, summary, memoriesCreated, memoriesValidated, filesChanged, nextSteps, blockers, commits, status),
       )
 
-      return { content: [{ type: 'text', text: `Session ${sessionId} ended.` }] }
+      return { content: [{ type: 'text', text: `Session ${sessionId} ended (${status}).${nextSteps ? `\nNext steps: ${nextSteps}` : ''}` }] }
+    },
+  )
+
+  // --- Tool: session_resume ---
+  server.tool(
+    'session_resume',
+    'Get full context for resuming work on a project — last session, pending work, next steps, recent memories',
+    {
+      project: z.string().describe('Project name to resume'),
+      repo: z.string().optional(),
+    },
+    async ({ project, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      const db = openDb(resolved.path)
+      const memStore = new MemoryStore(db)
+
+      // Get project sessions
+      const sessions = memStore.projectSessions(project, 5)
+      const pending = memStore.pendingSessions().filter((s) => s.project === project)
+
+      // Get project-specific memories
+      const memories = memStore.query({ project, limit: 10 })
+
+      // Get recent memories related to this project
+      const searchResults = memStore.search(project, 5)
+
+      closeDb(db)
+
+      if (sessions.length === 0 && memories.length === 0) {
+        return { content: [{ type: 'text', text: `No history found for project "${project}". This is a fresh start.` }] }
+      }
+
+      const last = sessions[0]
+      const lines: string[] = [
+        `## Resume Context: ${project}`,
+        '',
+      ]
+
+      if (last) {
+        lines.push(`### Last Session`)
+        lines.push(`- **Date**: ${last.startedAt.split('T')[0]}`)
+        lines.push(`- **Task**: ${last.taskDescription || 'not specified'}`)
+        lines.push(`- **Status**: ${last.status}`)
+        if (last.summary) lines.push(`- **Summary**: ${last.summary}`)
+        if (last.nextSteps) lines.push(`- **Next steps**: ${last.nextSteps}`)
+        if (last.blockers) lines.push(`- **Blockers**: ${last.blockers}`)
+        if (last.branch) lines.push(`- **Branch**: ${last.branch}`)
+        if (last.filesChanged.length) lines.push(`- **Files changed**: ${last.filesChanged.slice(0, 10).join(', ')}`)
+        if (last.commits.length) lines.push(`- **Commits**: ${last.commits.join(', ')}`)
+        lines.push('')
+      }
+
+      if (pending.length > 0) {
+        lines.push(`### Pending Work (${pending.length})`)
+        for (const s of pending) {
+          lines.push(`- [${s.status}] ${s.taskDescription || s.summary || 'no description'} (${s.startedAt.split('T')[0]})`)
+        }
+        lines.push('')
+      }
+
+      if (sessions.length > 1) {
+        lines.push(`### Session History (last ${sessions.length})`)
+        for (const s of sessions) {
+          const date = s.startedAt.split('T')[0]
+          lines.push(`- **${date}** [${s.status}]: ${s.summary || s.taskDescription || 'no summary'} (+${s.memoriesCreated} memories)`)
+        }
+        lines.push('')
+      }
+
+      if (memories.length > 0) {
+        lines.push(`### Project Memories (${memories.length})`)
+        for (const m of memories) {
+          lines.push(`- [${m.type} conf:${m.confidence}] ${m.context.slice(0, 100)}`)
+        }
+        lines.push('')
+      }
+
+      if (searchResults.length > 0) {
+        lines.push(`### Related Knowledge`)
+        for (const r of searchResults) {
+          if (!memories.find((m) => m.id === r.memory.id)) {
+            lines.push(`- [${r.memory.type} conf:${r.memory.confidence}] ${r.memory.context.slice(0, 100)}`)
+          }
+        }
+      }
+
+      return { content: [{ type: 'text', text: lines.join('\n') }] }
     },
   )
 
   // --- Tool: session_history ---
   server.tool(
     'session_history',
-    'Get recent session history across all Claude Code sessions (cross-session awareness)',
+    'Get recent session history, optionally filtered by project',
     {
-      limit: z.number().optional().default(5),
+      project: z.string().optional().describe('Filter by project name'),
+      limit: z.number().optional().default(10),
       repo: z.string().optional(),
     },
-    async ({ limit, repo }) => {
+    async ({ project, limit, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
-      const sessions = withMemoryStore(resolved.path, (store) => store.recentSessions(limit))
+      const sessions = withMemoryStore(resolved.path, (store) =>
+        project ? store.projectSessions(project, limit) : store.recentSessions(limit),
+      )
 
       if (sessions.length === 0) {
-        return { content: [{ type: 'text', text: 'No session history found.' }] }
+        return { content: [{ type: 'text', text: project ? `No sessions found for project "${project}".` : 'No session history found.' }] }
       }
 
       const formatted = sessions.map((s) => ({
         id: s.id,
         session: s.sessionName,
+        project: s.project || 'none',
+        task: s.taskDescription || 'none',
+        status: s.status,
         started: s.startedAt,
         ended: s.endedAt || 'still running',
         summary: s.summary || 'no summary',
-        memories: `+${s.memoriesCreated} created, ${s.memoriesValidated} validated`,
-        project: s.project || 'none',
+        nextSteps: s.nextSteps || null,
+        blockers: s.blockers || null,
+        memories: `+${s.memoriesCreated} created`,
+        branch: s.branch || null,
       }))
 
       return { content: [{ type: 'text', text: JSON.stringify(formatted, null, 2) }] }

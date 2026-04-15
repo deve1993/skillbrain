@@ -3,6 +3,8 @@ import { randomId } from '../utils/hash.js'
 
 // ── Session & Notification Types ───────────────────────
 
+export type SessionStatus = 'in-progress' | 'completed' | 'paused' | 'blocked'
+
 export interface SessionLog {
   id: string
   sessionName: string
@@ -14,6 +16,12 @@ export interface SessionLog {
   filesChanged: string[]
   project?: string
   workspacePath?: string
+  taskDescription?: string
+  status: SessionStatus
+  nextSteps?: string
+  blockers?: string
+  commits: string[]
+  branch?: string
 }
 
 export interface Notification {
@@ -535,39 +543,77 @@ export class MemoryStore {
 
   // ── Session Log ───────────────────────────────────
 
-  startSession(sessionName: string, project?: string, workspacePath?: string): SessionLog {
+  startSession(sessionName: string, project?: string, workspacePath?: string, taskDescription?: string, branch?: string): SessionLog {
     const id = `S-${randomId()}`
     const now = new Date().toISOString()
     const session: SessionLog = {
       id, sessionName, startedAt: now, memoriesCreated: 0,
       memoriesValidated: 0, filesChanged: [], project, workspacePath,
+      taskDescription, status: 'in-progress', commits: [], branch,
     }
     this.db.prepare(`
-      INSERT INTO session_log (id, session_name, started_at, project, workspace_path)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, sessionName, now, project ?? null, workspacePath ?? null)
+      INSERT INTO session_log (id, session_name, started_at, project, workspace_path, task_description, status, branch)
+      VALUES (?, ?, ?, ?, ?, ?, 'in-progress', ?)
+    `).run(id, sessionName, now, project ?? null, workspacePath ?? null, taskDescription ?? null, branch ?? null)
     return session
   }
 
-  endSession(id: string, summary: string, memoriesCreated: number, memoriesValidated: number, filesChanged: string[]): void {
+  endSession(id: string, summary: string, memoriesCreated: number, memoriesValidated: number, filesChanged: string[], nextSteps?: string, blockers?: string, commits?: string[], status?: SessionStatus): void {
     this.db.prepare(`
-      UPDATE session_log SET ended_at = ?, summary = ?, memories_created = ?,
-        memories_validated = ?, files_changed = ?
+      UPDATE session_log SET
+        ended_at = ?, summary = ?, memories_created = ?, memories_validated = ?,
+        files_changed = ?, next_steps = ?, blockers = ?, commits = ?,
+        status = ?
       WHERE id = ?
-    `).run(new Date().toISOString(), summary, memoriesCreated, memoriesValidated, JSON.stringify(filesChanged), id)
+    `).run(
+      new Date().toISOString(), summary, memoriesCreated, memoriesValidated,
+      JSON.stringify(filesChanged), nextSteps ?? null, blockers ?? null,
+      JSON.stringify(commits || []), status || 'completed', id,
+    )
   }
 
   recentSessions(limit = 5): SessionLog[] {
     const rows = this.db.prepare(
       'SELECT * FROM session_log ORDER BY started_at DESC LIMIT ?'
     ).all(limit) as any[]
-    return rows.map((r) => ({
+    return rows.map(this.rowToSession)
+  }
+
+  projectSessions(project: string, limit = 10): SessionLog[] {
+    const rows = this.db.prepare(
+      'SELECT * FROM session_log WHERE project = ? ORDER BY started_at DESC LIMIT ?'
+    ).all(project, limit) as any[]
+    return rows.map(this.rowToSession)
+  }
+
+  lastProjectSession(project: string): SessionLog | undefined {
+    const row = this.db.prepare(
+      'SELECT * FROM session_log WHERE project = ? ORDER BY started_at DESC LIMIT 1'
+    ).get(project) as any
+    return row ? this.rowToSession(row) : undefined
+  }
+
+  pendingSessions(): SessionLog[] {
+    const rows = this.db.prepare(
+      "SELECT * FROM session_log WHERE status IN ('in-progress', 'paused', 'blocked') ORDER BY started_at DESC"
+    ).all() as any[]
+    return rows.map(this.rowToSession)
+  }
+
+  private rowToSession(r: any): SessionLog {
+    return {
       id: r.id, sessionName: r.session_name, startedAt: r.started_at,
       endedAt: r.ended_at ?? undefined, summary: r.summary ?? undefined,
       memoriesCreated: r.memories_created, memoriesValidated: r.memories_validated,
       filesChanged: JSON.parse(r.files_changed || '[]'),
       project: r.project ?? undefined, workspacePath: r.workspace_path ?? undefined,
-    }))
+      taskDescription: r.task_description ?? undefined,
+      status: r.status || 'completed',
+      nextSteps: r.next_steps ?? undefined,
+      blockers: r.blockers ?? undefined,
+      commits: JSON.parse(r.commits || '[]'),
+      branch: r.branch ?? undefined,
+    }
   }
 
   // ── Notifications ─────────────────────────────────

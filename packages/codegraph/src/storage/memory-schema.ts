@@ -80,11 +80,19 @@ export const SESSION_LOG_SQL = `
     memories_validated INTEGER DEFAULT 0,
     files_changed TEXT DEFAULT '[]',
     project TEXT,
-    workspace_path TEXT
+    workspace_path TEXT,
+    task_description TEXT,
+    status TEXT DEFAULT 'completed' CHECK(status IN ('in-progress','completed','paused','blocked')),
+    next_steps TEXT,
+    blockers TEXT,
+    commits TEXT DEFAULT '[]',
+    branch TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_session_started ON session_log(started_at);
   CREATE INDEX IF NOT EXISTS idx_session_name ON session_log(session_name);
+  CREATE INDEX IF NOT EXISTS idx_session_project ON session_log(project);
+  CREATE INDEX IF NOT EXISTS idx_session_status ON session_log(status);
 `
 
 export const NOTIFICATIONS_SQL = `
