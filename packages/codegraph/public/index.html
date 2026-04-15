@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkillBrain Hub</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <nav id="sidebar">
+    <div class="logo">
+      <h1>SkillBrain</h1>
+      <span class="status-dot"></span>
+    </div>
+    <a href="#/" class="nav-item active" data-page="home">
+      <span class="icon">&#9776;</span> Home
+    </a>
+    <a href="#/skills" class="nav-item" data-page="skills">
+      <span class="icon">&#128218;</span> Skills
+    </a>
+    <a href="#/memories" class="nav-item" data-page="memories">
+      <span class="icon">&#129504;</span> Memory
+    </a>
+    <a href="#/sessions" class="nav-item" data-page="sessions">
+      <span class="icon">&#128340;</span> Sessions
+    </a>
+    <div class="nav-footer">
+      <span id="server-status">connecting...</span>
+    </div>
+  </nav>
+
+  <main id="content">
+    <div id="search-bar">
+      <input type="text" id="global-search" placeholder="Search skills and memories..." autocomplete="off">
+    </div>
+    <div id="page"></div>
+  </main>
+
+  <div id="detail-panel" class="hidden">
+    <div class="panel-header">
+      <h2 id="detail-title"></h2>
+      <button id="detail-close">&times;</button>
+    </div>
+    <div id="detail-content"></div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

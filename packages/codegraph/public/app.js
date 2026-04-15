@@ -1,0 +1,404 @@
+// SkillBrain Hub — Client-side SPA
+
+const $ = (s) => document.querySelector(s)
+const $$ = (s) => [...document.querySelectorAll(s)]
+const API = ''
+
+// ── State ──
+let currentPage = 'home'
+let skillsCache = null
+let memoriesCache = null
+
+// ── Router ──
+function route() {
+  const hash = location.hash.slice(1) || '/'
+  const page = hash.split('/')[1] || 'home'
+  currentPage = page
+
+  $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page))
+
+  const searchEl = $('#global-search')
+  searchEl.value = ''
+  searchEl.placeholder = page === 'skills' ? 'Search skills...'
+    : page === 'memories' ? 'Search memories...'
+    : 'Search skills and memories...'
+
+  switch (page) {
+    case 'skills': renderSkills(); break
+    case 'memories': renderMemories(); break
+    case 'sessions': renderSessions(); break
+    default: renderHome()
+  }
+}
+
+window.addEventListener('hashchange', route)
+
+// ── Search ──
+let searchTimeout
+$('#global-search')?.addEventListener('input', (e) => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    const q = e.target.value.trim()
+    if (!q) { route(); return }
+    if (currentPage === 'skills') searchSkills(q)
+    else if (currentPage === 'memories') searchMemories(q)
+    else searchGlobal(q)
+  }, 300)
+})
+
+// ── Detail Panel ──
+$('#detail-close')?.addEventListener('click', closeDetail)
+
+function openDetail(title, html) {
+  $('#detail-title').textContent = title
+  $('#detail-content').innerHTML = html
+  $('#detail-panel').classList.remove('hidden')
+}
+
+function closeDetail() {
+  $('#detail-panel').classList.add('hidden')
+}
+
+// ── Helpers ──
+function formatUptime(s) {
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.floor(s/60)}m`
+  const h = Math.floor(s/3600)
+  const m = Math.floor((s%3600)/60)
+  return `${h}h ${m}m`
+}
+
+function badge(type) {
+  const cls = `badge-${type.toLowerCase().replace(/\s/g,'')}`
+  return `<span class="badge ${cls}">${type}</span>`
+}
+
+function confBar(val) {
+  const pct = val * 10
+  const cls = val >= 7 ? 'conf-high' : val >= 4 ? 'conf-mid' : 'conf-low'
+  return `<div class="conf-bar"><div class="conf-track"><div class="conf-fill ${cls}" style="width:${pct}%"></div></div><span>${val}</span></div>`
+}
+
+function tagsHtml(tags) {
+  if (!tags?.length) return ''
+  return `<div class="tags">${tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>`
+}
+
+function escHtml(s) {
+  return s?.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') || ''
+}
+
+function simpleMarkdown(md) {
+  return escHtml(md)
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>')
+    .replace(/\|(.+)\|/g, (m) => {
+      const cells = m.split('|').filter(c => c.trim())
+      return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>'
+    })
+}
+
+// ── HOME ──
+async function renderHome() {
+  const [health, data] = await Promise.all([
+    fetch(`${API}/api/health`).then(r => r.json()),
+    fetch(`${API}/api/data`).then(r => r.json()),
+  ])
+
+  let skillTotal = 0
+  try {
+    const sr = await fetch(`${API}/api/skills?limit=1`).then(r => r.json())
+    skillTotal = sr.total || 0
+  } catch {}
+
+  const mg = data.memoryGraph || {}
+  const sessions = mg.recentSessions || []
+
+  $('#page').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val">${health.memories || 0}</div><div class="stat-label">Memories</div></div>
+      <div class="stat-card"><div class="stat-val">${skillTotal}</div><div class="stat-label">Skills</div></div>
+      <div class="stat-card"><div class="stat-val">${health.memoryEdges || 0}</div><div class="stat-label">Edges</div></div>
+      <div class="stat-card"><div class="stat-val">${health.activeSessions || 0}</div><div class="stat-label">MCP Sessions</div></div>
+      <div class="stat-card"><div class="stat-val">${formatUptime(health.uptime || 0)}</div><div class="stat-label">Uptime</div></div>
+      <div class="stat-card"><div class="stat-val">${health.repos || 0}</div><div class="stat-label">Repos</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Memory Graph <span class="count">${health.memories} active</span></div>
+      ${Object.entries(mg.byType || {}).map(([t, c]) => `
+        <div class="row">
+          <span class="row-label">${badge(t)} ${t}</span>
+          <span class="row-val">${c}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recent Memories <span class="count">top 5</span></div>
+      ${(mg.topMemories || []).slice(0, 5).map(m => `
+        <div class="row" onclick="openMemoryDetail('${m.id}')">
+          <span class="row-label">${badge(m.type)} ${m.context?.slice(0, 80) || ''}</span>
+          <span class="row-val">${confBar(m.confidence)}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    ${sessions.length ? `
+    <div class="card">
+      <div class="card-title">Recent Sessions <span class="count">${sessions.length}</span></div>
+      ${sessions.map(s => `
+        <div class="row">
+          <span class="row-label"><strong>${s.session}</strong> &mdash; ${s.summary || 'no summary'}</span>
+          <span class="row-val" style="font-size:11px;color:var(--text-muted)">${s.started?.split('T')[0] || ''}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+  `
+
+  $('#server-status').textContent = `${formatUptime(health.uptime)} uptime`
+}
+
+// ── SKILLS ──
+async function renderSkills(typeFilter) {
+  const url = typeFilter ? `${API}/api/skills?type=${typeFilter}` : `${API}/api/skills`
+  const data = await fetch(url).then(r => r.json())
+  skillsCache = data.skills || []
+
+  const types = ['domain', 'agent', 'command', 'lifecycle', 'process']
+  const categories = [...new Set(skillsCache.map(s => s.category))].sort()
+
+  $('#page').innerHTML = `
+    <div class="section-title">Skills Browser <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${data.total} total</span></div>
+
+    <div class="filters">
+      <button class="filter-btn ${!typeFilter ? 'active' : ''}" onclick="renderSkills()">All</button>
+      ${types.map(t => `<button class="filter-btn ${typeFilter === t ? 'active' : ''}" onclick="renderSkills('${t}')">${t}</button>`).join('')}
+    </div>
+
+    <div class="item-list">
+      ${skillsCache.map(s => `
+        <div class="item" onclick="openSkillDetail('${s.name}')">
+          <div class="item-header">
+            <span class="item-name">${badge(s.type)} ${s.name}</span>
+            <span class="item-meta">${s.lines} lines &middot; ${s.category}</span>
+          </div>
+          <div class="item-desc">${escHtml(s.description)}</div>
+          ${tagsHtml(s.tags)}
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+async function searchSkills(q) {
+  const data = await fetch(`${API}/api/skills?search=${encodeURIComponent(q)}`).then(r => r.json())
+  const skills = data.skills || []
+
+  $('#page').innerHTML = `
+    <div class="section-title">Search: "${q}" <span class="count">${skills.length} results</span></div>
+    <div class="item-list">
+      ${skills.map(s => `
+        <div class="item" onclick="openSkillDetail('${s.name}')">
+          <div class="item-header">
+            <span class="item-name">${badge(s.type)} ${s.name}</span>
+            <span class="item-meta">${s.lines} lines</span>
+          </div>
+          <div class="item-desc">${escHtml(s.description)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+async function openSkillDetail(name) {
+  const skill = await fetch(`${API}/api/skills/${encodeURIComponent(name)}`).then(r => r.json())
+  if (skill.error) { openDetail(name, `<p style="color:var(--red)">${skill.error}</p>`); return }
+
+  openDetail(skill.name, `
+    <div style="margin-bottom:12px">
+      ${badge(skill.type)} <span style="color:var(--text-muted)">${skill.category} &middot; ${skill.lines} lines</span>
+    </div>
+    ${tagsHtml(skill.tags)}
+    <div style="margin-top:16px">${simpleMarkdown(skill.content)}</div>
+  `)
+}
+
+// ── MEMORIES ──
+async function renderMemories(typeFilter) {
+  const url = typeFilter ? `${API}/api/memories?type=${typeFilter}` : `${API}/api/memories`
+  const data = await fetch(url).then(r => r.json())
+  memoriesCache = data.memories || []
+
+  const types = ['Pattern', 'BugFix', 'AntiPattern', 'Fact', 'Decision', 'Preference', 'Goal', 'Todo']
+
+  $('#page').innerHTML = `
+    <div class="section-title">Memory Explorer <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${data.total} total</span></div>
+
+    <div class="filters">
+      <button class="filter-btn ${!typeFilter ? 'active' : ''}" onclick="renderMemories()">All</button>
+      ${types.map(t => `<button class="filter-btn ${typeFilter === t ? 'active' : ''}" onclick="renderMemories('${t}')">${t}</button>`).join('')}
+    </div>
+
+    <div class="item-list">
+      ${memoriesCache.map(m => `
+        <div class="item" onclick="openMemoryDetail('${m.id}')">
+          <div class="item-header">
+            <span class="item-name">${badge(m.type)} ${m.id}</span>
+            <span class="item-meta">${confBar(m.confidence)}</span>
+          </div>
+          <div class="item-desc">${escHtml(m.context)}</div>
+          <div style="margin-top:4px;font-size:11px;color:var(--text-muted)">${m.skill || ''}</div>
+          ${tagsHtml(m.tags)}
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+async function searchMemories(q) {
+  const data = await fetch(`${API}/api/memories?search=${encodeURIComponent(q)}`).then(r => r.json())
+  const memories = data.memories || []
+
+  $('#page').innerHTML = `
+    <div class="section-title">Search: "${q}" <span class="count">${memories.length} results</span></div>
+    <div class="item-list">
+      ${memories.map(m => `
+        <div class="item" onclick="openMemoryDetail('${m.id}')">
+          <div class="item-header">
+            <span class="item-name">${badge(m.type)} ${m.id}</span>
+            <span class="item-meta">${confBar(m.confidence)}</span>
+          </div>
+          <div class="item-desc">${escHtml(m.context)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+async function openMemoryDetail(id) {
+  const m = await fetch(`${API}/api/memories/${encodeURIComponent(id)}`).then(r => r.json())
+  if (m.error) { openDetail(id, `<p style="color:var(--red)">${m.error}</p>`); return }
+
+  const edges = m.edges || []
+
+  openDetail(m.id, `
+    <div style="margin-bottom:12px">
+      ${badge(m.type)} ${confBar(m.confidence)}
+      <span style="color:var(--text-muted);font-size:11px;margin-left:8px">${m.skill || ''} &middot; ${m.scope}</span>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Context</div>
+      <p>${escHtml(m.context)}</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Problem</div>
+      <p>${escHtml(m.problem)}</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Solution</div>
+      <p>${escHtml(m.solution)}</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Reason</div>
+      <p>${escHtml(m.reason)}</p>
+    </div>
+
+    ${tagsHtml(m.tags)}
+
+    ${edges.length ? `
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Edges <span class="count">${edges.length}</span></div>
+      ${edges.map(e => `
+        <div class="row">
+          <span class="row-label">${badge(e.type)} ${e.sourceId === m.id ? e.targetId : e.sourceId}</span>
+          <span class="row-val" style="font-size:11px">${e.reason || ''}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    <div style="margin-top:12px;font-size:11px;color:var(--text-muted)">
+      Created: ${m.createdAt?.split('T')[0] || '?'} &middot;
+      Updated: ${m.updatedAt?.split('T')[0] || '?'} &middot;
+      Sessions since validation: ${m.sessionsSinceValidation || 0}
+    </div>
+  `)
+}
+
+// ── SESSIONS ──
+async function renderSessions() {
+  const data = await fetch(`${API}/api/sessions`).then(r => r.json())
+  const sessions = data.sessions || []
+
+  $('#page').innerHTML = `
+    <div class="section-title">Session History <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${sessions.length} sessions</span></div>
+
+    ${sessions.length === 0 ? '<p style="color:var(--text-muted);font-size:13px">No sessions recorded yet. Sessions are logged when using session_start/session_end MCP tools.</p>' : ''}
+
+    <div class="timeline">
+      ${sessions.map(s => `
+        <div class="timeline-item">
+          <div class="timeline-name">${s.sessionName}</div>
+          <div class="timeline-date">${s.startedAt?.replace('T',' ').slice(0,16) || '?'}${s.endedAt ? ' — ' + s.endedAt.replace('T',' ').slice(11,16) : ' (running)'}</div>
+          <div class="timeline-summary">${s.summary || 'No summary'}</div>
+          <div class="timeline-stats">+${s.memoriesCreated || 0} memories &middot; ${s.memoriesValidated || 0} validated${s.project ? ' &middot; ' + s.project : ''}</div>
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+// ── GLOBAL SEARCH ──
+async function searchGlobal(q) {
+  const [skills, memories] = await Promise.all([
+    fetch(`${API}/api/skills?search=${encodeURIComponent(q)}&limit=5`).then(r => r.json()),
+    fetch(`${API}/api/memories?search=${encodeURIComponent(q)}&limit=5`).then(r => r.json()),
+  ])
+
+  $('#page').innerHTML = `
+    <div class="section-title">Search: "${q}"</div>
+
+    ${(skills.skills || []).length ? `
+    <div class="card">
+      <div class="card-title">Skills <span class="count">${skills.skills.length}</span></div>
+      ${skills.skills.map(s => `
+        <div class="row" onclick="location.hash='#/skills'; setTimeout(() => openSkillDetail('${s.name}'), 100)">
+          <span class="row-label">${badge(s.type)} ${s.name}</span>
+          <span class="row-val" style="font-size:11px">${s.category}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${(memories.memories || []).length ? `
+    <div class="card">
+      <div class="card-title">Memories <span class="count">${memories.memories.length}</span></div>
+      ${memories.memories.map(m => `
+        <div class="row" onclick="location.hash='#/memories'; setTimeout(() => openMemoryDetail('${m.id}'), 100)">
+          <span class="row-label">${badge(m.type)} ${(m.context || '').slice(0, 80)}</span>
+          <span class="row-val">${confBar(m.confidence)}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${!(skills.skills || []).length && !(memories.memories || []).length ? '<p style="color:var(--text-muted)">No results found.</p>' : ''}
+  `
+}
+
+// ── Make functions global for onclick handlers ──
+window.renderSkills = renderSkills
+window.renderMemories = renderMemories
+window.openSkillDetail = openSkillDetail
+window.openMemoryDetail = openMemoryDetail
+
+// ── Init ──
+route()

@@ -33,6 +33,9 @@ COPY --from=builder /app/package.json ./
 # Copy bundled skills data (258 skills, agents, commands)
 COPY data/ ./data/
 
+# Copy dashboard frontend
+COPY public/ ./public/
+
 # Copy entrypoint
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh

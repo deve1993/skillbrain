@@ -12,10 +12,15 @@ import express from 'express'
 import { randomUUID } from 'node:crypto'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createMcpServer } from './server.js'
 import { loadRegistry } from '../storage/registry.js'
 import { openDb, closeDb } from '../storage/db.js'
 import { MemoryStore } from '../storage/memory-store.js'
+import { SkillsStore } from '../storage/skills-store.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session'
 
@@ -172,28 +177,136 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     })
   })
 
-  // ── Dashboard: HTML ──
-  app.get('/', (_req, res) => {
-    // Import the dashboard HTML dynamically
-    import('../dashboard/server.js').then((mod) => {
-      // The dashboard module exports HTML via its own server
-      // For now, serve a lightweight status page
-      res.type('html').send(getStatusPage(transports.size))
-    }).catch(() => {
-      res.type('html').send(getStatusPage(transports.size))
-    })
+  // ── API: Skills ──
+  app.get('/api/skills', (_req, res) => {
+    const { type, category, search, limit } = _req.query as any
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new SkillsStore(db)
+      let skills
+      if (search) {
+        skills = store.search(search, parseInt(limit || '50', 10)).map((r) => ({
+          name: r.skill.name, category: r.skill.category, type: r.skill.type,
+          description: r.skill.description.slice(0, 150), lines: r.skill.lines,
+          tags: r.skill.tags,
+        }))
+      } else {
+        skills = store.list(type, category).map((s) => ({
+          name: s.name, category: s.category, type: s.type,
+          description: s.description.slice(0, 150), lines: s.lines,
+          tags: s.tags,
+        }))
+      }
+      const stats = store.stats()
+      closeDb(db)
+      res.json({ skills, total: stats.total, stats })
+    } catch {
+      res.json({ skills: [], total: 0, stats: {} })
+    }
+  })
+
+  app.get('/api/skills/:name', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new SkillsStore(db)
+      const skill = store.get(_req.params.name)
+      closeDb(db)
+      if (!skill) { res.status(404).json({ error: 'Skill not found' }); return }
+      res.json(skill)
+    } catch {
+      res.status(500).json({ error: 'Internal error' })
+    }
+  })
+
+  // ── API: Memories ──
+  app.get('/api/memories', (_req, res) => {
+    const { type, minConfidence, skill, project, status, search, limit } = _req.query as any
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      let memories
+      if (search) {
+        memories = store.search(search, parseInt(limit || '50', 10)).map((r) => ({
+          ...r.memory, edges: r.edges,
+        }))
+      } else {
+        const typeArr = type ? (Array.isArray(type) ? type : [type]) : undefined
+        memories = store.query({
+          type: typeArr,
+          minConfidence: minConfidence ? parseInt(minConfidence, 10) : undefined,
+          skill, project, status,
+          limit: parseInt(limit || '50', 10),
+        }).map((m) => ({ ...m, edges: store.getEdges(m.id) }))
+      }
+      const stats = store.stats()
+      closeDb(db)
+      res.json({ memories, total: stats.total, stats })
+    } catch {
+      res.json({ memories: [], total: 0, stats: {} })
+    }
+  })
+
+  app.get('/api/memories/:id', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      const memory = store.get(_req.params.id)
+      if (!memory) { closeDb(db); res.status(404).json({ error: 'Memory not found' }); return }
+      const edges = store.getEdges(memory.id)
+      closeDb(db)
+      res.json({ ...memory, edges })
+    } catch {
+      res.status(500).json({ error: 'Internal error' })
+    }
+  })
+
+  // ── API: Sessions ──
+  app.get('/api/sessions', (_req, res) => {
+    const limit = parseInt((_req.query as any).limit || '20', 10)
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      const sessions = store.recentSessions(limit)
+      closeDb(db)
+      res.json({ sessions })
+    } catch {
+      res.json({ sessions: [] })
+    }
+  })
+
+  // ── Static files (dashboard SPA) ──
+  const publicDir = path.resolve(__dirname, '..', '..', 'public')
+  app.use(express.static(publicDir))
+
+  // SPA fallback: serve index.html for unmatched GET routes
+  app.use((_req, res, next) => {
+    if (_req.method === 'GET' && !_req.path.startsWith('/api/') && !_req.path.startsWith('/mcp')) {
+      res.sendFile(path.join(publicDir, 'index.html'), (err) => {
+        if (err) res.type('html').send(getFallbackPage(transports.size))
+      })
+    } else {
+      next()
+    }
   })
 
   app.listen(port, () => {
     console.log(`
-  SkillBrain MCP Server (HTTP mode)
-  ──────────────────────────────────
+  SkillBrain Hub (HTTP mode)
+  ──────────────────────────
   Dashboard:  http://localhost:${port}
   MCP:        http://localhost:${port}/mcp
-  Health:     http://localhost:${port}/api/health
-  Auth:       ${authToken ? 'Bearer token required' : 'disabled'}
+  API:        http://localhost:${port}/api/health
+  Auth:       ${authToken ? 'Bearer token required for /mcp' : 'disabled'}
 `)
   })
+}
+
+function getFallbackPage(activeSessions: number): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SkillBrain</title>
+<style>body{background:#08080d;color:#d0d0d0;font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+.c{text-align:center}h1{font-size:24px;color:#a78bfa}p{color:#555;margin-top:8px}</style>
+</head><body><div class="c"><h1>SkillBrain Hub</h1><p>Server running. Dashboard files not found.</p>
+<p>Active sessions: ${activeSessions}</p></div></body></html>`
 }
 
 function getStatusPage(activeSessions: number): string {
