@@ -5,6 +5,77 @@
 
 ---
 
+## SkillBrain Real-Time Protocol (MANDATORY)
+
+You are connected to the SkillBrain collective memory via MCP. Use it continuously — not just at session end.
+
+### On session start (FIRST THING YOU DO):
+
+```
+session_start({
+  sessionName: "Claude Code",
+  project: "{project name from user request}",
+  task: "{what the user asked to do}",
+  branch: "{current git branch if applicable}"
+})
+```
+
+Then check for previous work:
+```
+session_resume({ project: "{project name}" })
+```
+
+If there's previous context, read it and inform the user: "I see you last worked on X, status was Y, next steps were Z."
+
+### During work (CONTINUOUS — every time you learn something):
+
+**Save immediately when any of these happen:**
+
+| Event | Action |
+|-------|--------|
+| Bug fixed after 2+ attempts | `memory_add({ type: "BugFix", ... })` |
+| User corrects your approach | `memory_add({ type: "Preference", ... })` |
+| You discover a non-obvious pattern | `memory_add({ type: "Pattern", ... })` |
+| You make an architectural decision | `memory_add({ type: "Decision", ... })` |
+| Something should NOT be done | `memory_add({ type: "AntiPattern", ... })` |
+| A technical fact is verified | `memory_add({ type: "Fact", ... })` |
+
+**Do NOT wait for session end. Save in real-time.**
+
+Before working on unfamiliar code, search for existing knowledge:
+```
+memory_search({ query: "{what you're about to do}" })
+```
+
+Before loading a skill from disk, try the server first:
+```
+skill_route({ task: "{current task}" })
+skill_read({ name: "{skill name}" })
+```
+
+### On session end:
+
+```
+session_end({
+  sessionId: "{from session_start}",
+  summary: "{what was accomplished}",
+  nextSteps: "{what should be done next — CRITICAL for continuity}",
+  status: "completed" | "paused" | "blocked",
+  filesChanged: [...],
+  commits: [...],
+  blockers: "{if any}"
+})
+```
+
+### Rules:
+1. **NEVER skip session_start** — without it, this session is invisible to future sessions
+2. **NEVER skip session_end with nextSteps** — without it, resuming work is guesswork
+3. **Save memories IN REAL-TIME** — waiting for session end means losing context if the session crashes
+4. **Always search before implementing** — `memory_search` before coding, `skill_route` before designing
+5. **Include project name in EVERY session** — sessions without project are uncategorized noise
+
+---
+
 ## Architecture
 
 ```
