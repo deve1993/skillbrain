@@ -95,6 +95,12 @@ export const SESSION_LOG_SQL = `
   CREATE INDEX IF NOT EXISTS idx_session_status ON session_log(status);
 `
 
+// Safe ALTER TABLE — adds columns if they don't exist (runs every boot)
+export const SESSION_LOG_MIGRATE_SQL = `
+  ALTER TABLE session_log ADD COLUMN work_type TEXT;
+  ALTER TABLE session_log ADD COLUMN deliverables TEXT;
+`
+
 export const NOTIFICATIONS_SQL = `
   CREATE TABLE IF NOT EXISTS notifications (
     id TEXT PRIMARY KEY,

@@ -25,6 +25,7 @@ function route() {
 
   switch (page) {
     case 'projects': renderProjects(); break
+    case 'worklog': renderWorkLog(); break
     case 'skills': renderSkills(); break
     case 'memories': renderMemories(); break
     case 'sessions': renderSessions(); break
@@ -495,6 +496,71 @@ async function openProjectDetail(name) {
   }
 
   openDetail(name, html)
+}
+
+// ── WORK LOG ──
+async function renderWorkLog() {
+  const data = await fetch(`${API}/api/worklog`).then(r => r.json())
+  const projects = data.projects || {}
+  const projectNames = Object.keys(projects)
+
+  const typeBadges = {
+    feature: 'badge-pattern', fix: 'badge-bugfix', setup: 'badge-fact',
+    deploy: 'badge-decision', refactor: 'badge-preference', design: 'badge-goal',
+    docs: 'badge-todo', other: 'badge-process'
+  }
+
+  const statusDots = {
+    'completed': 'var(--green)', 'paused': 'var(--yellow)',
+    'blocked': 'var(--red)', 'in-progress': 'var(--blue)'
+  }
+
+  let totalEntries = 0
+  projectNames.forEach(p => totalEntries += projects[p].totalEntries)
+
+  $('#page').innerHTML = `
+    <div class="section-title">Work Log <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${totalEntries} entries across ${projectNames.length} projects</span></div>
+
+    ${projectNames.length === 0 ? `
+      <div class="card" style="text-align:center;padding:32px">
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:8px">No deliverables recorded yet.</p>
+        <p style="color:var(--text-muted);font-size:12px">When sessions are closed with <code>deliverables</code> and <code>workType</code>, they appear here automatically.</p>
+      </div>
+    ` : ''}
+
+    ${projectNames.map(projName => {
+      const proj = projects[projName]
+      return `
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title" style="font-size:16px">${projName} <span class="count">${proj.totalEntries} entries</span></div>
+
+        <div class="timeline">
+          ${proj.entries.map(e => {
+            const dotColor = statusDots[e.status] || 'var(--text-muted)'
+            const badgeCls = typeBadges[e.type] || 'badge-process'
+            return `
+            <div class="timeline-item">
+              <div class="timeline-name">
+                <span class="badge ${badgeCls}">${e.type}</span>
+                ${escHtml(e.deliverable)}
+              </div>
+              <div class="timeline-date">
+                ${e.date}
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};margin-left:8px;vertical-align:middle"></span>
+                <span style="color:var(--text-muted)">${e.status}</span>
+              </div>
+              <div class="timeline-stats">
+                ${e.commits ? e.commits + ' commits' : ''}
+                ${e.files ? ' &middot; ' + e.files + ' files' : ''}
+                ${e.branch ? ' &middot; ' + e.branch : ''}
+              </div>
+              ${e.nextSteps ? `<div style="margin-top:4px;font-size:12px;color:var(--green)">Next: ${escHtml(e.nextSteps)}</div>` : ''}
+            </div>`
+          }).join('')}
+        </div>
+      </div>`
+    }).join('')}
+  `
 }
 
 // ── Make functions global for onclick handlers ──

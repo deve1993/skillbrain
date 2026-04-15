@@ -352,6 +352,19 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
+  // ── API: Work Log ──
+  app.get('/api/worklog', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      const projects = store.workLog()
+      closeDb(db)
+      res.json({ projects })
+    } catch {
+      res.json({ projects: {} })
+    }
+  })
+
   // ── Static files (dashboard SPA) ──
   const publicDir = path.resolve(__dirname, '..', '..', 'public')
   app.use(express.static(publicDir))

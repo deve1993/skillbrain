@@ -590,10 +590,12 @@ export function createMcpServer(): McpServer {
   // --- Tool: session_end ---
   server.tool(
     'session_end',
-    'Log the end of a session with summary, next steps, and status',
+    'Log the end of a session with summary, deliverables, next steps, and status',
     {
       sessionId: z.string().describe('Session ID from session_start'),
       summary: z.string().describe('What was accomplished this session'),
+      deliverables: z.string().optional().describe('What was delivered/built (e.g., "Contact form with Zod validation")'),
+      workType: z.enum(['feature', 'fix', 'setup', 'deploy', 'refactor', 'design', 'docs', 'other']).optional().describe('Type of work done'),
       nextSteps: z.string().optional().describe('What should be done next (critical for continuity)'),
       blockers: z.string().optional().describe('Any blockers or issues preventing progress'),
       status: z.enum(['completed', 'paused', 'blocked']).optional().default('completed'),
@@ -603,15 +605,15 @@ export function createMcpServer(): McpServer {
       commits: z.array(z.string()).default([]).describe('Commit hashes made this session'),
       repo: z.string().optional(),
     },
-    async ({ sessionId, summary, nextSteps, blockers, status, memoriesCreated, memoriesValidated, filesChanged, commits, repo }) => {
+    async ({ sessionId, summary, deliverables, workType, nextSteps, blockers, status, memoriesCreated, memoriesValidated, filesChanged, commits, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
       withMemoryStore(resolved.path, (store) =>
-        store.endSession(sessionId, summary, memoriesCreated, memoriesValidated, filesChanged, nextSteps, blockers, commits, status),
+        store.endSession(sessionId, summary, memoriesCreated, memoriesValidated, filesChanged, nextSteps, blockers, commits, status, workType as any, deliverables),
       )
 
-      return { content: [{ type: 'text', text: `Session ${sessionId} ended (${status}).${nextSteps ? `\nNext steps: ${nextSteps}` : ''}` }] }
+      return { content: [{ type: 'text', text: `Session ${sessionId} ended (${status}).${deliverables ? `\nDelivered: ${deliverables}` : ''}${nextSteps ? `\nNext steps: ${nextSteps}` : ''}` }] }
     },
   )
 

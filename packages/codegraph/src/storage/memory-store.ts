@@ -5,6 +5,8 @@ import { randomId } from '../utils/hash.js'
 
 export type SessionStatus = 'in-progress' | 'completed' | 'paused' | 'blocked'
 
+export type WorkType = 'feature' | 'fix' | 'setup' | 'deploy' | 'refactor' | 'design' | 'docs' | 'other'
+
 export interface SessionLog {
   id: string
   sessionName: string
@@ -22,6 +24,8 @@ export interface SessionLog {
   blockers?: string
   commits: string[]
   branch?: string
+  workType?: WorkType
+  deliverables?: string
 }
 
 export interface Notification {
@@ -558,17 +562,18 @@ export class MemoryStore {
     return session
   }
 
-  endSession(id: string, summary: string, memoriesCreated: number, memoriesValidated: number, filesChanged: string[], nextSteps?: string, blockers?: string, commits?: string[], status?: SessionStatus): void {
+  endSession(id: string, summary: string, memoriesCreated: number, memoriesValidated: number, filesChanged: string[], nextSteps?: string, blockers?: string, commits?: string[], status?: SessionStatus, workType?: WorkType, deliverables?: string): void {
     this.db.prepare(`
       UPDATE session_log SET
         ended_at = ?, summary = ?, memories_created = ?, memories_validated = ?,
         files_changed = ?, next_steps = ?, blockers = ?, commits = ?,
-        status = ?
+        status = ?, work_type = ?, deliverables = ?
       WHERE id = ?
     `).run(
       new Date().toISOString(), summary, memoriesCreated, memoriesValidated,
       JSON.stringify(filesChanged), nextSteps ?? null, blockers ?? null,
-      JSON.stringify(commits || []), status || 'completed', id,
+      JSON.stringify(commits || []), status || 'completed',
+      workType ?? null, deliverables ?? null, id,
     )
   }
 
@@ -671,6 +676,38 @@ export class MemoryStore {
     }
   }
 
+  workLog(): Record<string, { entries: any[]; totalEntries: number }> {
+    const sessions = this.db.prepare(`
+      SELECT * FROM session_log
+      WHERE project IS NOT NULL AND project != ''
+        AND (deliverables IS NOT NULL OR summary IS NOT NULL)
+      ORDER BY started_at DESC
+    `).all() as any[]
+
+    const byProject: Record<string, any[]> = {}
+    for (const s of sessions) {
+      const proj = s.project
+      if (!byProject[proj]) byProject[proj] = []
+      byProject[proj].push({
+        date: s.started_at?.split('T')[0] || '',
+        type: s.work_type || 'other',
+        deliverable: s.deliverables || s.summary || 'No description',
+        commits: JSON.parse(s.commits || '[]').length,
+        files: JSON.parse(s.files_changed || '[]').length,
+        branch: s.branch,
+        status: s.status || 'completed',
+        nextSteps: s.next_steps,
+        sessionName: s.session_name,
+      })
+    }
+
+    const result: Record<string, { entries: any[]; totalEntries: number }> = {}
+    for (const [proj, entries] of Object.entries(byProject)) {
+      result[proj] = { entries, totalEntries: entries.length }
+    }
+    return result
+  }
+
   private rowToSession(r: any): SessionLog {
     return {
       id: r.id, sessionName: r.session_name, startedAt: r.started_at,
@@ -684,6 +721,8 @@ export class MemoryStore {
       blockers: r.blockers ?? undefined,
       commits: JSON.parse(r.commits || '[]'),
       branch: r.branch ?? undefined,
+      workType: r.work_type ?? undefined,
+      deliverables: r.deliverables ?? undefined,
     }
   }
 
