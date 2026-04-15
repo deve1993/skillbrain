@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { createMcpServer } from './server.js'
 import { loadRegistry } from '../storage/registry.js'
@@ -23,6 +24,8 @@ import { SkillsStore } from '../storage/skills-store.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session'
+const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || ''
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 
 function loadRegistrySafe() {
   try {
@@ -69,7 +72,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   // Session map for MCP transports
   const transports = new Map<string, StreamableHTTPServerTransport>()
 
-  // ── Auth middleware for /mcp routes ──
+  // ── Auth middleware for /mcp routes (Bearer token) ──
   if (authToken) {
     app.use('/mcp', (req, res, next) => {
       const token = req.headers.authorization?.replace('Bearer ', '')
@@ -78,6 +81,56 @@ export async function startHttpServer(port: number, authToken?: string): Promise
         return
       }
       next()
+    })
+  }
+
+  // ── Dashboard auth (password-based) ──
+  function createSessionToken(): string {
+    const payload = `skillbrain:${Date.now()}`
+    return crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex')
+  }
+
+  function isValidSession(token: string | undefined): boolean {
+    if (!DASHBOARD_PASSWORD) return true // no password = no auth
+    if (!token) return false
+    // Token is valid if it's a proper HMAC hex string (64 chars)
+    return /^[a-f0-9]{64}$/.test(token)
+  }
+
+  // Login endpoint
+  app.post('/auth/login', (req, res) => {
+    const { password } = req.body || {}
+    if (!DASHBOARD_PASSWORD || password === DASHBOARD_PASSWORD) {
+      const token = createSessionToken()
+      res.json({ ok: true, token })
+    } else {
+      res.status(401).json({ ok: false, error: 'Wrong password' })
+    }
+  })
+
+  // Auth check for dashboard routes (not /mcp, not /auth)
+  if (DASHBOARD_PASSWORD) {
+    app.use((req, res, next) => {
+      // Skip auth for MCP protocol and login
+      if (req.path.startsWith('/mcp') || req.path.startsWith('/auth/')) {
+        next()
+        return
+      }
+
+      // Check cookie or Authorization header
+      const cookieToken = req.headers.cookie?.split(';')
+        .map(c => c.trim().split('='))
+        .find(([k]) => k === 'sb_session')?.[1]
+      const headerToken = req.headers['x-dashboard-token'] as string | undefined
+
+      if (isValidSession(cookieToken) || isValidSession(headerToken)) {
+        next()
+      } else if (req.path.startsWith('/api/')) {
+        res.status(401).json({ error: 'Authentication required' })
+      } else {
+        // Serve login page for HTML requests
+        res.type('html').send(getLoginPage())
+      }
     })
   }
 
@@ -326,6 +379,47 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   })
 }
 
+function getLoginPage(): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SkillBrain — Login</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#08080d;color:#d0d0d0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh}
+.login{background:#0e0e16;border:1px solid #1a1a2a;border-radius:12px;padding:32px;width:320px;text-align:center}
+h1{font-size:22px;background:linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:#555;font-size:12px;margin-bottom:24px}
+input{width:100%;padding:10px 14px;background:#111118;border:1px solid #1a1a2a;border-radius:8px;color:#d0d0d0;font-size:14px;outline:none;margin-bottom:12px}
+input:focus{border-color:#6366f1}
+button{width:100%;padding:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+button:hover{opacity:.9}
+.err{color:#f87171;font-size:12px;margin-top:8px;display:none}
+</style></head><body>
+<div class="login">
+<h1>SkillBrain</h1>
+<div class="sub">Enter password to access the dashboard</div>
+<form onsubmit="return doLogin(event)">
+<input type="password" id="pw" placeholder="Password" autofocus>
+<button type="submit">Login</button>
+</form>
+<div class="err" id="err">Wrong password</div>
+</div>
+<script>
+async function doLogin(e){
+  e.preventDefault();
+  const pw=document.getElementById('pw').value;
+  const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+  const d=await r.json();
+  if(d.ok){
+    document.cookie='sb_session='+d.token+';path=/;max-age=604800;SameSite=Lax';
+    location.reload();
+  } else {
+    document.getElementById('err').style.display='block';
+  }
+  return false;
+}
+</script></body></html>`
+}
+
 function getFallbackPage(activeSessions: number): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SkillBrain</title>
 <style>body{background:#08080d;color:#d0d0d0;font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
@@ -334,63 +428,3 @@ function getFallbackPage(activeSessions: number): string {
 <p>Active sessions: ${activeSessions}</p></div></body></html>`
 }
 
-function getStatusPage(activeSessions: number): string {
-  const mg = getMemoryGraphStats()
-  const repos = loadRegistrySafe()
-  return `<!DOCTYPE html>
-<html><head>
-<meta charset="utf-8"><title>SkillBrain MCP</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#08080d;color:#d0d0d0;padding:40px;max-width:800px;margin:0 auto}
-h1{font-size:28px;background:linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
-.sub{color:#555;font-size:13px;margin-bottom:24px}
-.card{background:#0e0e16;border:1px solid #1a1a2a;border-radius:10px;padding:16px;margin-bottom:12px}
-.card h2{font-size:14px;color:#a78bfa;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
-.row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid #111118}
-.row:last-child{border:none}
-.label{color:#777}.val{font-weight:600;color:#d0d0d0}
-.tag{display:inline-block;padding:2px 8px;margin:2px;border-radius:4px;font-size:11px;background:#111120;border:1px solid #1e1e30;color:#999}
-.ok{color:#34d399}.warn{color:#f59e0b}.err{color:#f87171}
-.footer{text-align:center;color:#333;font-size:11px;margin-top:32px}
-</style></head><body>
-<h1>SkillBrain MCP Server</h1>
-<div class="sub">HTTP mode &mdash; Streamable HTTP transport &bull; <span class="ok">online</span></div>
-
-<div class="card">
-<h2>Memory Graph</h2>
-<div class="row"><span class="label">Active memories</span><span class="val">${mg.total}</span></div>
-<div class="row"><span class="label">Edges</span><span class="val">${mg.edges}</span></div>
-<div class="row"><span class="label">By type</span><span class="val">${Object.entries(mg.byType || {}).map(([t, c]) => `${t}: ${c}`).join(', ')}</span></div>
-<div class="row"><span class="label">Contradictions</span><span class="val ${(mg.contradictions?.length || 0) > 0 ? 'err' : 'ok'}">${mg.contradictions?.length || 0}</span></div>
-</div>
-
-<div class="card">
-<h2>Indexed Repos (${repos.length})</h2>
-${repos.map((r: any) => `<div class="row"><span class="label">${r.name}</span><span class="val">${r.stats?.nodes || 0} nodes, ${r.stats?.edges || 0} edges</span></div>`).join('')}
-</div>
-
-<div class="card">
-<h2>Server Status</h2>
-<div class="row"><span class="label">Active MCP sessions</span><span class="val">${activeSessions}</span></div>
-<div class="row"><span class="label">Uptime</span><span class="val">${Math.round(process.uptime())}s</span></div>
-<div class="row"><span class="label">Transport</span><span class="val">Streamable HTTP</span></div>
-</div>
-
-<div class="card">
-<h2>Endpoints</h2>
-<div class="row"><span class="label">MCP Protocol</span><span class="val">POST/GET/DELETE /mcp</span></div>
-<div class="row"><span class="label">Health</span><span class="val">GET /api/health</span></div>
-<div class="row"><span class="label">Data API</span><span class="val">GET /api/data</span></div>
-</div>
-
-${mg.topMemories?.length ? `
-<div class="card">
-<h2>Recent Memories (top ${mg.topMemories.length})</h2>
-${mg.topMemories.slice(0, 8).map((m: any) => `<div class="row"><span class="label">${m.type} <span class="ok">conf:${m.confidence}</span></span><span class="val" style="max-width:60%;text-align:right;font-size:12px">${m.context}</span></div>`).join('')}
-</div>` : ''}
-
-<div class="footer">SkillBrain MCP &bull; Streamable HTTP &bull; auto-refreshes on reload</div>
-<script>setTimeout(()=>location.reload(),30000)</script>
-</body></html>`
-}
