@@ -2,12 +2,20 @@ import type Database from 'better-sqlite3'
 import { randomId } from '../utils/hash.js'
 import { encrypt, decrypt, isEncryptionAvailable } from './crypto.js'
 
+export interface TeamMember {
+  name: string
+  role?: string
+  email?: string
+}
+
 export interface Project {
   name: string
   displayName?: string
   description?: string
   clientName?: string
   category?: string
+  teamLead?: string
+  teamMembers: TeamMember[]
   startedAt?: string
   endedAt?: string
   status: 'active' | 'paused' | 'archived' | 'completed'
@@ -67,6 +75,8 @@ export class ProjectsStore {
       description: project.description ?? existing?.description,
       clientName: project.clientName ?? existing?.clientName,
       category: project.category ?? existing?.category,
+      teamLead: project.teamLead ?? existing?.teamLead,
+      teamMembers: project.teamMembers ?? existing?.teamMembers ?? [],
       startedAt: project.startedAt ?? existing?.startedAt,
       endedAt: project.endedAt ?? existing?.endedAt,
       status: project.status ?? existing?.status ?? 'active',
@@ -102,6 +112,7 @@ export class ProjectsStore {
     this.db.prepare(`
       INSERT OR REPLACE INTO projects (
         name, display_name, description, client_name, category,
+        team_lead, team_members,
         started_at, ended_at, status,
         repo_url, main_branch, workspace_path,
         stack, language, package_manager, node_version,
@@ -112,9 +123,10 @@ export class ProjectsStore {
         integrations,
         legal_cookie_banner, legal_privacy_url, legal_terms_url,
         aliases, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       merged.name, merged.displayName ?? null, merged.description ?? null, merged.clientName ?? null, merged.category ?? null,
+      merged.teamLead ?? null, JSON.stringify(merged.teamMembers),
       merged.startedAt ?? null, merged.endedAt ?? null, merged.status,
       merged.repoUrl ?? null, merged.mainBranch ?? null, merged.workspacePath ?? null,
       JSON.stringify(merged.stack), merged.language ?? null, merged.packageManager ?? null, merged.nodeVersion ?? null,
@@ -262,12 +274,16 @@ export class ProjectsStore {
   }
 
   private rowToProject(row: any): Project {
+    let teamMembers: TeamMember[] = []
+    try { teamMembers = JSON.parse(row.team_members || '[]') } catch {}
     return {
       name: row.name,
       displayName: row.display_name ?? undefined,
       description: row.description ?? undefined,
       clientName: row.client_name ?? undefined,
       category: row.category ?? undefined,
+      teamLead: row.team_lead ?? undefined,
+      teamMembers,
       startedAt: row.started_at ?? undefined,
       endedAt: row.ended_at ?? undefined,
       status: row.status || 'active',

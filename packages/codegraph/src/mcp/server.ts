@@ -1201,6 +1201,12 @@ Only save what would SAVE FUTURE TIME. Quality over quantity.`
         description: z.string().optional(),
         clientName: z.string().optional(),
         category: z.string().optional(),
+        teamLead: z.string().optional().describe('Lead developer/owner (e.g., "Daniel")'),
+        teamMembers: z.array(z.object({
+          name: z.string(),
+          role: z.string().optional(),
+          email: z.string().optional(),
+        })).optional().describe('Team members with optional role'),
         status: z.enum(['active', 'paused', 'archived', 'completed']).optional(),
         endedAt: z.string().optional(),
         liveUrl: z.string().optional(),
