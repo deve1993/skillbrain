@@ -139,7 +139,21 @@ export async function startProxy(): Promise<void> {
     // Session start is best-effort — don't block proxy
   }
 
-  // 3. Auto-end session on shutdown
+  // 3. Heartbeat every 5 minutes (keeps session alive on server)
+  // Server auto-closes sessions without heartbeat after 15 min
+  if (sessionId) {
+    const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000
+    setInterval(async () => {
+      try {
+        await client.callTool({
+          name: 'session_heartbeat',
+          arguments: { sessionId },
+        })
+      } catch {}
+    }, HEARTBEAT_INTERVAL_MS)
+  }
+
+  // 4. Auto-end session on shutdown (best effort — server also auto-closes stale)
   const cleanup = async () => {
     if (sessionId) {
       try {

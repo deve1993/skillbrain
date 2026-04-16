@@ -617,6 +617,23 @@ export function createMcpServer(): McpServer {
     },
   )
 
+  // --- Tool: session_heartbeat ---
+  server.tool(
+    'session_heartbeat',
+    'Update session last_heartbeat timestamp (called periodically by proxy to keep session alive)',
+    {
+      sessionId: z.string().describe('Session ID'),
+      repo: z.string().optional(),
+    },
+    async ({ sessionId, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      withMemoryStore(resolved.path, (store) => store.heartbeat(sessionId))
+      return { content: [{ type: 'text', text: `ok` }] }
+    },
+  )
+
   // --- Tool: session_resume ---
   server.tool(
     'session_resume',

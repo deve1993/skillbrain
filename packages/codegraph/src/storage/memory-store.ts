@@ -578,6 +578,7 @@ export class MemoryStore {
   }
 
   recentSessions(limit = 5): SessionLog[] {
+    this.autoCloseStale()
     const rows = this.db.prepare(
       'SELECT * FROM session_log ORDER BY started_at DESC LIMIT ?'
     ).all(limit) as any[]
@@ -585,6 +586,7 @@ export class MemoryStore {
   }
 
   projectSessions(project: string, limit = 10): SessionLog[] {
+    this.autoCloseStale()
     const rows = this.db.prepare(
       'SELECT * FROM session_log WHERE project = ? ORDER BY started_at DESC LIMIT ?'
     ).all(project, limit) as any[]
@@ -592,6 +594,7 @@ export class MemoryStore {
   }
 
   lastProjectSession(project: string): SessionLog | undefined {
+    this.autoCloseStale()
     const row = this.db.prepare(
       'SELECT * FROM session_log WHERE project = ? ORDER BY started_at DESC LIMIT 1'
     ).get(project) as any
@@ -599,6 +602,7 @@ export class MemoryStore {
   }
 
   pendingSessions(): SessionLog[] {
+    this.autoCloseStale()
     const rows = this.db.prepare(
       "SELECT * FROM session_log WHERE status IN ('in-progress', 'paused', 'blocked') ORDER BY started_at DESC"
     ).all() as any[]
@@ -674,6 +678,32 @@ export class MemoryStore {
         relatedMemories: relatedMemories.length,
       },
     }
+  }
+
+  // ── Heartbeat & Auto-Close Stale ──────────────────
+
+  heartbeat(id: string): void {
+    this.db.prepare('UPDATE session_log SET last_heartbeat = ? WHERE id = ?')
+      .run(new Date().toISOString(), id)
+  }
+
+  /**
+   * Auto-close sessions with no heartbeat for >staleMinutes.
+   * Runs before every session query to keep the data clean.
+   */
+  autoCloseStale(staleMinutes = 15): number {
+    const threshold = new Date(Date.now() - staleMinutes * 60 * 1000).toISOString()
+    const now = new Date().toISOString()
+    const result = this.db.prepare(`
+      UPDATE session_log
+      SET status = 'paused',
+          ended_at = ?,
+          summary = COALESCE(summary, 'Auto-closed (no heartbeat for ' || ? || '+ minutes)')
+      WHERE status = 'in-progress'
+        AND (last_heartbeat IS NULL OR last_heartbeat < ?)
+        AND started_at < ?
+    `).run(now, staleMinutes, threshold, threshold)
+    return result.changes
   }
 
   // ── Delete/Update Sessions ────────────────────────
