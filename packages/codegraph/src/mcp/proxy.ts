@@ -73,25 +73,68 @@ export async function startProxy(): Promise<void> {
   const client = new Client({ name: 'skillbrain-proxy', version: '1.0.0' })
   await client.connect(clientTransport)
 
-  // 2. Auto-start session
+  // 2. Auto-start session (with dedup)
   const project = detectProject()
   const sessionName = detectSessionName()
   let sessionId: string | null = null
+  const SESSION_REUSE_WINDOW_MS = 4 * 60 * 60 * 1000 // 4 hours
 
   try {
-    const result = await client.callTool({
-      name: 'session_start',
-      arguments: {
-        sessionName,
-        project: project.name,
-        branch: project.branch || undefined,
-        workspacePath: project.workspace,
-      },
+    // Check for existing in-progress session on same project
+    const historyResult = await client.callTool({
+      name: 'session_history',
+      arguments: { project: project.name, limit: 5 },
     })
-    // Extract session ID from response text
-    const text = (result as any)?.content?.[0]?.text || ''
-    const match = text.match(/Session started: (S-[a-z0-9]+)/)
-    if (match) sessionId = match[1]
+    const historyText = (historyResult as any)?.content?.[0]?.text || '[]'
+    let sessions: any[] = []
+    try { sessions = JSON.parse(historyText) } catch {}
+
+    // Find most recent in-progress session on this project
+    const recent = sessions.find((s) => {
+      if (s.status !== 'in-progress') return false
+      const started = new Date(s.started).getTime()
+      const age = Date.now() - started
+      return age < SESSION_REUSE_WINDOW_MS
+    })
+
+    if (recent?.id) {
+      // Reuse existing session
+      sessionId = recent.id
+    } else {
+      // Close any stale in-progress sessions (older than window)
+      for (const s of sessions) {
+        if (s.status !== 'in-progress') continue
+        const age = Date.now() - new Date(s.started).getTime()
+        if (age >= SESSION_REUSE_WINDOW_MS) {
+          try {
+            await client.callTool({
+              name: 'session_end',
+              arguments: {
+                sessionId: s.id,
+                summary: 'Auto-closed (stale session, >4h)',
+                status: 'paused',
+                memoriesCreated: 0, memoriesValidated: 0,
+                filesChanged: [], commits: [],
+              },
+            })
+          } catch {}
+        }
+      }
+
+      // Create new session
+      const result = await client.callTool({
+        name: 'session_start',
+        arguments: {
+          sessionName,
+          project: project.name,
+          branch: project.branch || undefined,
+          workspacePath: project.workspace,
+        },
+      })
+      const text = (result as any)?.content?.[0]?.text || ''
+      const match = text.match(/Session started: (S-[a-z0-9]+)/)
+      if (match) sessionId = match[1]
+    }
   } catch {
     // Session start is best-effort — don't block proxy
   }

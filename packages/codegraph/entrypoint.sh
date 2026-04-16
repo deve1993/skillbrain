@@ -37,5 +37,18 @@ else
   echo "Skills already loaded: $SKILL_COUNT items"
 fi
 
+# Daily backup on boot (keeps last 30 days)
+if [ -f "$DATA_DIR/.codegraph/graph.db" ]; then
+  BACKUP_DIR="$DATA_DIR/.codegraph/backups"
+  mkdir -p "$BACKUP_DIR"
+  BACKUP_FILE="$BACKUP_DIR/graph.db.$(date +%Y-%m-%d).gz"
+  if [ ! -f "$BACKUP_FILE" ]; then
+    sqlite3 "$DATA_DIR/.codegraph/graph.db" ".dump" 2>/dev/null | gzip > "$BACKUP_FILE" && \
+      echo "Backup created: $BACKUP_FILE"
+  fi
+  # Keep only last 30 days
+  find "$BACKUP_DIR" -name "graph.db.*.gz" -mtime +30 -delete 2>/dev/null
+fi
+
 # Start MCP HTTP server
 exec node dist/cli.js mcp --http

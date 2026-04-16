@@ -284,6 +284,26 @@ async function searchMemories(q) {
   `
 }
 
+async function deleteMemory(id) {
+  if (!confirm('Delete this memory permanently?')) return
+  const r = await fetch(`${API}/api/memories/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  if (r.ok) { closeDetail(); route() }
+  else alert('Delete failed')
+}
+
+async function deprecateMemory(id) {
+  const r = await fetch(`${API}/api/memories/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'deprecated' }),
+  })
+  if (r.ok) { closeDetail(); route() }
+  else alert('Update failed')
+}
+
+window.deleteMemory = deleteMemory
+window.deprecateMemory = deprecateMemory
+
 async function openMemoryDetail(id) {
   const m = await fetch(`${API}/api/memories/${encodeURIComponent(id)}`).then(r => r.json())
   if (m.error) { openDetail(id, `<p style="color:var(--red)">${m.error}</p>`); return }
@@ -294,6 +314,10 @@ async function openMemoryDetail(id) {
     <div style="margin-bottom:12px">
       ${badge(m.type)} ${confBar(m.confidence)}
       <span style="color:var(--text-muted);font-size:11px;margin-left:8px">${m.skill || ''} &middot; ${m.scope}</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button onclick="deprecateMemory('${m.id}')" style="padding:4px 12px;border-radius:6px;background:rgba(245,158,11,.1);border:1px solid var(--yellow);color:var(--yellow);font-size:11px;cursor:pointer">Deprecate</button>
+      <button onclick="deleteMemory('${m.id}')" style="padding:4px 12px;border-radius:6px;background:rgba(248,113,113,.1);border:1px solid var(--red);color:var(--red);font-size:11px;cursor:pointer">Delete</button>
     </div>
 
     <div class="card" style="margin-top:12px">
@@ -338,22 +362,46 @@ async function openMemoryDetail(id) {
 }
 
 // ── SESSIONS ──
+async function cleanupDuplicates() {
+  if (!confirm('Delete duplicate in-progress sessions (keeps most recent per project)?')) return
+  const r = await fetch(`${API}/api/sessions/cleanup-duplicates`, { method: 'POST' })
+  const d = await r.json()
+  alert(`Deleted ${d.deleted || 0} duplicate sessions`)
+  renderSessions()
+}
+
+async function deleteSession(id) {
+  if (!confirm('Delete this session?')) return
+  const r = await fetch(`${API}/api/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  if (r.ok) renderSessions()
+  else alert('Delete failed')
+}
+
+window.cleanupDuplicates = cleanupDuplicates
+window.deleteSession = deleteSession
+
 async function renderSessions() {
   const data = await fetch(`${API}/api/sessions`).then(r => r.json())
   const sessions = data.sessions || []
 
   $('#page').innerHTML = `
-    <div class="section-title">Session History <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${sessions.length} sessions</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:0">Session History <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${sessions.length} sessions</span></div>
+      <button onclick="cleanupDuplicates()" style="padding:6px 12px;border-radius:6px;background:rgba(245,158,11,.1);border:1px solid var(--yellow);color:var(--yellow);font-size:12px;cursor:pointer">Cleanup Duplicates</button>
+    </div>
 
-    ${sessions.length === 0 ? '<p style="color:var(--text-muted);font-size:13px">No sessions recorded yet. Sessions are logged when using session_start/session_end MCP tools.</p>' : ''}
+    ${sessions.length === 0 ? '<p style="color:var(--text-muted);font-size:13px">No sessions recorded yet.</p>' : ''}
 
     <div class="timeline">
       ${sessions.map(s => `
         <div class="timeline-item">
-          <div class="timeline-name">${s.sessionName}</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="timeline-name">${s.sessionName}</div>
+            <button onclick="event.stopPropagation();deleteSession('${s.id}')" style="padding:2px 8px;border-radius:4px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--red);font-size:10px;cursor:pointer">Delete</button>
+          </div>
           <div class="timeline-date">${s.startedAt?.replace('T',' ').slice(0,16) || '?'}${s.endedAt ? ' — ' + s.endedAt.replace('T',' ').slice(11,16) : ' (running)'}</div>
           <div class="timeline-summary">${s.summary || 'No summary'}</div>
-          <div class="timeline-stats">+${s.memoriesCreated || 0} memories &middot; ${s.memoriesValidated || 0} validated${s.project ? ' &middot; ' + s.project : ''}</div>
+          <div class="timeline-stats">+${s.memoriesCreated || 0} memories${s.project ? ' &middot; ' + s.project : ''}${s.status ? ' &middot; ' + s.status : ''}</div>
         </div>
       `).join('')}
     </div>

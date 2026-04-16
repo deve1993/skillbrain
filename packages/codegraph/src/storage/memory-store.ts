@@ -676,6 +676,65 @@ export class MemoryStore {
     }
   }
 
+  // ── Delete/Update Sessions ────────────────────────
+
+  deleteSession(id: string): void {
+    this.db.prepare('DELETE FROM session_log WHERE id = ?').run(id)
+  }
+
+  updateSession(id: string, fields: Partial<SessionLog>): void {
+    const allowed: Record<string, any> = {}
+    if (fields.status !== undefined) allowed.status = fields.status
+    if (fields.summary !== undefined) allowed.summary = fields.summary
+    if (fields.nextSteps !== undefined) allowed.next_steps = fields.nextSteps
+    if (fields.blockers !== undefined) allowed.blockers = fields.blockers
+    if (fields.deliverables !== undefined) allowed.deliverables = fields.deliverables
+    if (fields.workType !== undefined) allowed.work_type = fields.workType
+    if (fields.taskDescription !== undefined) allowed.task_description = fields.taskDescription
+
+    const keys = Object.keys(allowed)
+    if (keys.length === 0) return
+
+    const setClauses = keys.map((k) => `${k} = ?`).join(', ')
+    const values = keys.map((k) => allowed[k])
+    this.db.prepare(`UPDATE session_log SET ${setClauses} WHERE id = ?`).run(...values, id)
+  }
+
+  // ── Update Memory ─────────────────────────────────
+
+  updateMemory(id: string, fields: { confidence?: number; status?: MemoryStatus; context?: string; problem?: string; solution?: string; reason?: string; tags?: string[] }): void {
+    const allowed: Record<string, any> = {}
+    if (fields.confidence !== undefined) allowed.confidence = fields.confidence
+    if (fields.status !== undefined) allowed.status = fields.status
+    if (fields.context !== undefined) allowed.context = fields.context
+    if (fields.problem !== undefined) allowed.problem = fields.problem
+    if (fields.solution !== undefined) allowed.solution = fields.solution
+    if (fields.reason !== undefined) allowed.reason = fields.reason
+    if (fields.tags !== undefined) allowed.tags = JSON.stringify(fields.tags)
+
+    const keys = Object.keys(allowed)
+    if (keys.length === 0) return
+
+    const setClauses = keys.map((k) => `${k} = ?`).join(', ')
+    const values = keys.map((k) => allowed[k])
+    this.db.prepare(`UPDATE memories SET ${setClauses}, updated_at = ? WHERE id = ?`).run(
+      ...values, new Date().toISOString(), id,
+    )
+
+    // Update FTS if content changed
+    if (fields.context || fields.problem || fields.solution || fields.reason) {
+      const mem = this.get(id)
+      if (mem) {
+        try {
+          this.db.prepare(`
+            INSERT OR REPLACE INTO memories_fts(rowid, context, problem, solution, reason, tags)
+            VALUES ((SELECT rowid FROM memories WHERE id = ?), ?, ?, ?, ?, ?)
+          `).run(id, mem.context, mem.problem, mem.solution, mem.reason, mem.tags.join(' '))
+        } catch {}
+      }
+    }
+  }
+
   workLog(): Record<string, { entries: any[]; totalEntries: number }> {
     const sessions = this.db.prepare(`
       SELECT * FROM session_log

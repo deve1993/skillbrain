@@ -352,6 +352,88 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
+  // ── API: Memory Edit/Delete ──
+  app.delete('/api/memories/:id', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      store.delete(_req.params.id)
+      closeDb(db)
+      res.json({ ok: true })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.put('/api/memories/:id', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      store.updateMemory(_req.params.id, _req.body || {})
+      closeDb(db)
+      res.json({ ok: true })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── API: Session Edit/Delete ──
+  app.delete('/api/sessions/:id', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      store.deleteSession(_req.params.id)
+      closeDb(db)
+      res.json({ ok: true })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.put('/api/sessions/:id', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      store.updateSession(_req.params.id, _req.body || {})
+      closeDb(db)
+      res.json({ ok: true })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // Bulk cleanup: delete duplicate in-progress sessions for same project
+  app.post('/api/sessions/cleanup-duplicates', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new MemoryStore(db)
+      const pending = store.pendingSessions()
+
+      // Group by project, keep most recent, delete rest
+      const byProject = new Map<string, any[]>()
+      for (const s of pending) {
+        if (!s.project) continue
+        if (!byProject.has(s.project)) byProject.set(s.project, [])
+        byProject.get(s.project)!.push(s)
+      }
+
+      let deleted = 0
+      for (const [, sessions] of byProject) {
+        sessions.sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+        // Keep first (most recent), delete the rest
+        for (let i = 1; i < sessions.length; i++) {
+          store.deleteSession(sessions[i].id)
+          deleted++
+        }
+      }
+
+      closeDb(db)
+      res.json({ ok: true, deleted })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   // ── API: Work Log ──
   app.get('/api/worklog', (_req, res) => {
     try {
