@@ -20,6 +20,7 @@ import { loadRegistry } from '../storage/registry.js'
 import { openDb, closeDb } from '../storage/db.js'
 import { MemoryStore } from '../storage/memory-store.js'
 import { SkillsStore } from '../storage/skills-store.js'
+import { ProjectsStore } from '../storage/projects-store.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -429,6 +430,134 @@ export async function startHttpServer(port: number, authToken?: string): Promise
 
       closeDb(db)
       res.json({ ok: true, deleted })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── API: Projects Metadata (full) ──
+  app.get('/api/projects-meta', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ProjectsStore(db)
+      const projects = store.list()
+      closeDb(db)
+      res.json({ projects })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.get('/api/projects-meta/:name', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ProjectsStore(db)
+      const project = store.get(_req.params.name)
+      closeDb(db)
+      if (!project) { res.status(404).json({ error: 'Not found' }); return }
+      res.json(project)
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.put('/api/projects-meta/:name', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ProjectsStore(db)
+      const project = store.upsert({ name: _req.params.name, ...(_req.body || {}) })
+      closeDb(db)
+      res.json({ ok: true, project })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // Env var management (list names only — values never returned via API for UI safety)
+  app.get('/api/projects-meta/:name/env', (_req, res) => {
+    try {
+      const environment = (_req.query as any).environment || 'production'
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ProjectsStore(db)
+      const vars = store.listEnvNames(_req.params.name, environment)
+      closeDb(db)
+      res.json({ vars })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // Reveal single value (requires explicit auth from dashboard)
+  app.post('/api/projects-meta/:name/env/reveal', (_req, res) => {
+    try {
+      const { varName, environment = 'production' } = _req.body || {}
+      if (!varName) { res.status(400).json({ error: 'varName required' }); return }
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ProjectsStore(db)
+      const value = store.getEnv(_req.params.name, varName, environment)
+      closeDb(db)
+      if (value === undefined) { res.status(404).json({ error: 'Not found' }); return }
+      res.json({ varName, value })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // Export all env vars as .env format
+  app.post('/api/projects-meta/:name/env/export', (_req, res) => {
+    try {
+      const { environment = 'production' } = _req.body || {}
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ProjectsStore(db)
+      const vars = store.getAllEnv(_req.params.name, environment)
+      closeDb(db)
+      const content = Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n')
+      res.json({ content, count: Object.keys(vars).length })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // Import .env content (bulk encrypt & save)
+  app.post('/api/projects-meta/:name/env/import', (_req, res) => {
+    try {
+      const { envContent, environment = 'production' } = _req.body || {}
+      if (!envContent) { res.status(400).json({ error: 'envContent required' }); return }
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ProjectsStore(db)
+      let saved = 0
+      for (const line of envContent.split('\n')) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) continue
+        const eqIdx = trimmed.indexOf('=')
+        if (eqIdx === -1) continue
+        const name = trimmed.slice(0, eqIdx).trim()
+        let value = trimmed.slice(eqIdx + 1).trim()
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1)
+        }
+        if (name && value) {
+          try {
+            store.setEnv(_req.params.name, name, value, environment, '.env', !name.startsWith('NEXT_PUBLIC_'))
+            saved++
+          } catch {}
+        }
+      }
+      closeDb(db)
+      res.json({ ok: true, saved })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.delete('/api/projects-meta/:name/env/:varName', (_req, res) => {
+    try {
+      const environment = (_req.query as any).environment || 'production'
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ProjectsStore(db)
+      store.deleteEnv(_req.params.name, _req.params.varName, environment)
+      closeDb(db)
+      res.json({ ok: true })
     } catch (err: any) {
       res.status(500).json({ error: err.message })
     }

@@ -147,6 +147,80 @@ export const SKILLS_FTS_SQL = `
   );
 `
 
+export const PROJECTS_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS projects (
+    name TEXT PRIMARY KEY,
+    display_name TEXT,
+    description TEXT,
+    client_name TEXT,
+    category TEXT,
+    started_at TEXT,
+    ended_at TEXT,
+    status TEXT DEFAULT 'active' CHECK(status IN ('active','paused','archived','completed')),
+
+    repo_url TEXT,
+    main_branch TEXT DEFAULT 'main',
+    workspace_path TEXT,
+
+    stack TEXT DEFAULT '[]',
+    language TEXT,
+    package_manager TEXT,
+    node_version TEXT,
+
+    db_type TEXT,
+    db_reference TEXT,
+    db_admin_url TEXT,
+
+    cms_type TEXT,
+    cms_admin_url TEXT,
+
+    deploy_platform TEXT,
+    live_url TEXT,
+    deploy_status TEXT,
+    last_deploy TEXT,
+    has_ci INTEGER DEFAULT 0,
+
+    domain_primary TEXT,
+    domains_extra TEXT DEFAULT '[]',
+
+    integrations TEXT DEFAULT '{}',
+
+    legal_cookie_banner TEXT,
+    legal_privacy_url TEXT,
+    legal_terms_url TEXT,
+
+    aliases TEXT DEFAULT '[]',
+    notes TEXT,
+
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+  CREATE INDEX IF NOT EXISTS idx_projects_client ON projects(client_name);
+`
+
+export const PROJECT_ENV_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS project_env_vars (
+    id TEXT PRIMARY KEY,
+    project_name TEXT NOT NULL REFERENCES projects(name) ON DELETE CASCADE,
+    var_name TEXT NOT NULL,
+    encrypted_value TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    auth_tag TEXT NOT NULL,
+    environment TEXT DEFAULT 'production',
+    source TEXT,
+    is_secret INTEGER DEFAULT 1,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(project_name, var_name, environment)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_env_project ON project_env_vars(project_name);
+  CREATE INDEX IF NOT EXISTS idx_env_environment ON project_env_vars(environment);
+`
+
 export const MEMORY_FTS_SQL = `
   CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
     context,

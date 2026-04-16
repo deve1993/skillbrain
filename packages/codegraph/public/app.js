@@ -493,58 +493,252 @@ async function renderProjects() {
 }
 
 async function openProjectDetail(name) {
-  const data = await fetch(`${API}/api/projects/${encodeURIComponent(name)}`).then(r => r.json())
-  if (data.error) { openDetail(name, `<p style="color:var(--red)">${data.error}</p>`); return }
+  const [activity, meta] = await Promise.all([
+    fetch(`${API}/api/projects/${encodeURIComponent(name)}`).then(r => r.json()).catch(() => ({})),
+    fetch(`${API}/api/projects-meta/${encodeURIComponent(name)}`).then(r => r.ok ? r.json() : null).catch(() => null),
+  ])
 
-  const sessions = data.sessions || []
-  const memories = data.memories || []
+  const sessions = activity.sessions || []
+  const memories = activity.memories || []
   const last = sessions[0]
 
-  let html = ''
-
-  // Status header
-  if (last) {
-    const statusColors = {'in-progress':'var(--blue)','completed':'var(--green)','paused':'var(--yellow)','blocked':'var(--red)'}
-    const sc = statusColors[last.status] || 'var(--text-muted)'
-    html += `<div style="margin-bottom:16px;padding:12px;background:rgba(167,139,250,.05);border:1px solid var(--border);border-radius:8px">
-      <div style="font-size:13px;margin-bottom:4px">Status: <strong style="color:${sc}">${last.status}</strong></div>
-      ${last.taskDescription ? `<div style="font-size:12px;color:var(--text-dim)">Task: ${escHtml(last.taskDescription)}</div>` : ''}
-      ${last.nextSteps ? `<div style="font-size:12px;color:var(--green);margin-top:4px">Next: ${escHtml(last.nextSteps)}</div>` : ''}
-      ${last.blockers ? `<div style="font-size:12px;color:var(--red);margin-top:4px">Blocker: ${escHtml(last.blockers)}</div>` : ''}
-      ${last.branch ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Branch: <code>${last.branch}</code></div>` : ''}
-    </div>`
-  }
-
-  // Sessions timeline
-  if (sessions.length) {
-    html += `<div class="card"><div class="card-title">Sessions <span class="count">${sessions.length}</span></div>
-    <div class="timeline">`
-    for (const s of sessions) {
-      const date = s.startedAt?.replace('T',' ').slice(0,16) || '?'
-      html += `<div class="timeline-item">
-        <div class="timeline-name">${s.sessionName} <span style="font-size:11px;color:var(--text-muted)">[${s.status}]</span></div>
-        <div class="timeline-date">${date}</div>
-        <div class="timeline-summary">${s.summary || s.taskDescription || 'No summary'}</div>
-        <div class="timeline-stats">+${s.memoriesCreated || 0} memories${s.branch ? ' &middot; ' + s.branch : ''}</div>
-      </div>`
-    }
-    html += '</div></div>'
-  }
-
-  // Memories
-  if (memories.length) {
-    html += `<div class="card"><div class="card-title">Memories <span class="count">${memories.length}</span></div>`
-    for (const m of memories) {
-      html += `<div class="row" onclick="event.stopPropagation();openMemoryDetail('${m.id}')">
-        <span class="row-label">${badge(m.type)} ${(m.context || '').slice(0, 80)}</span>
-        <span class="row-val">${confBar(m.confidence)}</span>
-      </div>`
-    }
-    html += '</div>'
-  }
-
+  const html = `
+    <div id="proj-tabs" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)">
+      <button class="proj-tab active" data-tab="overview" onclick="switchProjectTab('overview','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--accent);border-bottom:2px solid var(--accent);font-size:13px;cursor:pointer">Overview</button>
+      <button class="proj-tab" data-tab="admin" onclick="switchProjectTab('admin','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Admin</button>
+      <button class="proj-tab" data-tab="env" onclick="switchProjectTab('env','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Env Vars</button>
+      <button class="proj-tab" data-tab="activity" onclick="switchProjectTab('activity','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Activity</button>
+    </div>
+    <div id="proj-tab-content"></div>
+  `
   openDetail(name, html)
+
+  // Store data for tab switching
+  window._projData = { name, activity, meta, sessions, memories, last }
+  renderProjectTab('overview', name)
 }
+
+function switchProjectTab(tab, name) {
+  document.querySelectorAll('.proj-tab').forEach(b => {
+    const active = b.dataset.tab === tab
+    b.style.color = active ? 'var(--accent)' : 'var(--text-muted)'
+    b.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent'
+    b.classList.toggle('active', active)
+  })
+  renderProjectTab(tab, name)
+}
+
+function renderProjectTab(tab, name) {
+  const { meta, last, sessions, memories } = window._projData || {}
+  const container = document.getElementById('proj-tab-content')
+  if (!container) return
+
+  const M = meta || {}
+  const statusColors = {'in-progress':'var(--blue)','completed':'var(--green)','paused':'var(--yellow)','blocked':'var(--red)','active':'var(--green)','archived':'var(--text-muted)'}
+
+  if (tab === 'overview') {
+    const displayName = M.displayName || name
+    const sc = statusColors[M.status || (last?.status)] || 'var(--text-muted)'
+    container.innerHTML = `
+      <div class="card">
+        <div style="font-size:18px;font-weight:600;margin-bottom:4px">${escHtml(displayName)}</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-bottom:12px">
+          ${M.clientName ? `Client: <strong>${escHtml(M.clientName)}</strong> &middot; ` : ''}
+          ${M.category ? `${escHtml(M.category)} &middot; ` : ''}
+          <span style="color:${sc}">${M.status || (last?.status || 'unknown')}</span>
+        </div>
+        ${M.description ? `<div style="color:var(--text-dim);font-size:13px;margin-bottom:12px">${escHtml(M.description)}</div>` : ''}
+        ${M.stack?.length ? `<div class="tags">${M.stack.map((s) => `<span class="tag">${escHtml(s)}</span>`).join('')}</div>` : ''}
+      </div>
+
+      ${M.repoUrl || M.liveUrl ? `
+      <div class="card">
+        <div class="card-title">Links</div>
+        ${M.liveUrl ? `<div class="row"><span class="row-label">Live</span><a href="${escHtml(M.liveUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.liveUrl)}</a></div>` : ''}
+        ${M.repoUrl ? `<div class="row"><span class="row-label">Repo</span><a href="${escHtml(M.repoUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.repoUrl)}</a></div>` : ''}
+        ${M.mainBranch ? `<div class="row"><span class="row-label">Branch</span><span class="row-val"><code>${escHtml(M.mainBranch)}</code></span></div>` : ''}
+      </div>` : ''}
+
+      ${last ? `
+      <div class="card">
+        <div class="card-title">Last Activity</div>
+        <div class="row"><span class="row-label">Date</span><span class="row-val">${last.startedAt?.split('T')[0] || '?'}</span></div>
+        ${last.taskDescription ? `<div class="row"><span class="row-label">Task</span><span class="row-val">${escHtml(last.taskDescription)}</span></div>` : ''}
+        ${last.nextSteps ? `<div style="margin-top:8px;padding:8px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.2);border-radius:6px;font-size:12px;color:var(--green)">Next: ${escHtml(last.nextSteps)}</div>` : ''}
+        ${last.blockers ? `<div style="margin-top:6px;padding:8px;background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.2);border-radius:6px;font-size:12px;color:var(--red)">Blocker: ${escHtml(last.blockers)}</div>` : ''}
+      </div>` : ''}
+
+      ${!meta ? `
+      <div class="card" style="border-color:var(--yellow)">
+        <div style="color:var(--yellow);font-size:13px;margin-bottom:8px">Metadata not scanned yet</div>
+        <div style="color:var(--text-muted);font-size:12px">Run <code>project_scan</code> from Claude Code to auto-detect stack, repo, CMS, DB, etc.</div>
+      </div>` : ''}
+    `
+  }
+
+  if (tab === 'admin') {
+    container.innerHTML = `
+      ${M.dbType || M.dbReference || M.dbAdminUrl ? `
+      <div class="card">
+        <div class="card-title">Database</div>
+        ${M.dbType ? `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.dbType)}</span></div>` : ''}
+        ${M.dbReference ? `<div class="row"><span class="row-label">Reference</span><span class="row-val">${escHtml(M.dbReference)}</span></div>` : ''}
+        ${M.dbAdminUrl ? `<div class="row"><span class="row-label">Admin</span><a href="${escHtml(M.dbAdminUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.dbAdminUrl)}</a></div>` : ''}
+      </div>` : ''}
+
+      ${M.cmsType || M.cmsAdminUrl ? `
+      <div class="card">
+        <div class="card-title">CMS</div>
+        ${M.cmsType ? `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.cmsType)}</span></div>` : ''}
+        ${M.cmsAdminUrl ? `<div class="row"><span class="row-label">Admin</span><a href="${escHtml(M.cmsAdminUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.cmsAdminUrl)}</a></div>` : ''}
+      </div>` : ''}
+
+      ${M.deployPlatform ? `
+      <div class="card">
+        <div class="card-title">Deploy</div>
+        <div class="row"><span class="row-label">Platform</span><span class="row-val">${escHtml(M.deployPlatform)}</span></div>
+        ${M.lastDeploy ? `<div class="row"><span class="row-label">Last deploy</span><span class="row-val">${escHtml(M.lastDeploy)}</span></div>` : ''}
+        <div class="row"><span class="row-label">CI/CD</span><span class="row-val">${M.hasCi ? '✅ GitHub Actions' : '—'}</span></div>
+      </div>` : ''}
+
+      ${M.domainPrimary || (M.domainsExtra && M.domainsExtra.length) ? `
+      <div class="card">
+        <div class="card-title">Domains</div>
+        ${M.domainPrimary ? `<div class="row"><span class="row-label">Primary</span><span class="row-val">${escHtml(M.domainPrimary)}</span></div>` : ''}
+        ${(M.domainsExtra || []).map((d) => `<div class="row"><span class="row-label">Extra</span><span class="row-val">${escHtml(d)}</span></div>`).join('')}
+      </div>` : ''}
+
+      ${M.integrations && Object.keys(M.integrations).length ? `
+      <div class="card">
+        <div class="card-title">Integrations</div>
+        ${Object.entries(M.integrations).map(([k, v]) => `<div class="row"><span class="row-label">${escHtml(k)}</span><span class="row-val">${escHtml(String(v))}</span></div>`).join('')}
+      </div>` : ''}
+
+      ${M.legalCookieBanner || M.legalPrivacyUrl ? `
+      <div class="card">
+        <div class="card-title">Legal</div>
+        ${M.legalCookieBanner ? `<div class="row"><span class="row-label">Cookie banner</span><span class="row-val">${escHtml(M.legalCookieBanner)}</span></div>` : ''}
+        ${M.legalPrivacyUrl ? `<div class="row"><span class="row-label">Privacy</span><a href="${escHtml(M.legalPrivacyUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.legalPrivacyUrl)}</a></div>` : ''}
+        ${M.legalTermsUrl ? `<div class="row"><span class="row-label">Terms</span><a href="${escHtml(M.legalTermsUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.legalTermsUrl)}</a></div>` : ''}
+      </div>` : ''}
+
+      ${!meta ? `<p style="color:var(--text-muted);font-size:13px">Scan this project first to populate admin info.</p>` : ''}
+    `
+  }
+
+  if (tab === 'env') {
+    loadEnvVars(name)
+    container.innerHTML = `<div id="env-content"><p style="color:var(--text-muted);font-size:13px">Loading env vars...</p></div>`
+  }
+
+  if (tab === 'activity') {
+    let html = ''
+    if (sessions?.length) {
+      html += `<div class="card"><div class="card-title">Sessions <span class="count">${sessions.length}</span></div><div class="timeline">`
+      for (const s of sessions) {
+        const date = s.startedAt?.replace('T', ' ').slice(0, 16) || '?'
+        html += `<div class="timeline-item">
+          <div class="timeline-name">${escHtml(s.sessionName)} <span style="font-size:11px;color:var(--text-muted)">[${s.status}]</span></div>
+          <div class="timeline-date">${date}</div>
+          <div class="timeline-summary">${escHtml(s.summary || s.taskDescription || 'No summary')}</div>
+        </div>`
+      }
+      html += '</div></div>'
+    }
+    if (memories?.length) {
+      html += `<div class="card"><div class="card-title">Memories <span class="count">${memories.length}</span></div>`
+      for (const m of memories) {
+        html += `<div class="row" onclick="event.stopPropagation();openMemoryDetail('${m.id}')">
+          <span class="row-label">${badge(m.type)} ${escHtml((m.context || '').slice(0, 80))}</span>
+          <span class="row-val">${confBar(m.confidence)}</span>
+        </div>`
+      }
+      html += '</div>'
+    }
+    container.innerHTML = html || '<p style="color:var(--text-muted);font-size:13px">No activity yet.</p>'
+  }
+}
+
+async function loadEnvVars(name) {
+  const container = document.getElementById('env-content')
+  if (!container) return
+  try {
+    const r = await fetch(`${API}/api/projects-meta/${encodeURIComponent(name)}/env`)
+    const { vars } = await r.json()
+
+    container.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button onclick="importEnv('${name}')" style="padding:6px 12px;border-radius:6px;background:rgba(99,102,241,.1);border:1px solid var(--accent2);color:var(--accent);font-size:12px;cursor:pointer">Import .env</button>
+        <button onclick="exportEnv('${name}')" style="padding:6px 12px;border-radius:6px;background:rgba(52,211,153,.1);border:1px solid var(--green);color:var(--green);font-size:12px;cursor:pointer">Copy all as .env</button>
+      </div>
+      ${vars?.length ? `
+      <div class="card">
+        <div class="card-title">Env Vars <span class="count">${vars.length}</span></div>
+        ${vars.map(v => `
+          <div class="row">
+            <span class="row-label"><code style="color:${v.isSecret ? 'var(--yellow)' : 'var(--green)'}">${escHtml(v.varName)}</code>${v.isSecret ? '' : ' <span style="font-size:10px;color:var(--text-muted)">(public)</span>'}</span>
+            <span>
+              <button onclick="revealEnv('${name}','${v.varName}')" style="padding:2px 8px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text-muted);font-size:11px;cursor:pointer;margin-right:4px">Reveal</button>
+              <button onclick="deleteEnv('${name}','${v.varName}')" style="padding:2px 8px;border-radius:4px;background:none;border:1px solid rgba(248,113,113,.3);color:var(--red);font-size:11px;cursor:pointer">Delete</button>
+            </span>
+          </div>
+        `).join('')}
+      </div>
+      ` : '<p style="color:var(--text-muted);font-size:13px">No env vars saved yet. Click "Import .env" to paste and save.</p>'}
+    `
+  } catch (e) {
+    container.innerHTML = `<p style="color:var(--red)">Error loading env vars</p>`
+  }
+}
+
+async function revealEnv(project, varName) {
+  const r = await fetch(`${API}/api/projects-meta/${encodeURIComponent(project)}/env/reveal`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ varName }),
+  })
+  if (!r.ok) { alert('Failed'); return }
+  const { value } = await r.json()
+  prompt(`${varName} (copy below):`, value)
+}
+
+async function exportEnv(project) {
+  const r = await fetch(`${API}/api/projects-meta/${encodeURIComponent(project)}/env/export`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+  })
+  if (!r.ok) { alert('Failed'); return }
+  const { content, count } = await r.json()
+  try {
+    await navigator.clipboard.writeText(content)
+    alert(`Copied ${count} env vars to clipboard`)
+  } catch {
+    prompt(`.env content (${count} vars):`, content)
+  }
+}
+
+async function importEnv(project) {
+  const content = prompt('Paste .env content:')
+  if (!content) return
+  const r = await fetch(`${API}/api/projects-meta/${encodeURIComponent(project)}/env/import`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ envContent: content }),
+  })
+  const { saved } = await r.json()
+  alert(`Saved ${saved} env vars`)
+  loadEnvVars(project)
+}
+
+async function deleteEnv(project, varName) {
+  if (!confirm(`Delete ${varName}?`)) return
+  await fetch(`${API}/api/projects-meta/${encodeURIComponent(project)}/env/${encodeURIComponent(varName)}`, { method: 'DELETE' })
+  loadEnvVars(project)
+}
+
+window.switchProjectTab = switchProjectTab
+window.loadEnvVars = loadEnvVars
+window.revealEnv = revealEnv
+window.exportEnv = exportEnv
+window.importEnv = importEnv
+window.deleteEnv = deleteEnv
 
 // ── WORK LOG ──
 async function renderWorkLog() {

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3'
 import { SCHEMA_SQL, FTS_SCHEMA_SQL, FTS_TRIGGERS_SQL } from './schema.js'
-import { MEMORY_SCHEMA_SQL, MEMORY_FTS_SQL, SESSION_LOG_SQL, SESSION_LOG_MIGRATE_SQL, NOTIFICATIONS_SQL, SKILLS_SCHEMA_SQL, SKILLS_FTS_SQL } from './memory-schema.js'
+import { MEMORY_SCHEMA_SQL, MEMORY_FTS_SQL, SESSION_LOG_SQL, SESSION_LOG_MIGRATE_SQL, NOTIFICATIONS_SQL, SKILLS_SCHEMA_SQL, SKILLS_FTS_SQL, PROJECTS_SCHEMA_SQL, PROJECT_ENV_SCHEMA_SQL } from './memory-schema.js'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -41,6 +41,8 @@ export function openDb(repoPath: string): Database.Database {
   db.exec(NOTIFICATIONS_SQL)
   db.exec(SKILLS_SCHEMA_SQL)
   db.exec(SKILLS_FTS_SQL)
+  db.exec(PROJECTS_SCHEMA_SQL)
+  db.exec(PROJECT_ENV_SCHEMA_SQL)
 
   return db
 }
