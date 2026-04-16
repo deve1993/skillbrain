@@ -1,4 +1,6 @@
 import type Database from 'better-sqlite3'
+import { execSync } from 'node:child_process'
+import fs from 'node:fs'
 import { randomId } from '../utils/hash.js'
 
 // ── Session & Notification Types ───────────────────────
@@ -725,15 +727,15 @@ export class MemoryStore {
 
   /**
    * Auto-close sessions with no heartbeat for >staleMinutes.
-   * Generates a smart summary from session activity.
+   * Generates smart summary + auto-detects workType/deliverables from git commits.
    */
   autoCloseStale(staleMinutes = 15): number {
     const threshold = new Date(Date.now() - staleMinutes * 60 * 1000).toISOString()
     const now = new Date().toISOString()
 
-    // Find stale sessions
+    // Find stale sessions with workspace_path for git detection
     const stale = this.db.prepare(`
-      SELECT id, started_at, project FROM session_log
+      SELECT id, started_at, project, workspace_path FROM session_log
       WHERE status = 'in-progress'
         AND (last_heartbeat IS NULL OR last_heartbeat < ?)
         AND started_at < ?
@@ -741,13 +743,85 @@ export class MemoryStore {
 
     let closed = 0
     for (const s of stale) {
+      // Auto-detect workType + deliverables from git commits (if any)
+      const detection = this.detectWorkFromGit(s.workspace_path, s.started_at)
       const smartSummary = this.generateSessionSummary(s.id, s.started_at, s.project)
+
       this.db.prepare(`
-        UPDATE session_log SET status = 'paused', ended_at = ?, summary = ? WHERE id = ?
-      `).run(now, smartSummary, s.id)
+        UPDATE session_log SET
+          status = 'paused', ended_at = ?, summary = ?,
+          work_type = COALESCE(work_type, ?),
+          deliverables = COALESCE(deliverables, ?),
+          commits = COALESCE(NULLIF(commits, '[]'), ?)
+        WHERE id = ?
+      `).run(
+        now, smartSummary,
+        detection.workType, detection.deliverables,
+        JSON.stringify(detection.commits), s.id,
+      )
       closed++
     }
     return closed
+  }
+
+  /**
+   * Detect workType and deliverables from git commits in the workspace
+   * made after the session started.
+   */
+  private detectWorkFromGit(workspacePath: string | undefined, sessionStart: string): { workType: string | null; deliverables: string | null; commits: string[] } {
+    if (!workspacePath || !fs.existsSync(workspacePath)) {
+      return { workType: null, deliverables: null, commits: [] }
+    }
+
+    try {
+      const since = new Date(sessionStart).toISOString()
+      const log = execSync(
+        `git log --since="${since}" --pretty=format:"%H|%s" --no-merges`,
+        { cwd: workspacePath, stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
+      ).trim()
+
+      if (!log) return { workType: null, deliverables: null, commits: [] }
+
+      const lines = log.split('\n').filter(Boolean)
+      const commits = lines.map((l) => l.split('|')[0].slice(0, 7))
+      const messages = lines.map((l) => l.split('|').slice(1).join('|'))
+
+      // Detect workType from conventional commit prefixes (weighted)
+      const counts: Record<string, number> = {}
+      for (const msg of messages) {
+        const m = msg.match(/^(feat|fix|chore|docs|refactor|test|style|perf|build|ci|deploy|setup|design)(\([^)]+\))?!?:/i)
+        if (m) {
+          const prefix = m[1].toLowerCase()
+          const mapped = this.mapCommitPrefixToWorkType(prefix)
+          counts[mapped] = (counts[mapped] || 0) + 1
+        }
+      }
+
+      // Pick the most common type
+      const workType = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null
+
+      // Deliverables = concatenation of top commit messages (cleaned)
+      const deliverables = messages
+        .slice(0, 5)
+        .map((m) => m.replace(/^(feat|fix|chore|docs|refactor|test|style|perf|build|ci)(\([^)]+\))?!?:\s*/i, ''))
+        .filter((m) => m.length > 0 && !m.includes('Co-Authored-By'))
+        .join('; ')
+        .slice(0, 200)
+
+      return { workType, deliverables: deliverables || null, commits: commits.slice(0, 20) }
+    } catch {
+      return { workType: null, deliverables: null, commits: [] }
+    }
+  }
+
+  private mapCommitPrefixToWorkType(prefix: string): string {
+    const map: Record<string, string> = {
+      feat: 'feature', fix: 'fix', docs: 'docs', refactor: 'refactor',
+      test: 'refactor', style: 'design', perf: 'refactor',
+      build: 'deploy', ci: 'deploy', deploy: 'deploy',
+      chore: 'other', setup: 'setup', design: 'design',
+    }
+    return map[prefix] || 'other'
   }
 
   /**
