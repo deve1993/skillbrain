@@ -543,6 +543,55 @@ export function createMcpServer(): McpServer {
     },
   )
 
+  // --- Tool: memory_suggest ---
+  server.tool(
+    'memory_suggest',
+    'Call this at the end of a task. Returns a template for Claude to propose 1-3 memory candidates based on what was done. Claude fills in the details and calls memory_add for each approved one.',
+    {
+      taskDescription: z.string().describe('What the user asked for / what was worked on'),
+      outcome: z.string().describe('What happened: bugs fixed, patterns found, corrections received, decisions made'),
+      project: z.string().optional(),
+      repo: z.string().optional(),
+    },
+    async ({ taskDescription, outcome, project }) => {
+      // Return structured guidance — Claude uses this to extract and propose memories
+      const template = `## Memory Capture Suggestions
+
+Based on this task:
+- **Task**: ${taskDescription}
+- **Outcome**: ${outcome}
+${project ? `- **Project**: ${project}` : ''}
+
+Extract 1-3 memories that would be valuable in FUTURE sessions. For each:
+
+1. **Is this worth saving?** (skip if: one-time fix, obvious typo, trivial)
+2. **Which type?**
+   - \`BugFix\`: non-obvious bug with non-obvious fix
+   - \`Pattern\`: reusable approach that works well
+   - \`AntiPattern\`: what NOT to do (with reason)
+   - \`Preference\`: user style/approach preference
+   - \`Decision\`: architectural choice with rationale
+   - \`Fact\`: verified technical fact
+
+3. **Propose to user**:
+\`\`\`
+I learned something worth saving. Want me to save:
+
+1. [BugFix] "When using Server Actions in Next.js 15, cookies need explicit headers()..."
+   Solution: "Pass cookies via headers() instead of relying on request context"
+   Reason: "Server Actions run in a different context than RSCs"
+
+[save / skip]
+\`\`\`
+
+4. For each approved: call \`memory_add({ type, context, problem, solution, reason, tags, project, skill })\`
+
+Only save what would SAVE FUTURE TIME. Quality over quantity.`
+
+      return { content: [{ type: 'text', text: template }] }
+    },
+  )
+
   // ═══════════════════════════════════════════════════════
   // Session Log Tools (Cortex / Working Memory)
   // ═══════════════════════════════════════════════════════

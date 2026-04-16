@@ -181,7 +181,7 @@ export class MemoryStore {
       countByType: this.db.prepare('SELECT type, COUNT(*) as count FROM memories GROUP BY type'),
       countByStatus: this.db.prepare('SELECT status, COUNT(*) as count FROM memories GROUP BY status'),
       allActive: this.db.prepare(`
-        SELECT * FROM memories WHERE status = 'active' ORDER BY confidence DESC, updated_at DESC
+        SELECT * FROM memories WHERE status = 'active' AND id NOT LIKE 'M-_system_%' ORDER BY confidence DESC, updated_at DESC
       `),
       byProject: this.db.prepare(`
         SELECT * FROM memories WHERE (project = ? OR scope = 'global') AND status = 'active'
@@ -395,7 +395,12 @@ export class MemoryStore {
   // ── Scoring (load-learnings algorithm) ────────────
 
   scored(project?: string, activeSkills?: string[], limit = 15): MemorySearchResult[] {
-    const active = (this.stmts.allActive.all() as any[]).map(this.rowToMemory)
+    // Lazy auto-decay: runs once per 24h when someone loads memories
+    try { this.autoDecayIfDue() } catch {}
+
+    const active = (this.stmts.allActive.all() as any[])
+      .map(this.rowToMemory)
+      .filter((m) => !m.id.startsWith('M-_system_')) // hide internal metadata
 
     const scored = active
       .filter((m) => {
@@ -680,6 +685,37 @@ export class MemoryStore {
     }
   }
 
+  // ── Auto-Decay (lazy, runs once per 24h) ──────────
+
+  autoDecayIfDue(): { ran: boolean; reinforced?: number; decayed?: number; deprecated?: number } {
+    // Check last decay run via SQLite pragma-style metadata (use a dedicated memory row)
+    const METADATA_ID = 'M-_system_decay_last_run'
+
+    const last = this.db.prepare("SELECT updated_at FROM memories WHERE id = ?").get(METADATA_ID) as any
+    const now = new Date()
+    const lastRun = last ? new Date(last.updated_at) : new Date(0)
+    const hoursSince = (now.getTime() - lastRun.getTime()) / (1000 * 60 * 60)
+
+    if (hoursSince < 24) return { ran: false }
+
+    // Run decay with no validated IDs (just ages all memories)
+    const result = this.applyDecay([], now.toISOString().split('T')[0])
+
+    // Upsert metadata row (skip FTS population to keep this internal)
+    const nowIso = now.toISOString()
+    this.db.prepare(`
+      INSERT OR REPLACE INTO memories
+        (id, type, status, scope, context, problem, solution, reason,
+         confidence, importance, tags, created_at, updated_at,
+         sessions_since_validation, validated_by)
+      VALUES (?, 'Fact', 'active', 'global',
+        'system: last decay run', 'internal metadata', 'n/a', 'system',
+        10, 1, '["_system"]', ?, ?, 0, '[]')
+    `).run(METADATA_ID, last ? (last as any).created_at || nowIso : nowIso, nowIso)
+
+    return { ran: true, ...result }
+  }
+
   // ── Heartbeat & Auto-Close Stale ──────────────────
 
   heartbeat(id: string): void {
@@ -689,21 +725,69 @@ export class MemoryStore {
 
   /**
    * Auto-close sessions with no heartbeat for >staleMinutes.
-   * Runs before every session query to keep the data clean.
+   * Generates a smart summary from session activity.
    */
   autoCloseStale(staleMinutes = 15): number {
     const threshold = new Date(Date.now() - staleMinutes * 60 * 1000).toISOString()
     const now = new Date().toISOString()
-    const result = this.db.prepare(`
-      UPDATE session_log
-      SET status = 'paused',
-          ended_at = ?,
-          summary = COALESCE(summary, 'Auto-closed (no heartbeat for ' || ? || '+ minutes)')
+
+    // Find stale sessions
+    const stale = this.db.prepare(`
+      SELECT id, started_at, project FROM session_log
       WHERE status = 'in-progress'
         AND (last_heartbeat IS NULL OR last_heartbeat < ?)
         AND started_at < ?
-    `).run(now, staleMinutes, threshold, threshold)
-    return result.changes
+    `).all(threshold, threshold) as any[]
+
+    let closed = 0
+    for (const s of stale) {
+      const smartSummary = this.generateSessionSummary(s.id, s.started_at, s.project)
+      this.db.prepare(`
+        UPDATE session_log SET status = 'paused', ended_at = ?, summary = ? WHERE id = ?
+      `).run(now, smartSummary, s.id)
+      closed++
+    }
+    return closed
+  }
+
+  /**
+   * Generate a smart summary for a session from its activity:
+   * memories created during the session window + any recorded files/commits.
+   */
+  private generateSessionSummary(sessionId: string, startedAt: string, project?: string): string {
+    const parts: string[] = []
+
+    // Find memories created during this session
+    const session = this.db.prepare('SELECT ended_at, files_changed, commits FROM session_log WHERE id = ?').get(sessionId) as any
+    const endTime = session?.ended_at || new Date().toISOString()
+
+    // Memory type breakdown in the session window
+    const memories = this.db.prepare(`
+      SELECT type, COUNT(*) as c FROM memories
+      WHERE created_at >= ? AND created_at <= ?
+      ${project ? 'AND (project = ? OR project IS NULL)' : ''}
+      GROUP BY type
+    `).all(
+      ...(project ? [startedAt, endTime, project] : [startedAt, endTime]),
+    ) as any[]
+
+    if (memories.length > 0) {
+      const memStr = memories.map((m) => `${m.c} ${m.type}`).join(', ')
+      parts.push(`captured ${memStr}`)
+    }
+
+    // Files / commits
+    try {
+      const files = JSON.parse(session?.files_changed || '[]') as string[]
+      if (files.length > 0) parts.push(`${files.length} file${files.length > 1 ? 's' : ''} changed`)
+    } catch {}
+    try {
+      const commits = JSON.parse(session?.commits || '[]') as string[]
+      if (commits.length > 0) parts.push(`${commits.length} commit${commits.length > 1 ? 's' : ''}`)
+    } catch {}
+
+    if (parts.length === 0) return 'Session ended (no activity recorded)'
+    return `Auto-closed: ${parts.join(', ')}`
   }
 
   // ── Delete/Update Sessions ────────────────────────
