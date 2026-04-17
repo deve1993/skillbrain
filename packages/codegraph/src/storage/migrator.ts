@@ -13,10 +13,10 @@ const SCHEMA_MIGRATIONS_SQL = `
   );
 `
 
-function listMigrations(): string[] {
-  if (!fs.existsSync(MIGRATIONS_DIR)) return []
+function listMigrations(dir: string): string[] {
+  if (!fs.existsSync(dir)) return []
   return fs
-    .readdirSync(MIGRATIONS_DIR)
+    .readdirSync(dir)
     .filter((f) => f.endsWith('.sql'))
     .sort()
 }
@@ -36,16 +36,16 @@ function tableExists(db: Database.Database, name: string): boolean {
   return !!row
 }
 
-export function runMigrations(db: Database.Database): void {
+export function runMigrations(db: Database.Database, dir = MIGRATIONS_DIR): void {
   db.exec(SCHEMA_MIGRATIONS_SQL)
   const applied = new Set(getAppliedMigrations(db))
-  const files = listMigrations()
+  const files = listMigrations(dir)
 
   for (const file of files) {
     const name = file.replace(/\.sql$/, '')
     if (applied.has(name)) continue
 
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf-8')
+    const sql = fs.readFileSync(path.join(dir, file), 'utf-8')
 
     // Legacy DB support: if bootstrap and core tables already exist
     // (DB created before versioning existed), skip re-running CREATEs
