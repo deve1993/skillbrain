@@ -8,7 +8,7 @@
     "codegraph": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/storage/migrations dist/storage/migrations",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
