@@ -112,15 +112,20 @@ Progetti/                    → client project directories
 
 ## Skill System — How To Use
 
-### Domain Skills (112 in `.claude/skill/`)
+### Source of truth: SkillBrain MCP server
 
-When a task matches a domain, **read the SKILL.md** before working:
+ALL skills (253) live on the server at `memory.fl1.it`. Local `.claude/skill/` and `.agents/skills/` folders are **legacy mirrors** and may be stale — **do not read them**.
 
-```
-Read .claude/skill/{name}/SKILL.md
-```
+### How to load a skill
 
-**Routing table** (see `.claude/skill/INDEX.md` for complete list):
+When a task matches a domain:
+
+1. Route: `skill_route({ task: "<current task>" })` — returns recommended skills
+2. Read: `skill_read({ name: "<skill name>" })` — loads the skill content
+
+Never use `Read` on `.claude/skill/*/SKILL.md` or `.agents/skills/*/SKILL.md`.
+
+### Routing reference (abridged — the server has the authoritative list)
 
 | Task | Load skill |
 |------|-----------|
@@ -169,6 +174,8 @@ Read .claude/skill/{name}/SKILL.md
 These are invocable directly: `brainstorming`, `systematic-debugging`, `writing-plans`, `executing-plans`, `test-driven-development`, `subagent-driven-development`, `dispatching-parallel-agents`, `verification-before-completion`, `requesting-code-review`, `receiving-code-review`, `using-git-worktrees`, `finishing-a-development-branch`, `frontend-design`, `ui-ux-pro-max`, `next-best-practices`, `vercel-react-best-practices`, `web-design-guidelines`, `audit-website`.
 
 ### Lifecycle Skills (follow manually by reading SKILL.md)
+
+> Load lifecycle skills via `skill_read({ name: '<skill>' })` — do not use `Read` on local SKILL.md files.
 
 | When | Skill | Action |
 |------|-------|--------|
@@ -260,14 +267,14 @@ To use: read `.claude/command/{name}.md` and follow its protocol.
 
 ## Learnings System
 
-Each skill has a `learnings.md` with validated lessons from past sessions. Before working in a domain, check if relevant learnings exist:
+Validated lessons from past sessions are stored in the SkillBrain server. Load them via the memory system:
 
 ```
-Read .claude/skill/{domain}/learnings.md
-Read .agents/skills/{skill}/learnings.md
+memory_search({ query: "{what you're about to do}" })
+memory_load({ project: "{project name}", limit: 15 })
 ```
 
-Learnings have confidence scores (1-10). Trust high-confidence learnings. Question low-confidence ones.
+Do not read `learnings.md` files from disk — they are legacy mirrors. Learnings have confidence scores (1-10). Trust high-confidence learnings. Question low-confidence ones.
 
 ---
 
