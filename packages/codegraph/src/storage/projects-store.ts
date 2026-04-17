@@ -170,36 +170,42 @@ export class ProjectsStore {
     let movedMemories = 0
     let movedEnvVars = 0
 
-    for (const alias of aliases) {
-      if (alias === primary) continue
-      // Move sessions
-      const s = this.db.prepare('UPDATE session_log SET project = ? WHERE project = ?').run(primary, alias)
-      movedSessions += s.changes
-      // Move memories
-      const m = this.db.prepare('UPDATE memories SET project = ? WHERE project = ?').run(primary, alias)
-      movedMemories += m.changes
-      // Move env vars (must happen BEFORE delete — project_env_vars has ON DELETE CASCADE).
-      // Use INSERT OR REPLACE semantics via UPDATE OR REPLACE so that if the primary
-      // already has a var with the same (var_name, environment), the alias value wins.
-      const e = this.db
-        .prepare('UPDATE OR REPLACE project_env_vars SET project_name = ? WHERE project_name = ?')
-        .run(primary, alias)
-      movedEnvVars += e.changes
-      // Delete alias project record (cascades to any remaining env vars, but we've moved them)
-      this.delete(alias)
-    }
+    // Wrap all mutations in a single transaction so that if anything throws
+    // mid-way, no partial state is committed (sessions moved but env vars
+    // stranded, etc.). SQLite rolls back on exception.
+    const tx = this.db.transaction(() => {
+      for (const alias of aliases) {
+        if (alias === primary) continue
+        // Move sessions
+        const s = this.db.prepare('UPDATE session_log SET project = ? WHERE project = ?').run(primary, alias)
+        movedSessions += s.changes
+        // Move memories
+        const m = this.db.prepare('UPDATE memories SET project = ? WHERE project = ?').run(primary, alias)
+        movedMemories += m.changes
+        // Move env vars (must happen BEFORE delete — project_env_vars has ON DELETE CASCADE).
+        // Use INSERT OR REPLACE semantics via UPDATE OR REPLACE so that if the primary
+        // already has a var with the same (var_name, environment), the alias value wins.
+        const e = this.db
+          .prepare('UPDATE OR REPLACE project_env_vars SET project_name = ? WHERE project_name = ?')
+          .run(primary, alias)
+        movedEnvVars += e.changes
+        // Delete alias project record (cascades to any remaining env vars, but we've moved them)
+        this.delete(alias)
+      }
 
-    // Update aliases field on primary.
-    // IMPORTANT: use a targeted UPDATE, not upsert() — upsert does INSERT OR REPLACE,
-    // which under FK cascades would delete the primary row (and any env vars pointing
-    // to it) before re-inserting.
-    const proj = this.get(primary)
-    if (proj) {
-      const newAliases = [...new Set([...proj.aliases, ...aliases])]
-      this.db
-        .prepare('UPDATE projects SET aliases = ?, updated_at = ? WHERE name = ?')
-        .run(JSON.stringify(newAliases), new Date().toISOString(), primary)
-    }
+      // Update aliases field on primary.
+      // IMPORTANT: use a targeted UPDATE, not upsert() — upsert does INSERT OR REPLACE,
+      // which under FK cascades would delete the primary row (and any env vars pointing
+      // to it) before re-inserting.
+      const proj = this.get(primary)
+      if (proj) {
+        const newAliases = [...new Set([...proj.aliases, ...aliases])]
+        this.db
+          .prepare('UPDATE projects SET aliases = ?, updated_at = ? WHERE name = ?')
+          .run(JSON.stringify(newAliases), new Date().toISOString(), primary)
+      }
+    })
+    tx()
 
     return { movedSessions, movedMemories, movedEnvVars }
   }

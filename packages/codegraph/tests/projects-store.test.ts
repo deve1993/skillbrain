@@ -67,4 +67,29 @@ describe('ProjectsStore.merge', () => {
     store.upsert({ name: 'alias' })
     expect(() => store.merge('nonexistent', ['alias'])).toThrow()
   })
+
+  it('preserves primary pre-existing env vars during merge (catches INSERT OR REPLACE cascade bug)', () => {
+    store.upsert({ name: 'primary' })
+    store.upsert({ name: 'alias' })
+
+    // Primary already has its own env vars
+    store.setEnv('primary', 'EXISTING_KEY', 'primary-value')
+    store.setEnv('primary', 'SHARED_KEY', 'primary-shared')
+
+    // Alias has its own and a colliding one
+    store.setEnv('alias', 'ALIAS_KEY', 'alias-value')
+    store.setEnv('alias', 'SHARED_KEY', 'alias-shared')
+
+    store.merge('primary', ['alias'])
+
+    // All primary pre-existing env vars survive
+    expect(store.getEnv('primary', 'EXISTING_KEY')).toBe('primary-value')
+    // Alias's unique env var moved
+    expect(store.getEnv('primary', 'ALIAS_KEY')).toBe('alias-value')
+    // Collision resolves to alias's value (UPDATE OR REPLACE semantics — document behavior)
+    expect(store.getEnv('primary', 'SHARED_KEY')).toBe('alias-shared')
+
+    // Alias is gone
+    expect(store.get('alias')).toBeUndefined()
+  })
 })
