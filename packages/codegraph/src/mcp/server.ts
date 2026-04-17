@@ -1355,7 +1355,7 @@ Only save what would SAVE FUTURE TIME. Quality over quantity.`
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
       const result = withProjectsStore(resolved.path, (store) => store.merge(primary, aliases))
-      return { content: [{ type: 'text', text: `✅ Merged ${aliases.length} aliases into ${primary}\n  Sessions moved: ${result.movedSessions}\n  Memories moved: ${result.movedMemories}` }] }
+      return { content: [{ type: 'text', text: `✅ Merged ${aliases.length} aliases into ${primary}\n  Sessions moved: ${result.movedSessions}\n  Memories moved: ${result.movedMemories}\n  Env vars moved: ${result.movedEnvVars}` }] }
     },
   )
 

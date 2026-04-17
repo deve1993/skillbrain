@@ -59,6 +59,32 @@ function detectSessionName(): string {
   return 'Claude Code'
 }
 
+// ── Session dedup (pure, testable) ──
+
+export interface SessionCandidate {
+  id: string
+  status: string
+  started: string
+}
+
+/**
+ * Find the most recent in-progress session whose age is within the reuse window.
+ * Pure function — no side effects, safe to test without a live server.
+ */
+export function findReusableSession(
+  sessions: SessionCandidate[],
+  now: number,
+  windowMs: number,
+): SessionCandidate | null {
+  return (
+    sessions.find((s) => {
+      if (s.status !== 'in-progress') return false
+      const started = new Date(s.started).getTime()
+      return now - started < windowMs
+    }) ?? null
+  )
+}
+
 export async function startProxy(): Promise<void> {
   // 1. Connect to remote HTTP server as a client
   const clientTransport = new StreamableHTTPClientTransport(
@@ -90,12 +116,7 @@ export async function startProxy(): Promise<void> {
     try { sessions = JSON.parse(historyText) } catch {}
 
     // Find most recent in-progress session on this project
-    const recent = sessions.find((s) => {
-      if (s.status !== 'in-progress') return false
-      const started = new Date(s.started).getTime()
-      const age = Date.now() - started
-      return age < SESSION_REUSE_WINDOW_MS
-    })
+    const recent = findReusableSession(sessions, Date.now(), SESSION_REUSE_WINDOW_MS)
 
     if (recent?.id) {
       // Reuse existing session
