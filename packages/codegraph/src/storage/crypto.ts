@@ -61,3 +61,23 @@ export function isEncryptionAvailable(): boolean {
     return false
   }
 }
+
+/**
+ * Verify encryption is usable: key set, correct length, and able to
+ * encrypt+decrypt a sentinel. Throws with a clear actionable message if not.
+ */
+export function assertEncryptionUsable(): void {
+  if (!process.env.ENCRYPTION_KEY) {
+    throw new Error(
+      'ENCRYPTION_KEY env var not set. Generate one with:\n' +
+      '  node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"\n' +
+      'Then set it in your Coolify env vars and redeploy.',
+    )
+  }
+  const sentinel = 'skillbrain-healthcheck'
+  const enc = encrypt(sentinel)
+  const dec = decrypt(enc)
+  if (dec !== sentinel) {
+    throw new Error('ENCRYPTION_KEY roundtrip failed — key may be wrong for existing DB')
+  }
+}

@@ -21,6 +21,7 @@ import { openDb, closeDb } from '../storage/db.js'
 import { MemoryStore } from '../storage/memory-store.js'
 import { SkillsStore } from '../storage/skills-store.js'
 import { ProjectsStore } from '../storage/projects-store.js'
+import { assertEncryptionUsable } from '../storage/crypto.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -590,6 +591,26 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       next()
     }
   })
+
+  // Fail-fast on missing/broken ENCRYPTION_KEY if the DB has any encrypted rows.
+  // Better to refuse to start than to serve requests that'll crash later.
+  {
+    const db = openDb(SKILLBRAIN_ROOT)
+    try {
+      const row = db.prepare(`SELECT COUNT(*) as n FROM project_env_vars`).get() as { n: number }
+      if (row.n > 0) {
+        assertEncryptionUsable()  // throws with clear error, exits before listen
+        console.log(`✓ ENCRYPTION_KEY validated (${row.n} encrypted env vars readable)`)
+      } else if (process.env.ENCRYPTION_KEY) {
+        assertEncryptionUsable()  // key set but no rows yet — still validate roundtrip
+        console.log('✓ ENCRYPTION_KEY validated (no encrypted rows yet)')
+      } else {
+        console.warn('⚠ ENCRYPTION_KEY not set — env var storage disabled until configured')
+      }
+    } finally {
+      closeDb(db)
+    }
+  }
 
   app.listen(port, () => {
     console.log(`
