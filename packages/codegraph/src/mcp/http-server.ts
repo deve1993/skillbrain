@@ -21,7 +21,7 @@ import { openDb, closeDb } from '../storage/db.js'
 import { MemoryStore } from '../storage/memory-store.js'
 import { SkillsStore } from '../storage/skills-store.js'
 import { ProjectsStore } from '../storage/projects-store.js'
-import { assertEncryptionUsable } from '../storage/crypto.js'
+import { assertEncryptionUsable, decrypt } from '../storage/crypto.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -599,13 +599,28 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     try {
       const row = db.prepare(`SELECT COUNT(*) as n FROM project_env_vars`).get() as { n: number }
       if (row.n > 0) {
-        assertEncryptionUsable()  // throws with clear error, exits before listen
-        console.log(`✓ ENCRYPTION_KEY validated (${row.n} encrypted env vars readable)`)
+        assertEncryptionUsable()
+        // Verify the current key actually matches the existing DB rows
+        const sample = db.prepare(
+          `SELECT encrypted_value, iv, auth_tag FROM project_env_vars LIMIT 1`,
+        ).get() as { encrypted_value: string; iv: string; auth_tag: string } | undefined
+        if (sample) {
+          try {
+            decrypt({ ciphertext: sample.encrypted_value, iv: sample.iv, authTag: sample.auth_tag })
+          } catch (err) {
+            throw new Error(
+              `ENCRYPTION_KEY does not match existing encrypted rows in project_env_vars. ` +
+              `Rotating the key requires re-encrypting all stored values first. ` +
+              `Original error: ${(err as Error).message}`,
+            )
+          }
+        }
+        console.log(`✅ ENCRYPTION_KEY validated (${row.n} encrypted env vars readable)`)
       } else if (process.env.ENCRYPTION_KEY) {
-        assertEncryptionUsable()  // key set but no rows yet — still validate roundtrip
-        console.log('✓ ENCRYPTION_KEY validated (no encrypted rows yet)')
+        assertEncryptionUsable() // key set but no rows yet — still validate roundtrip
+        console.log('✅ ENCRYPTION_KEY validated (no encrypted rows yet)')
       } else {
-        console.warn('⚠ ENCRYPTION_KEY not set — env var storage disabled until configured')
+        console.warn('⚠️ ENCRYPTION_KEY not set — env var storage disabled until configured')
       }
     } finally {
       closeDb(db)
