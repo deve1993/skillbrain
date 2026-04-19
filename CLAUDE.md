@@ -202,6 +202,7 @@ These are invocable directly: `brainstorming`, `systematic-debugging`, `writing-
 | "form" (any form) | **FORM PROTOCOL** | Ask where to send data before implementing |
 | "marketing", "conversione" | MARKETING | Brief required → `/marketing` |
 | "video", "reel", "clip", "showcase", "render video" | VIDEO | `/video` → load `video-producer` skill → @video-producer agent |
+| "mockup", "prototipo", "wireframe", "pitch deck", "visual" | DESIGN | load `claude-design` skill |
 
 ---
 
