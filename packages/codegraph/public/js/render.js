@@ -52,13 +52,13 @@ export function simpleMarkdown(md) {
 
 export async function renderHome() {
   const [health, data] = await Promise.all([
-    fetch('/api/health').then(r => r.json()),
-    fetch('/api/data').then(r => r.json()),
+    api.get('/api/health'),
+    api.get('/api/data'),
   ])
 
   let skillTotal = 0
   try {
-    const sr = await fetch('/api/skills?limit=1').then(r => r.json())
+    const sr = await api.get('/api/skills?limit=1')
     skillTotal = sr.total || 0
   } catch {}
 
@@ -114,7 +114,7 @@ export async function renderHome() {
 
 export async function renderSkills(typeFilter) {
   const url = typeFilter ? `/api/skills?type=${typeFilter}` : `/api/skills`
-  const data = await fetch(url).then(r => r.json())
+  const data = await api.get(url)
   window.skillsCache = data.skills || []
 
   const types = ['domain', 'agent', 'command', 'lifecycle', 'process']
@@ -143,7 +143,7 @@ export async function renderSkills(typeFilter) {
 }
 
 export async function searchSkills(q) {
-  const data = await fetch(`/api/skills?search=${encodeURIComponent(q)}`).then(r => r.json())
+  const data = await api.get(`/api/skills?search=${encodeURIComponent(q)}`)
   const skills = data.skills || []
 
   document.getElementById('page').innerHTML = `
@@ -163,7 +163,7 @@ export async function searchSkills(q) {
 }
 
 export async function openSkillDetail(name, openDetailFn) {
-  const skill = await fetch(`/api/skills/${encodeURIComponent(name)}`).then(r => r.json())
+  const skill = await api.get(`/api/skills/${encodeURIComponent(name)}`)
   if (skill.error) { openDetailFn(name, `<p style="color:var(--red)">${skill.error}</p>`); return }
 
   openDetailFn(skill.name, `
@@ -179,7 +179,7 @@ export async function openSkillDetail(name, openDetailFn) {
 
 export async function renderMemories(typeFilter) {
   const url = typeFilter ? `/api/memories?type=${typeFilter}` : `/api/memories`
-  const data = await fetch(url).then(r => r.json())
+  const data = await api.get(url)
   window.memoriesCache = data.memories || []
 
   const types = ['Pattern', 'BugFix', 'AntiPattern', 'Fact', 'Decision', 'Preference', 'Goal', 'Todo']
@@ -209,7 +209,7 @@ export async function renderMemories(typeFilter) {
 }
 
 export async function searchMemories(q) {
-  const data = await fetch(`/api/memories?search=${encodeURIComponent(q)}`).then(r => r.json())
+  const data = await api.get(`/api/memories?search=${encodeURIComponent(q)}`)
   const memories = data.memories || []
 
   document.getElementById('page').innerHTML = `
@@ -229,7 +229,7 @@ export async function searchMemories(q) {
 }
 
 export async function openMemoryDetail(id, openDetailFn) {
-  const m = await fetch(`/api/memories/${encodeURIComponent(id)}`).then(r => r.json())
+  const m = await api.get(`/api/memories/${encodeURIComponent(id)}`)
   if (m.error) { openDetailFn(id, `<p style="color:var(--red)">${m.error}</p>`); return }
 
   const edges = m.edges || []
@@ -288,7 +288,7 @@ export async function openMemoryDetail(id, openDetailFn) {
 // ── Sessions ──
 
 export async function renderSessions() {
-  const data = await fetch('/api/sessions').then(r => r.json())
+  const data = await api.get('/api/sessions')
   const sessions = data.sessions || []
 
   document.getElementById('page').innerHTML = `
@@ -318,7 +318,7 @@ export async function renderSessions() {
 // ── Projects ──
 
 export async function renderProjects() {
-  const data = await fetch('/api/projects').then(r => r.json())
+  const data = await api.get('/api/projects')
   const projects = data.projects || []
 
   const statusColors = {
@@ -366,8 +366,8 @@ export async function renderProjects() {
 
 export async function renderProjectDetail(name, openDetailFn) {
   const [activity, meta] = await Promise.all([
-    fetch(`/api/projects/${encodeURIComponent(name)}`).then(r => r.json()).catch(() => ({})),
-    fetch(`/api/projects-meta/${encodeURIComponent(name)}`).then(r => r.ok ? r.json() : null).catch(() => null),
+    api.get(`/api/projects/${encodeURIComponent(name)}`).catch(() => ({})),
+    api.get(`/api/projects-meta/${encodeURIComponent(name)}`).catch(() => null),
   ])
 
   const sessions = activity.sessions || []
@@ -542,8 +542,7 @@ export async function loadEnvVars(name) {
   const container = document.getElementById('env-content')
   if (!container) return
   try {
-    const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}/env`)
-    const { vars } = await r.json()
+    const { vars } = await api.get(`/api/projects-meta/${encodeURIComponent(name)}/env`)
 
     container.innerHTML = `
       <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -574,8 +573,8 @@ export async function loadEnvVars(name) {
 
 export async function searchGlobal(q, openDetailFn) {
   const [skills, memories] = await Promise.all([
-    fetch(`/api/skills?search=${encodeURIComponent(q)}&limit=5`).then(r => r.json()),
-    fetch(`/api/memories?search=${encodeURIComponent(q)}&limit=5`).then(r => r.json()),
+    api.get(`/api/skills?search=${encodeURIComponent(q)}&limit=5`),
+    api.get(`/api/memories?search=${encodeURIComponent(q)}&limit=5`),
   ])
 
   document.getElementById('page').innerHTML = `
@@ -610,7 +609,7 @@ export async function searchGlobal(q, openDetailFn) {
 // ── Work Log ──
 
 export async function renderWorkLog() {
-  const data = await fetch('/api/worklog').then(r => r.json())
+  const data = await api.get('/api/worklog')
   const projects = data.projects || {}
   const projectNames = Object.keys(projects)
 

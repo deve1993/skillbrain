@@ -46,7 +46,7 @@ function escHtml(s) {
 // ── Modal open / close ──
 
 export async function openEditProjectModal(name) {
-  const meta = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`).then(r => r.ok ? r.json() : null).catch(() => null) || { name }
+  const meta = await api.get(`/api/projects-meta/${encodeURIComponent(name)}`).catch(() => null) || { name }
 
   let overlay = document.getElementById('edit-modal')
   if (overlay) overlay.remove()
@@ -145,15 +145,12 @@ export async function saveProject(event, name, onSaved) {
   })
   fields.teamMembers = members
 
-  const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(fields),
-  })
-  if (r.ok) {
+  try {
+    await api.put(`/api/projects-meta/${encodeURIComponent(name)}`, fields)
     closeEditModal()
     if (typeof onSaved === 'function') onSaved(name)
     else if (typeof window.openProjectDetail === 'function') window.openProjectDetail(name)
-  } else {
+  } catch {
     alert('Save failed')
   }
   return false
