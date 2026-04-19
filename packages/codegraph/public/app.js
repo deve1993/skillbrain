@@ -12,6 +12,8 @@ import {
   renderMemories, searchMemories, openMemoryDetail,
   renderSessions, renderProjects, renderProjectDetail,
   renderProjectTab, loadEnvVars, searchGlobal, renderWorkLog,
+  renderComponents, openComponentDetail,
+  renderDesignSystems, openDesignSystemDetail,
   escHtml,
 } from './js/render.js'
 
@@ -41,6 +43,8 @@ function route() {
     case 'skills': renderSkills(); break
     case 'memories': renderMemories(); break
     case 'sessions': renderSessions(); break
+    case 'components': renderComponents(); break
+    case 'design-systems': renderDesignSystems(); break
     default: renderHome()
   }
 }
@@ -194,6 +198,10 @@ window.revealEnv = revealEnv
 window.exportEnv = exportEnv
 window.importEnv = importEnv
 window.deleteEnv = deleteEnv
+window.renderComponents = renderComponents
+window.openComponentDetail = (id) => openComponentDetail(id, openDetail)
+window.renderDesignSystems = renderDesignSystems
+window.openDesignSystemDetail = (project) => openDesignSystemDetail(project, openDetail)
 
 // ── Init ──
 route()

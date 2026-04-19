@@ -606,6 +606,203 @@ export async function searchGlobal(q, openDetailFn) {
   `
 }
 
+// ── Components ──
+
+const SECTION_TYPE_COLORS = {
+  hero: '#6366f1', navbar: '#8b5cf6', footer: '#a78bfa',
+  cta: '#f59e0b', pricing: '#10b981', features: '#3b82f6',
+  testimonials: '#06b6d4', faq: '#84cc16', comparison: '#f97316',
+  process: '#ec4899', gallery: '#14b8a6', demo: '#64748b',
+  form: '#ef4444', card: '#8b5cf6', other: '#6b7280',
+}
+
+export async function renderComponents(typeFilter) {
+  const url = typeFilter ? `/api/components?type=${typeFilter}&limit=200` : `/api/components?limit=200`
+  const data = await api.get(url)
+  const components = data.components || []
+
+  const types = ['hero','navbar','footer','cta','pricing','features','testimonials','faq','comparison','process','gallery','demo','form','card','other']
+
+  // Group by section_type
+  const byType = {}
+  for (const c of components) {
+    if (!byType[c.sectionType]) byType[c.sectionType] = []
+    byType[c.sectionType].push(c)
+  }
+
+  document.getElementById('page').innerHTML = `
+    <div class="section-title">Component Catalog <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${components.length} components</span></div>
+
+    <div class="filters">
+      <button class="filter-btn ${!typeFilter ? 'active' : ''}" onclick="renderComponents()">All</button>
+      ${types.filter(t => byType[t]?.length).map(t => `<button class="filter-btn ${typeFilter === t ? 'active' : ''}" onclick="renderComponents('${t}')">${t} <span style="opacity:.6">${byType[t]?.length || 0}</span></button>`).join('')}
+    </div>
+
+    ${components.length === 0 ? `
+      <div class="card" style="text-align:center;padding:32px">
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:8px">No components cataloged yet.</p>
+        <p style="color:var(--text-muted);font-size:12px">Use <code>component_add</code> from Claude Code to catalog UI components as you build them.</p>
+      </div>
+    ` : ''}
+
+    ${Object.entries(byType).filter(([t]) => !typeFilter || t === typeFilter).map(([type, comps]) => `
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title" style="display:flex;align-items:center;gap:8px">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${SECTION_TYPE_COLORS[type] || '#6b7280'}"></span>
+          ${type.toUpperCase()}
+          <span class="count">${comps.length}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+          ${comps.map(c => `
+            <div style="padding:12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="openComponentDetail('${c.id}')">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+                <span style="font-weight:600;font-size:13px">${escHtml(c.name)}</span>
+                <span style="font-size:10px;color:var(--text-muted);background:var(--surface);padding:2px 6px;border-radius:4px;white-space:nowrap">${escHtml(c.project)}</span>
+              </div>
+              ${c.description ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;line-height:1.4">${escHtml(c.description.slice(0, 100))}</div>` : ''}
+              ${c.filePath ? `<div style="font-size:10px;color:var(--text-dim);font-family:monospace;margin-bottom:6px">${escHtml(c.filePath)}</div>` : ''}
+              ${c.tags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${c.tags.map(t => `<span class="tag" style="font-size:10px;padding:1px 6px">${escHtml(t)}</span>`).join('')}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `
+}
+
+export async function openComponentDetail(id, openDetailFn) {
+  const c = await api.get(`/api/components/${encodeURIComponent(id)}`)
+  if (!c || c.error) { openDetailFn?.(id, `<p style="color:var(--red)">Component not found</p>`); return }
+
+  openDetailFn?.(c.name, `
+    <div style="margin-bottom:12px">
+      <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${SECTION_TYPE_COLORS[c.sectionType] || '#6b7280'}22;color:${SECTION_TYPE_COLORS[c.sectionType] || '#6b7280'};border:1px solid ${SECTION_TYPE_COLORS[c.sectionType] || '#6b7280'}44">${c.sectionType.toUpperCase()}</span>
+      <span style="margin-left:8px;font-size:12px;color:var(--text-muted)">Project: <strong>${escHtml(c.project)}</strong></span>
+    </div>
+    ${c.description ? `<div class="card"><div class="card-title">Description</div><p style="font-size:13px">${escHtml(c.description)}</p></div>` : ''}
+    ${c.filePath ? `<div class="card"><div class="card-title">File</div><code style="font-size:12px">${escHtml(c.filePath)}</code></div>` : ''}
+    ${c.tags?.length ? `<div style="margin-bottom:12px">${c.tags.map(t => `<span class="tag">${escHtml(t)}</span>`).join('')}</div>` : ''}
+    ${c.propsSchema && Object.keys(c.propsSchema).length ? `<div class="card"><div class="card-title">Props</div><pre style="font-size:11px;overflow:auto">${escHtml(JSON.stringify(c.propsSchema, null, 2))}</pre></div>` : ''}
+    ${c.designTokens && Object.keys(c.designTokens).length ? `<div class="card"><div class="card-title">Design Tokens</div><pre style="font-size:11px;overflow:auto">${escHtml(JSON.stringify(c.designTokens, null, 2))}</pre></div>` : ''}
+    ${c.codeSnippet ? `<div class="card"><div class="card-title">Code Preview</div><pre style="font-size:11px;overflow:auto;max-height:300px">${escHtml(c.codeSnippet)}</pre></div>` : ''}
+    <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Added: ${c.createdAt?.split('T')[0] || '?'}</div>
+  `)
+}
+
+// ── Design Systems ──
+
+export async function renderDesignSystems() {
+  const data = await api.get('/api/design-systems')
+  const systems = data.designSystems || []
+
+  document.getElementById('page').innerHTML = `
+    <div class="section-title">Design Systems <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${systems.length} projects</span></div>
+
+    ${systems.length === 0 ? `
+      <div class="card" style="text-align:center;padding:32px">
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:8px">No design systems saved yet.</p>
+        <p style="color:var(--text-muted);font-size:12px">Use <code>design_system_set</code> from Claude Code to store colors, fonts, and tokens per client project.</p>
+      </div>
+    ` : ''}
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
+      ${systems.map(ds => {
+        const colorEntries = Object.entries(ds.colors || {}).slice(0, 8)
+        const fontVals = Object.values(ds.fonts || {}).filter(v => typeof v === 'string').slice(0, 3)
+        return `
+        <div class="card" style="cursor:pointer" onclick="openDesignSystemDetail('${escHtml(ds.project)}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div>
+              <div style="font-weight:700;font-size:15px">${escHtml(ds.project)}</div>
+              ${ds.clientName ? `<div style="font-size:11px;color:var(--text-muted)">${escHtml(ds.clientName)}</div>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              ${ds.darkMode ? '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:rgba(99,102,241,.15);color:var(--accent)">dark mode</span>' : ''}
+              <span style="font-size:10px;color:var(--text-muted)">${ds.colorFormat}</span>
+            </div>
+          </div>
+          ${colorEntries.length ? `
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Colors</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${colorEntries.map(([k, v]) => `
+                <div style="display:flex;align-items:center;gap:4px" title="${escHtml(k)}: ${escHtml(v)}">
+                  <div style="width:18px;height:18px;border-radius:4px;background:${escHtml(v)};border:1px solid rgba(255,255,255,.1);flex-shrink:0"></div>
+                  <span style="font-size:10px;color:var(--text-muted)">${escHtml(k)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>` : ''}
+          ${fontVals.length ? `
+          <div>
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Fonts</div>
+            <div style="font-size:12px;color:var(--text-dim)">${fontVals.map(f => escHtml(f)).join(' · ')}</div>
+          </div>` : ''}
+          <div style="margin-top:10px;font-size:10px;color:var(--text-muted)">Updated: ${ds.updatedAt?.split('T')[0] || '?'}</div>
+        </div>`
+      }).join('')}
+    </div>
+  `
+}
+
+export async function openDesignSystemDetail(project, openDetailFn) {
+  const ds = await api.get(`/api/design-systems/${encodeURIComponent(project)}`)
+  if (!ds || ds.error) { openDetailFn?.(project, `<p style="color:var(--red)">Design system not found</p>`); return }
+
+  const colorEntries = Object.entries(ds.colors || {})
+  const fontEntries = Object.entries(ds.fonts || {})
+  const spacingEntries = Object.entries(ds.spacing || {})
+  const radiusEntries = Object.entries(ds.radius || {})
+
+  openDetailFn?.(ds.project, `
+    <div style="margin-bottom:12px;font-size:12px;color:var(--text-muted)">
+      ${ds.clientName ? `Client: <strong>${escHtml(ds.clientName)}</strong> &middot; ` : ''}
+      Format: ${ds.colorFormat} &middot; Dark mode: ${ds.darkMode ? 'yes' : 'no'}
+    </div>
+
+    ${colorEntries.length ? `
+    <div class="card">
+      <div class="card-title">Colors <span class="count">${colorEntries.length}</span></div>
+      ${colorEntries.map(([k, v]) => `
+        <div class="row">
+          <span class="row-label" style="display:flex;align-items:center;gap:8px">
+            <span style="width:20px;height:20px;border-radius:4px;background:${escHtml(v)};border:1px solid rgba(255,255,255,.1);display:inline-block;flex-shrink:0"></span>
+            <code>${escHtml(k)}</code>
+          </span>
+          <span class="row-val"><code>${escHtml(v)}</code></span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${fontEntries.length ? `
+    <div class="card">
+      <div class="card-title">Fonts</div>
+      ${fontEntries.map(([k, v]) => `
+        <div class="row"><span class="row-label"><code>${escHtml(k)}</code></span><span class="row-val">${escHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</span></div>
+      `).join('')}
+    </div>` : ''}
+
+    ${spacingEntries.length ? `
+    <div class="card">
+      <div class="card-title">Spacing</div>
+      ${spacingEntries.map(([k, v]) => `
+        <div class="row"><span class="row-label"><code>${escHtml(k)}</code></span><span class="row-val">${escHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</span></div>
+      `).join('')}
+    </div>` : ''}
+
+    ${radiusEntries.length ? `
+    <div class="card">
+      <div class="card-title">Border Radius</div>
+      ${radiusEntries.map(([k, v]) => `
+        <div class="row"><span class="row-label"><code>${escHtml(k)}</code></span><span class="row-val"><code>${escHtml(v)}</code></span></div>
+      `).join('')}
+    </div>` : ''}
+
+    ${ds.notes ? `<div class="card"><div class="card-title">Notes</div><p style="font-size:13px">${escHtml(ds.notes)}</p></div>` : ''}
+    ${ds.tailwindConfig ? `<div class="card"><div class="card-title">Tailwind Config</div><pre style="font-size:11px;overflow:auto;max-height:300px">${escHtml(ds.tailwindConfig)}</pre></div>` : ''}
+  `)
+}
+
 // ── Work Log ──
 
 export async function renderWorkLog() {
