@@ -2,6 +2,11 @@
 
 import { api } from './api.js'
 
+// Local helper (not exported — only needed inside this module)
+function escHtml(s) {
+  return s?.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') || ''
+}
+
 // ── Field builders ──
 
 export function editField(key, label, value, placeholder, type = 'text') {
@@ -36,11 +41,6 @@ export function memberRow(m, i) {
     <input type="email" placeholder="Email" value="${escHtml(m.email || '')}" data-field="email" style="${inputStyle};flex:1">
     <button type="button" onclick="this.closest('.member-row').remove()" style="padding:4px 8px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--red);font-size:11px;border-radius:4px;cursor:pointer">×</button>
   </div>`
-}
-
-// Local helper (not exported — only needed inside this module)
-function escHtml(s) {
-  return s?.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') || ''
 }
 
 // ── Modal open / close ──
