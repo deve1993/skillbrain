@@ -201,6 +201,7 @@ These are invocable directly: `brainstorming`, `systematic-debugging`, `writing-
 | "refactor", "rinomina" | REFACTOR | CodeGraph impact analysis first |
 | "form" (any form) | **FORM PROTOCOL** | Ask where to send data before implementing |
 | "marketing", "conversione" | MARKETING | Brief required → `/marketing` |
+| "video", "reel", "clip", "showcase", "render video" | VIDEO | `/video` → load `video-producer` skill → @video-producer agent |
 
 ---
 
@@ -244,7 +245,7 @@ Client projects go in `Progetti/<slug-cliente>/`. Never create project files in 
 | `/marketing` | Marketing strategy workflow |
 | `/audit` | Site audit (perf, a11y, SEO, security) |
 | `/clone` | Website cloning pipeline |
-| `/video` | Remotion video workflow |
+| `/video` | Video production: AI generation (Kling/Veo/Imagen/TTS/Lyria) + Remotion |
 | `/cms-setup` | Payload CMS setup |
 | `/cms-module` | Add CMS module (reservations, ecommerce...) |
 | `/n8n` | n8n workflow automation |
