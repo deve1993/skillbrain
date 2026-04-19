@@ -73,6 +73,7 @@ session_end({
 3. **Save memories IN REAL-TIME** — waiting for session end means losing context if the session crashes
 4. **Always search before implementing** — `memory_search` before coding, `skill_route` before designing
 5. **Include project name in EVERY session** — sessions without project are uncategorized noise
+6. **skill_target tag** — when saving memories, include `"skill:[name]"` in tags if domain-specific (e.g. `"skill:nextjs"`, `"skill:payments"`). Powers the `/skill-sync` auto-improvement system.
 
 ### What's automatic (you DON'T need to do these):
 - Session tracking: the MCP proxy auto-creates a session on connect and auto-closes on disconnect
