@@ -7,6 +7,7 @@ import { loadRegistry } from '../storage/registry.js'
 import { openDb, closeDb } from '../storage/db.js'
 import { GraphStore } from '../storage/graph-store.js'
 import { MemoryStore } from '../storage/memory-store.js'
+import { ComponentsStore } from '../storage/components-store.js'
 
 const PORT = parseInt(process.env.PORT || '3737', 10)
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session'
@@ -141,6 +142,31 @@ function getMemoryGraph() {
   }
 }
 
+function getComponentCatalog() {
+  try {
+    const db = openDb(SKILLBRAIN_ROOT)
+    const store = new ComponentsStore(db)
+    const stats = store.componentStats()
+    const components = store.listComponents({ limit: 200 })
+    closeDb(db)
+    return { total: stats.total, byProject: stats.byProject, bySectionType: stats.bySectionType, components }
+  } catch {
+    return { total: 0, byProject: {}, bySectionType: {}, components: [] }
+  }
+}
+
+function getDesignSystemsCatalog() {
+  try {
+    const db = openDb(SKILLBRAIN_ROOT)
+    const store = new ComponentsStore(db)
+    const designSystems = store.listDesignSystems()
+    closeDb(db)
+    return { total: designSystems.length, designSystems }
+  } catch {
+    return { total: 0, designSystems: [] }
+  }
+}
+
 function getDirs(d: string) { try { return fs.readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name) } catch { return [] } }
 function getFiles(d: string, ext: string) { try { return fs.readdirSync(d).filter((f) => f.endsWith(ext)) } catch { return [] } }
 function countLines(f: string) { try { return fs.readFileSync(f, 'utf-8').split('\n').length } catch { return 0 } }
@@ -241,8 +267,10 @@ function render(d){
   const ts=d.skills.totalDomain+d.skills.totalAgent
   const tl=d.learnings.reduce((s,l)=>s+l.count,0)
   const mg=d.memoryGraph||{}
+  const tc=d.components?.total||0
+  const tds=d.designSystems?.total||0
   document.getElementById('totals').innerHTML=[
-    T(d.repos.length,'Repos'),T(tn,'Symbols'),T(te,'Connections'),T(ts,'Skills'),T(mg.total||0,'Memories'),T(mg.edges||0,'Mem Edges'),T(d.skills.commands.length,'Commands')
+    T(d.repos.length,'Repos'),T(tn,'Symbols'),T(te,'Connections'),T(ts,'Skills'),T(mg.total||0,'Memories'),T(tc,'Components'),T(tds,'Design Systems'),T(d.skills.commands.length,'Commands')
   ].join('')
 
   let h=''
@@ -331,6 +359,74 @@ function render(d){
     h+='</div></div></div>'
   }
 
+  // === COMPONENT CATALOG ===
+  const comps=d.components||{total:0,components:[],byProject:{},bySectionType:{}}
+  h+='<div class="section"><div class="section-title"><span class="icon">&#129521;</span> Component Catalog ('+comps.total+')</div>'
+  if(comps.total===0){
+    h+='<div class="card" style="color:#555;font-size:13px">No components yet. Use <code>component_add</code> after building any Hero, Footer, CTA, or Pricing section.</div>'
+  } else {
+    // Stats row
+    h+='<div class="g3" style="margin-bottom:12px">'
+    h+='<div class="card"><h3>By Project</h3>'
+    for(const[proj,cnt]of Object.entries(comps.byProject)){const mx=Math.max(...Object.values(comps.byProject).map(Number));h+=bar(proj,Number(cnt),mx,'#6366f1')}
+    h+='</div>'
+    h+='<div class="card"><h3>By Section Type</h3>'
+    for(const[type,cnt]of Object.entries(comps.bySectionType)){const mx=Math.max(...Object.values(comps.bySectionType).map(Number));h+=bar(type,Number(cnt),mx,'#8b5cf6')}
+    h+='</div>'
+    h+='</div>'
+    // Component grid grouped by section_type
+    const byType={}
+    comps.components.forEach(c=>{if(!byType[c.sectionType])byType[c.sectionType]=[];byType[c.sectionType].push(c)})
+    h+='<div class="g3">'
+    for(const[type,items]of Object.entries(byType)){
+      h+='<div class="card"><h3>'+type+'<span class="cnt">'+items.length+'</span></h3>'
+      items.forEach(c=>{
+        h+='<div class="le"><span class="le-id">'+c.project+'</span> <span style="color:#ccc">'+c.name+'</span>'
+        if(c.filePath)h+='<div class="le-prob" style="color:#555;font-size:11px">'+c.filePath+'</div>'
+        if(c.tags?.length){h+='<div class="tags" style="margin-top:3px">';c.tags.forEach(t=>{h+='<span class="tag">'+t+'</span>'});h+='</div>'}
+        h+='</div>'
+      })
+      h+='</div>'
+    }
+    h+='</div>'
+  }
+  h+='</div>'
+
+  // === DESIGN SYSTEMS ===
+  const ds=d.designSystems||{total:0,designSystems:[]}
+  h+='<div class="section"><div class="section-title"><span class="icon">&#127912;</span> Design Systems ('+ds.total+')</div>'
+  if(ds.total===0){
+    h+='<div class="card" style="color:#555;font-size:13px">No design systems yet. Use <code>design_system_set</code> to save client brand tokens.</div>'
+  } else {
+    h+='<div class="g2">'
+    ds.designSystems.forEach(function(s){
+      h+='<div class="card"><h3>'+s.project+(s.clientName?' <span style="font-weight:400;color:#555;font-size:12px">('+s.clientName+')</span>':'')+'</h3>'
+      // Color swatches
+      const cols=Object.entries(s.colors||{})
+      if(cols.length){
+        h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'
+        cols.forEach(function([k,v]){h+='<div title="'+k+': '+v+'" style="width:28px;height:28px;border-radius:6px;background:'+v+';border:1px solid #222;cursor:help"></div>'})
+        h+='</div>'
+        h+='<div style="font-size:11px;color:#555;margin-bottom:8px">'+cols.map(function([k,v]){return k+': '+v}).join(' · ')+'</div>'
+      }
+      // Font info
+      const fonts=s.fonts||{}
+      if(Object.keys(fonts).length){
+        h+='<div class="sr"><span class="sr-l">Fonts</span><span class="sr-v" style="font-size:12px">'+Object.values(fonts).join(', ')+'</span></div>'
+      }
+      // Badges
+      h+='<div class="tags" style="margin-top:8px">'
+      h+='<span class="tag">'+s.colorFormat+'</span>'
+      if(s.darkMode)h+='<span class="tag learn">dark mode</span>'
+      if(s.animations?.length)h+='<span class="tag">'+s.animations.length+' animations</span>'
+      h+='<span class="tag" style="color:#555">updated '+s.updatedAt.split("T")[0]+'</span>'
+      h+='</div>'
+      h+='</div>'
+    })
+    h+='</div>'
+  }
+  h+='</div>'
+
   // === COMMANDS ===
   h+='<div class="section"><div class="section-title"><span class="icon">&#9889;</span> Commands ('+d.skills.commands.length+')</div><div class="card"><div class="tags">'
   d.skills.commands.forEach(c=>{h+='<span class="tag">/'+c+'</span>'})
@@ -374,7 +470,7 @@ const server = http.createServer((req, res) => {
   }
   if (req.url === '/api/data') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-    res.end(JSON.stringify({ repos: getRepoDetails(), skills: getSkillsGrouped(), learnings: getLearnings(), memoryGraph: getMemoryGraph(), automation: getAutomation(), ts: new Date().toISOString() }))
+    res.end(JSON.stringify({ repos: getRepoDetails(), skills: getSkillsGrouped(), learnings: getLearnings(), memoryGraph: getMemoryGraph(), automation: getAutomation(), components: getComponentCatalog(), designSystems: getDesignSystemsCatalog(), ts: new Date().toISOString() }))
   } else {
     res.writeHead(200, { 'Content-Type': 'text/html' })
     res.end(HTML)

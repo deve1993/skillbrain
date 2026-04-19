@@ -21,6 +21,7 @@ import { openDb, closeDb } from '../storage/db.js'
 import { MemoryStore } from '../storage/memory-store.js'
 import { SkillsStore } from '../storage/skills-store.js'
 import { ProjectsStore } from '../storage/projects-store.js'
+import { ComponentsStore } from '../storage/components-store.js'
 import { assertEncryptionUsable, decrypt } from '../storage/crypto.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -574,6 +575,89 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       res.json({ projects })
     } catch {
       res.json({ projects: {} })
+    }
+  })
+
+  // ── API: UI Components ──
+  app.get('/api/components', (_req, res) => {
+    const { project, type, tag, search, limit } = _req.query as any
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ComponentsStore(db)
+      let components
+      if (search) {
+        components = store.searchComponents(search, parseInt(limit || '50', 10)).map((r) => r.component)
+      } else {
+        components = store.listComponents({ project, sectionType: type, tag, limit: parseInt(limit || '100', 10) })
+      }
+      const stats = store.componentStats()
+      closeDb(db)
+      res.json({ components, total: stats.total, stats })
+    } catch {
+      res.json({ components: [], total: 0, stats: {} })
+    }
+  })
+
+  app.get('/api/components/:id', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ComponentsStore(db)
+      const component = store.getComponent(_req.params.id)
+      closeDb(db)
+      if (!component) { res.status(404).json({ error: 'Component not found' }); return }
+      res.json(component)
+    } catch {
+      res.status(500).json({ error: 'Internal error' })
+    }
+  })
+
+  app.post('/api/components', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ComponentsStore(db)
+      const component = store.addComponent(_req.body || {})
+      closeDb(db)
+      res.json({ ok: true, component })
+    } catch (err: any) {
+      res.status(400).json({ error: err.message })
+    }
+  })
+
+  app.delete('/api/components/:id', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ComponentsStore(db)
+      store.deleteComponent(_req.params.id)
+      closeDb(db)
+      res.json({ ok: true })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // ── API: Design Systems ──
+  app.get('/api/design-systems', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ComponentsStore(db)
+      const designSystems = store.listDesignSystems()
+      closeDb(db)
+      res.json({ designSystems, total: designSystems.length })
+    } catch {
+      res.json({ designSystems: [], total: 0 })
+    }
+  })
+
+  app.get('/api/design-systems/:project', (_req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ComponentsStore(db)
+      const ds = store.getDesignSystem(_req.params.project)
+      closeDb(db)
+      if (!ds) { res.status(404).json({ error: 'Design system not found' }); return }
+      res.json(ds)
+    } catch {
+      res.status(500).json({ error: 'Internal error' })
     }
   })
 
