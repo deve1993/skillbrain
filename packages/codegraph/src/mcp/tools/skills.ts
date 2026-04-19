@@ -82,6 +82,45 @@ export function registerSkillTools(server: McpServer, _ctx: ToolContext): void {
     },
   )
 
+  // --- Tool: skill_update ---
+  server.tool(
+    'skill_update',
+    'Update the content of an existing skill in the database. Use after generating an improved version based on recent learnings.',
+    {
+      name: z.string().describe('Skill name (must exist — use skill_list to verify)'),
+      content: z.string().describe('Full updated SKILL.md content (complete replacement)'),
+      reason: z.string().optional().describe('Why this update was made'),
+      repo: z.string().optional(),
+    },
+    async ({ name, content, reason, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      const result = withSkillsStore(resolved.path, (store) => {
+        const existing = store.get(name)
+        if (!existing) return null
+        store.upsert({
+          ...existing,
+          content,
+          lines: content.split('\n').length,
+          updatedAt: new Date().toISOString(),
+        })
+        return existing.name
+      })
+
+      if (!result) {
+        return { content: [{ type: 'text', text: `Skill "${name}" not found. Use skill_list to see available skills.` }] }
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `Skill "${name}" updated successfully.${reason ? ` Reason: ${reason}` : ''}`,
+        }],
+      }
+    },
+  )
+
   // --- Tool: skill_route ---
   server.tool(
     'skill_route',
