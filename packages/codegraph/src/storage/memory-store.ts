@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import { randomId } from '../utils/hash.js'
+import { MEMORY_DECAY_INTERVAL_HOURS, SESSION_STALE_THRESHOLD_MS } from '../constants.js'
 
 // ── Session & Notification Types ───────────────────────
 
@@ -698,7 +699,7 @@ export class MemoryStore {
     const lastRun = last ? new Date(last.updated_at) : new Date(0)
     const hoursSince = (now.getTime() - lastRun.getTime()) / (1000 * 60 * 60)
 
-    if (hoursSince < 24) return { ran: false }
+    if (hoursSince < MEMORY_DECAY_INTERVAL_HOURS) return { ran: false }
 
     // Run decay with no validated IDs (just ages all memories)
     const result = this.applyDecay([], now.toISOString().split('T')[0])
@@ -729,7 +730,8 @@ export class MemoryStore {
    * Auto-close sessions with no heartbeat for >staleMinutes.
    * Generates smart summary + auto-detects workType/deliverables from git commits.
    */
-  autoCloseStale(staleMinutes = 15): number {
+  autoCloseStale(staleMinutes?: number): number {
+    staleMinutes ??= SESSION_STALE_THRESHOLD_MS / 60 / 1000
     const threshold = new Date(Date.now() - staleMinutes * 60 * 1000).toISOString()
     const now = new Date().toISOString()
 

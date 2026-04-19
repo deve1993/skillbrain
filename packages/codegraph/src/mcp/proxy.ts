@@ -23,6 +23,7 @@ import {
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { HEARTBEAT_INTERVAL_MS, SESSION_REUSE_WINDOW_MS } from '../constants.js'
 
 const REMOTE_URL = process.env.SKILLBRAIN_MCP_URL || 'https://memory.fl1.it/mcp'
 const AUTH_TOKEN = process.env.CODEGRAPH_AUTH_TOKEN || ''
@@ -103,7 +104,6 @@ export async function startProxy(): Promise<void> {
   const project = detectProject()
   const sessionName = detectSessionName()
   let sessionId: string | null = null
-  const SESSION_REUSE_WINDOW_MS = 4 * 60 * 60 * 1000 // 4 hours
 
   try {
     // Check for existing in-progress session on same project
@@ -163,7 +163,6 @@ export async function startProxy(): Promise<void> {
   // 3. Heartbeat every 5 minutes (keeps session alive on server)
   // Server auto-closes sessions without heartbeat after 15 min
   if (sessionId) {
-    const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000
     setInterval(async () => {
       try {
         await client.callTool({
