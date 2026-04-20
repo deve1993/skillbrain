@@ -73,11 +73,20 @@
   <!-- Team page modals -->
   <dialog id="modal-add-member">
     <h2>Add Team Member</h2>
-    <label>Name<input id="input-member-name" type="text" placeholder="Marco Rossi"></label>
-    <label>Email (optional)<input id="input-member-email" type="email" placeholder="marco@example.com"></label>
-    <label>Key label<input id="input-key-label" type="text" placeholder="Marco's laptop"></label>
+    <div class="form-field">
+      <label>Name</label>
+      <input id="input-member-name" type="text" placeholder="Marco Rossi">
+    </div>
+    <div class="form-field">
+      <label>Email <span style="opacity:.5">(optional)</span></label>
+      <input id="input-member-email" type="email" placeholder="marco@example.com">
+    </div>
+    <div class="form-field">
+      <label>Key label</label>
+      <input id="input-key-label" type="text" placeholder="Marco's laptop">
+    </div>
     <div class="modal-actions">
-      <button id="btn-cancel-member">Cancel</button>
+      <button id="btn-cancel-member" class="btn-ghost">Cancel</button>
       <button id="btn-create-member" class="btn-primary">Generate Key</button>
     </div>
   </dialog>
@@ -87,7 +96,7 @@
     <p>Copy this key now — it won't be shown again.</p>
     <code id="new-key-value" class="key-display"></code>
     <div class="modal-actions">
-      <button id="btn-copy-key">Copy</button>
+      <button id="btn-copy-key" class="btn-ghost">Copy</button>
       <button id="btn-close-key-modal" class="btn-primary">Done</button>
     </div>
     <details>

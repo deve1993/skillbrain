@@ -208,8 +208,8 @@ window.openDesignSystemDetail = (project) => openDesignSystemDetail(project, ope
 async function renderTeam() {
   const page = $('#page')
   page.innerHTML = `
-    <div class="page-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-      <h1 style="margin:0">Team</h1>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div class="section-title" style="margin:0">Team</div>
       <button id="btn-add-member" class="btn-primary">+ Add Member</button>
     </div>
     <div id="team-list"></div>`
@@ -231,29 +231,34 @@ async function loadTeamList() {
   if (!el) return
 
   if (!users || users.length === 0) {
-    el.innerHTML = '<p style="color:var(--text-muted)">No team members yet. Click "+ Add Member" to invite someone.</p>'
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No team members yet. Click "+ Add Member" to invite someone.</p>'
     return
   }
 
   el.innerHTML = users.map(u => {
     const keys = JSON.parse(u.keys || '[]').filter(k => k.id)
-    return `<div class="card" style="margin-bottom:1rem;padding:1rem">
-      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
-        <strong>${escHtml(u.name)}</strong>
-        <span style="font-size:.75rem;background:var(--bg-2);padding:.2rem .5rem;border-radius:4px">${u.role}</span>
-        ${u.email ? `<span style="color:var(--text-muted);font-size:.85rem">${escHtml(u.email)}</span>` : ''}
+    const initials = u.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    const roleBadge = u.role === 'admin' ? 'badge-decision' : 'badge-pattern'
+    return `<div class="card member-card">
+      <div class="member-header">
+        <div class="member-avatar">${initials}</div>
+        <div style="flex:1">
+          <div class="member-name">${escHtml(u.name)}</div>
+          ${u.email ? `<div class="member-email">${escHtml(u.email)}</div>` : ''}
+        </div>
+        <span class="badge ${roleBadge}">${u.role}</span>
       </div>
-      <div style="display:flex;flex-direction:column;gap:.4rem">
-        ${keys.length === 0 ? '<span style="color:var(--text-muted);font-size:.85rem">No active keys</span>' : ''}
-        ${keys.map(k => `
-          <div style="display:flex;align-items:center;gap:.75rem;font-size:.85rem;${k.revoked ? 'opacity:.5' : ''}">
-            <span style="flex:1">${escHtml(k.label)}</span>
-            <span style="color:var(--text-muted)">last used: ${k.last_used_at ? k.last_used_at.slice(0,10) : 'never'}</span>
+      ${keys.length === 0
+        ? '<p style="color:var(--text-muted);font-size:12px;margin:0">No active keys</p>'
+        : keys.map(k => `
+          <div class="key-row${k.revoked ? ' revoked' : ''}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.4;flex-shrink:0"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            <span class="key-label">${escHtml(k.label)}</span>
+            <span class="key-meta">last used: ${k.last_used_at ? k.last_used_at.slice(0, 10) : 'never'}</span>
             ${!k.revoked
-              ? `<button onclick="revokeKey('${k.id}')" style="font-size:.75rem;padding:.2rem .5rem;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--error,#f44)">Revoke</button>`
-              : '<span style="font-size:.75rem;color:var(--text-muted)">(revoked)</span>'}
+              ? `<button class="btn-danger" onclick="revokeKey('${k.id}')">Revoke</button>`
+              : '<span style="font-size:11px;color:var(--text-muted)">(revoked)</span>'}
           </div>`).join('')}
-      </div>
     </div>`
   }).join('')
 }
