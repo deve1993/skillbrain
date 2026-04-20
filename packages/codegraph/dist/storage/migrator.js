@@ -39,12 +39,12 @@ export function runMigrations(db, dir = MIGRATIONS_DIR) {
         if (applied.has(name))
             continue;
         const sql = fs.readFileSync(path.join(dir, file), 'utf-8');
-        // Legacy DB support: if bootstrap and core tables already exist
+        // Legacy DB support: if bootstrap core table already exists
         // (DB created before versioning existed), skip re-running CREATEs
         // but record the row so later migrations run normally.
+        // Only session_log is checked — projects may not exist on very old DBs.
         if (name === '000_bootstrap' &&
-            tableExists(db, 'session_log') &&
-            tableExists(db, 'projects')) {
+            tableExists(db, 'session_log')) {
             db.prepare(`INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)`).run(name, new Date().toISOString());
             continue;
         }
