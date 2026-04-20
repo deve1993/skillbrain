@@ -68,16 +68,38 @@ export async function startHttpServer(port, authToken) {
     // Session map for MCP transports
     const transports = new Map();
     // ── Auth middleware for /mcp routes (Bearer token) ──
-    if (authToken) {
-        app.use('/mcp', (req, res, next) => {
-            const token = req.headers.authorization?.replace('Bearer ', '');
-            if (token !== authToken) {
-                res.status(401).json({ error: 'Unauthorized' });
+    app.use('/mcp', (req, res, next) => {
+        if (!authToken) {
+            next();
+            return;
+        }
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        if (!token) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        // Legacy: CODEGRAPH_AUTH_TOKEN env var (backward compat)
+        if (token === authToken) {
+            next();
+            return;
+        }
+        // DB: check api_keys table
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const hash = crypto.createHash('sha256').update(token).digest('hex');
+            const key = db.prepare(`SELECT id FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL`).get(hash);
+            if (key) {
+                db.prepare(`UPDATE api_keys SET last_used_at = ? WHERE id = ?`)
+                    .run(new Date().toISOString(), key.id);
+                closeDb(db);
+                next();
                 return;
             }
-            next();
-        });
-    }
+            closeDb(db);
+        }
+        catch { /* api_keys table not yet migrated */ }
+        res.status(401).json({ error: 'Unauthorized' });
+    });
     // ── Dashboard auth (password-based) ──
     function createSessionToken() {
         const payload = `skillbrain:${Date.now()}`;
@@ -664,6 +686,68 @@ export async function startHttpServer(port, authToken) {
                 return;
             }
             res.json(ds);
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    // ── Team / API Keys admin routes ──
+    function generateApiKey() {
+        return 'sk-codegraph-' + crypto.randomBytes(12).toString('hex');
+    }
+    app.get('/api/admin/team', (_req, res) => {
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const users = db.prepare(`
+        SELECT u.id, u.name, u.email, u.role, u.created_at,
+               json_group_array(json_object(
+                 'id', k.id, 'label', k.label,
+                 'last_used_at', k.last_used_at,
+                 'created_at', k.created_at,
+                 'revoked', CASE WHEN k.revoked_at IS NOT NULL THEN 1 ELSE 0 END
+               )) as keys
+        FROM users u
+        LEFT JOIN api_keys k ON k.user_id = u.id
+        GROUP BY u.id
+        ORDER BY u.created_at DESC
+      `).all();
+            closeDb(db);
+            res.json({ users });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    app.post('/api/admin/team/users', express.json(), (req, res) => {
+        const { name, email, label } = req.body;
+        if (!name) {
+            res.status(400).json({ error: 'name required' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const userId = randomUUID().replace(/-/g, '').slice(0, 12);
+            const keyId = randomUUID().replace(/-/g, '').slice(0, 12);
+            const plainKey = generateApiKey();
+            const keyHash = crypto.createHash('sha256').update(plainKey).digest('hex');
+            db.prepare(`INSERT INTO users (id, name, email, role) VALUES (?, ?, ?, 'member')`)
+                .run(userId, name, email ?? null);
+            db.prepare(`INSERT INTO api_keys (id, user_id, key_hash, label) VALUES (?, ?, ?, ?)`)
+                .run(keyId, userId, keyHash, label ?? `${name}'s key`);
+            closeDb(db);
+            res.json({ userId, keyId, key: plainKey });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    app.delete('/api/admin/team/keys/:id', (req, res) => {
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            db.prepare(`UPDATE api_keys SET revoked_at = ? WHERE id = ?`)
+                .run(new Date().toISOString(), req.params.id);
+            closeDb(db);
+            res.json({ ok: true });
         }
         catch {
             res.status(500).json({ error: 'Internal error' });

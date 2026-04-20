@@ -1,5 +1,5 @@
 {
-  "name": "SkillBrain — Skill Sync Telegram Bot",
+  "name": "SkillBrain \u2014 Skill Sync Telegram Bot",
   "nodes": [
     {
       "parameters": {
@@ -13,92 +13,117 @@
       "name": "Telegram Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
-        "rules": {
-          "rules": [
+        "jsCode": "const body = $input.first().json.body || {};\nconst text = body.message?.text || '';\nconst callbackData = body.callback_query?.data || '';\nconst callbackQueryId = body.callback_query?.id || null;\nlet route = 'unknown', skill = null;\nif (text === '/skill-sync') { route = 'sync'; }\nelse if (text === '/pending') { route = 'pending'; }\nelse if (callbackData.startsWith('approve_')) { route = 'approve'; skill = callbackData.replace('approve_', ''); }\nelse if (callbackData.startsWith('reject_')) { route = 'reject'; skill = callbackData.replace('reject_', ''); }\nreturn [{ json: { route, skill, callback_query_id: callbackQueryId } }];"
+      },
+      "id": "node-router-code",
+      "name": "Code \u2014 Route Classifier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "conditions": {
-                "string": [
-                  {
-                    "value1": "={{ $json.body.message?.text }}",
-                    "operation": "equals",
-                    "value2": "/skill-sync"
-                  }
-                ]
-              },
-              "output": 0
-            },
-            {
-              "conditions": {
-                "string": [
-                  {
-                    "value1": "={{ $json.body.message?.text }}",
-                    "operation": "equals",
-                    "value2": "/pending"
-                  }
-                ]
-              },
-              "output": 1
-            },
-            {
-              "conditions": {
-                "string": [
-                  {
-                    "value1": "={{ $json.body.callback_query?.data }}",
-                    "operation": "startsWith",
-                    "value2": "approve_"
-                  }
-                ]
-              },
-              "output": 2
-            },
-            {
-              "conditions": {
-                "string": [
-                  {
-                    "value1": "={{ $json.body.callback_query?.data }}",
-                    "operation": "startsWith",
-                    "value2": "reject_"
-                  }
-                ]
-              },
-              "output": 3
+              "id": "c1",
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "sync",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
-        },
-        "fallbackOutput": "none"
+          ],
+          "combinator": "and"
+        }
       },
-      "id": "node-router",
-      "name": "Route Message",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
-      "position": [460, 300]
-    },
-
-    {
-      "parameters": {
-        "jsCode": "// Acknowledge callback immediately\nconst callbackId = $input.first().json.body.callback_query?.id;\nreturn [{ json: { callback_query_id: callbackId, skill: $input.first().json.body.callback_query?.data?.replace('approve_', '') } }];"
-      },
-      "id": "node-extract-approve",
-      "name": "Extract Skill (Approve)",
-      "type": "n8n-nodes-base.code",
+      "id": "node-if-sync",
+      "name": "IF \u2014 Is Sync?",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [700, 440]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const callbackId = $input.first().json.body.callback_query?.id;\nreturn [{ json: { callback_query_id: callbackId, skill: $input.first().json.body.callback_query?.data?.replace('reject_', '') } }];"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
       },
-      "id": "node-extract-reject",
-      "name": "Extract Skill (Reject)",
-      "type": "n8n-nodes-base.code",
+      "id": "node-if-pending",
+      "name": "IF \u2014 Is Pending?",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [700, 580]
+      "position": [
+        900,
+        420
+      ]
     },
-
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c3",
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "node-if-approve",
+      "name": "IF \u2014 Is Approve?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        520
+      ]
+    },
     {
       "parameters": {
         "method": "POST",
@@ -106,22 +131,33 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "anthropic-beta", "value": "mcp-client-1.0" }
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "anthropic-beta",
+              "value": "mcp-client-1.0"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4096, mcp_servers: [{ url: 'https://memory.fl1.it/mcp', type: 'url', authorization_token: $env.CODEGRAPH_AUTH_TOKEN }], system: 'Sei @skill-syncer. Esegui una skill sync completa:\\n1. Chiama memory_search({ query: \"skill:\", limit: 100 }) per trovare memorie con tag skill:XXX\\n2. Raggruppa per tag skill:XXX, considera solo quelle degli ultimi 30 giorni (campo created_at)\\n3. Per ogni skill con ≥ 3 memorie nuove:\\n   a. skill_read({ name: \"X\" })\\n   b. Analizza cosa manca nella skill rispetto alle memorie\\n   c. Genera proposta concisa (solo aggiunte/modifiche)\\n   d. Salva con memory_add({ type: \"Todo\", context: \"Skill update proposal for \" + skillName, problem: \"Skill outdated vs recent learnings\", solution: LA_PROPOSTA_COMPLETA, reason: N + \" new memories with tag skill:\" + skillName, tags: [\"skill-proposal\", \"skill:\" + skillName, \"status:pending\"], confidence: 8, importance: 7, project: \"skillbrain\" })\\n4. IMPORTANTE: alla fine rispondi SOLO con questo JSON (nient altro dopo): {\"proposals\":[{\"skill\":\"NAME\",\"memories\":N}]}\\nSe nessuna skill ha ≥3 memorie: {\"proposals\":[]}', messages: [{ role: 'user', content: 'Run skill sync now' }] }) }}"
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4096, mcp_servers: [{ url: 'https://memory.fl1.it/mcp', type: 'url', authorization_token: $env.CODEGRAPH_AUTH_TOKEN }], system: 'Sei @skill-syncer. Esegui una skill sync completa:\\n1. Chiama memory_search({ query: \"skill:\", limit: 100 }) per trovare memorie con tag skill:XXX\\n2. Raggruppa per tag skill:XXX, considera solo quelle degli ultimi 30 giorni (campo created_at)\\n3. Per ogni skill con \u2265 3 memorie nuove:\\n   a. skill_read({ name: \"X\" })\\n   b. Analizza cosa manca nella skill rispetto alle memorie\\n   c. Genera proposta concisa (solo aggiunte/modifiche)\\n   d. Salva con memory_add({ type: \"Todo\", context: \"Skill update proposal for X\", problem: \"Skill outdated vs recent learnings\", solution: LA_PROPOSTA_COMPLETA, reason: \"N new memories with tag skill:X\", tags: [\"skill-proposal\", \"skill:X\", \"status:pending\"], confidence: 8, importance: 7, project: \"skillbrain\" })\\n4. IMPORTANTE: alla fine rispondi SOLO con questo JSON: {\"proposals\":[{\"skill\":\"NAME\",\"memories\":N}]}\\nSe nessuna skill ha \u22653 memorie: {\"proposals\":[]}', messages: [{ role: 'user', content: 'Run skill sync now' }] }) }}"
       },
       "id": "node-api-sync",
-      "name": "Anthropic — Run Sync",
+      "name": "Anthropic \u2014 Run Sync",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [940, 180]
+      "position": [
+        900,
+        180
+      ]
     },
-
     {
       "parameters": {
         "jsCode": "const response = $input.first().json;\nconst textBlock = response.content?.find(b => b.type === 'text');\nconst text = textBlock?.text || '';\nconst match = text.match(/\\{[\\s\\S]*\"proposals\"[\\s\\S]*\\}/);\nlet proposals = [];\ntry { proposals = match ? JSON.parse(match[0]).proposals : []; } catch(e) {}\nreturn [{ json: { proposals, count: proposals.length } }];"
@@ -130,39 +166,55 @@
       "name": "Parse Proposals",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1160, 180]
+      "position": [
+        1120,
+        180
+      ]
     },
-
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.count }}",
-              "operation": "larger",
-              "value2": 0
+              "id": "c4",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
-          ]
+          ],
+          "combinator": "and"
         }
       },
       "id": "node-if-proposals",
       "name": "Proposals Found?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1380, 180]
+      "typeVersion": 2,
+      "position": [
+        1340,
+        180
+      ]
     },
-
     {
       "parameters": {
-        "jsCode": "const proposals = $input.first().json.proposals;\nconst lines = proposals.map(p => `• *${p.skill}* (${p.memories} memorie)`);\nconst keyboard = proposals.map(p => [\n  { text: '✅ ' + p.skill, callback_data: 'approve_' + p.skill },\n  { text: '❌ scarta', callback_data: 'reject_' + p.skill }\n]);\nreturn [{ json: {\n  text: '🧠 *Skill Sync completato*\\n\\n📋 ' + proposals.length + ' proposte pending:\\n' + lines.join('\\n') + '\\n\\nSeleziona cosa fare:',\n  reply_markup: { inline_keyboard: keyboard }\n} }];"
+        "jsCode": "const proposals = $input.first().json.proposals;\nconst lines = proposals.map(p => `\u2022 *${p.skill}* (${p.memories} memorie)`);\nconst keyboard = proposals.map(p => [\n  { text: '\u2705 ' + p.skill, callback_data: 'approve_' + p.skill },\n  { text: '\u274c scarta', callback_data: 'reject_' + p.skill }\n]);\nreturn [{ json: {\n  text: '\ud83e\udde0 *Skill Sync completato*\\n\\n\ud83d\udccb ' + proposals.length + ' proposte pending:\\n' + lines.join('\\n') + '\\n\\nSeleziona cosa fare:',\n  reply_markup: { inline_keyboard: keyboard }\n} }];"
       },
       "id": "node-build-msg-proposals",
       "name": "Build Proposals Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1600, 140]
+      "position": [
+        1560,
+        140
+      ]
     },
-
     {
       "parameters": {
         "method": "POST",
@@ -170,7 +222,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -178,12 +233,14 @@
         "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'Markdown', text: $json.text, reply_markup: $json.reply_markup }) }}"
       },
       "id": "node-tg-send-proposals",
-      "name": "Telegram — Send Proposals",
+      "name": "Telegram \u2014 Send Proposals",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1820, 140]
+      "position": [
+        1780,
+        140
+      ]
     },
-
     {
       "parameters": {
         "method": "POST",
@@ -191,20 +248,25 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'Markdown', text: '✅ *Skill Sync completato*\\n\\nNessuna proposta — tutte le skills sono aggiornate rispetto alle memorie recenti.' }) }}"
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'Markdown', text: '\u2705 *Skill Sync completato*\\n\\nNessuna proposta \u2014 tutte le skills sono aggiornate.' }) }}"
       },
       "id": "node-tg-no-proposals",
-      "name": "Telegram — No Proposals",
+      "name": "Telegram \u2014 No Proposals",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1600, 260]
+      "position": [
+        1560,
+        260
+      ]
     },
-
     {
       "parameters": {
         "method": "POST",
@@ -212,33 +274,46 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "anthropic-beta", "value": "mcp-client-1.0" }
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "anthropic-beta",
+              "value": "mcp-client-1.0"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2048, mcp_servers: [{ url: 'https://memory.fl1.it/mcp', type: 'url', authorization_token: $env.CODEGRAPH_AUTH_TOKEN }], system: 'Chiama memory_search({ query: \"skill-proposal status:pending\", limit: 20 }). Estrai le proposals pending. Rispondi SOLO con questo JSON: {\"pending\":[{\"skill\":\"NAME\",\"preview\":\"primi 80 char della soluzione...\"}]}. Se nessuna: {\"pending\":[]}', messages: [{ role: 'user', content: 'Show pending skill proposals' }] }) }}"
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2048, mcp_servers: [{ url: 'https://memory.fl1.it/mcp', type: 'url', authorization_token: $env.CODEGRAPH_AUTH_TOKEN }], system: 'Chiama memory_search({ query: \"skill-proposal status:pending\", limit: 20 }). Rispondi SOLO con questo JSON: {\"pending\":[{\"skill\":\"NAME\",\"preview\":\"primi 80 char...\"}]}. Se nessuna: {\"pending\":[]}', messages: [{ role: 'user', content: 'Show pending skill proposals' }] }) }}"
       },
       "id": "node-api-pending",
-      "name": "Anthropic — Show Pending",
+      "name": "Anthropic \u2014 Show Pending",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [940, 300]
+      "position": [
+        1120,
+        380
+      ]
     },
-
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst textBlock = response.content?.find(b => b.type === 'text');\nconst text = textBlock?.text || '';\nconst match = text.match(/\\{[\\s\\S]*\"pending\"[\\s\\S]*\\}/);\nlet pending = [];\ntry { pending = match ? JSON.parse(match[0]).pending : []; } catch(e) {}\nif (pending.length === 0) {\n  return [{ json: { text: '📋 Nessuna proposal pending.\\n\\nUsa /skill-sync per generarne di nuove.', reply_markup: null } }];\n}\nconst lines = pending.map(p => `• *${p.skill}*: _${p.preview}_`);\nconst keyboard = pending.map(p => [\n  { text: '✅ ' + p.skill, callback_data: 'approve_' + p.skill },\n  { text: '❌', callback_data: 'reject_' + p.skill }\n]);\nreturn [{ json: {\n  text: '📋 *Proposals pending* (' + pending.length + '):\\n\\n' + lines.join('\\n'),\n  reply_markup: { inline_keyboard: keyboard }\n} }];"
+        "jsCode": "const response = $input.first().json;\nconst textBlock = response.content?.find(b => b.type === 'text');\nconst text = textBlock?.text || '';\nconst match = text.match(/\\{[\\s\\S]*\"pending\"[\\s\\S]*\\}/);\nlet pending = [];\ntry { pending = match ? JSON.parse(match[0]).pending : []; } catch(e) {}\nif (pending.length === 0) {\n  return [{ json: { text: '\ud83d\udccb Nessuna proposal pending.\\n\\nUsa /skill-sync per generarne di nuove.', reply_markup: null } }];\n}\nconst lines = pending.map(p => `\u2022 *${p.skill}*: _${p.preview}_`);\nconst keyboard = pending.map(p => [\n  { text: '\u2705 ' + p.skill, callback_data: 'approve_' + p.skill },\n  { text: '\u274c', callback_data: 'reject_' + p.skill }\n]);\nreturn [{ json: {\n  text: '\ud83d\udccb *Proposals pending* (' + pending.length + '):\\n\\n' + lines.join('\\n'),\n  reply_markup: { inline_keyboard: keyboard }\n} }];"
       },
       "id": "node-parse-pending",
       "name": "Parse Pending",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1160, 300]
+      "position": [
+        1340,
+        380
+      ]
     },
-
     {
       "parameters": {
         "method": "POST",
@@ -246,43 +321,25 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'Markdown', text: $json.text, ...$json.reply_markup ? { reply_markup: $json.reply_markup } : {} }) }}"
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'Markdown', text: $json.text, ...($json.reply_markup ? { reply_markup: $json.reply_markup } : {}) }) }}"
       },
       "id": "node-tg-pending",
-      "name": "Telegram — Send Pending",
+      "name": "Telegram \u2014 Send Pending",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1380, 300]
+      "position": [
+        1560,
+        380
+      ]
     },
-
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.anthropic.com/v1/messages",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "anthropic-beta", "value": "mcp-client-1.0" }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8192, mcp_servers: [{ url: 'https://memory.fl1.it/mcp', type: 'url', authorization_token: $env.CODEGRAPH_AUTH_TOKEN }], system: 'Applica la proposal pending per la skill \"' + $json.skill + '\":\\n1. memory_search({ query: \"skill-proposal skill:' + $json.skill + ' status:pending\", limit: 1 }) — trova la proposal\\n2. skill_read({ name: \"' + $json.skill + '\" }) — leggi la skill corrente\\n3. Integra ATTENTAMENTE le aggiunte proposte nel contenuto corrente della skill (non eliminare contenuto esistente a meno che non sia obsoleto)\\n4. skill_update({ name: \"' + $json.skill + '\", content: CONTENUTO_COMPLETO_AGGIORNATO, reason: \"Applied via Telegram approval\" })\\n5. memory_add({ type: \"Fact\", context: \"Skill update applied\", problem: \"Proposal was pending\", solution: \"Proposal applied to skill ' + $json.skill + '\", reason: \"User approved via Telegram\", tags: [\"skill-proposal\", \"skill:' + $json.skill + '\", \"status:applied\"], confidence: 9, importance: 5, project: \"skillbrain\" })\\nConferma con: {\"status\":\"applied\",\"skill\":\"' + $json.skill + '\"}', messages: [{ role: 'user', content: 'Apply pending proposal for skill: ' + $json.skill }] }) }}"
-      },
-      "id": "node-api-approve",
-      "name": "Anthropic — Apply Proposal",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [940, 440]
-    },
-
     {
       "parameters": {
         "method": "POST",
@@ -290,20 +347,59 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Extract Skill (Approve)').first().json.callback_query_id, text: '✅ Applicando...' }) }}"
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Code \u2014 Route Classifier').first().json.callback_query_id, text: '\u2705 Applicando...' }) }}"
       },
       "id": "node-tg-ack-approve",
-      "name": "Telegram — Ack Approve",
+      "name": "Telegram \u2014 Ack Approve",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1160, 440]
+      "position": [
+        1340,
+        540
+      ]
     },
-
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "anthropic-beta",
+              "value": "mcp-client-1.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8192, mcp_servers: [{ url: 'https://memory.fl1.it/mcp', type: 'url', authorization_token: $env.CODEGRAPH_AUTH_TOKEN }], system: 'Applica la proposal pending per la skill \"' + $('Code \u2014 Route Classifier').first().json.skill + '\":\\n1. memory_search({ query: \"skill-proposal skill:' + $('Code \u2014 Route Classifier').first().json.skill + ' status:pending\", limit: 1 })\\n2. skill_read({ name: \"' + $('Code \u2014 Route Classifier').first().json.skill + '\" })\\n3. Integra le aggiunte proposte nel contenuto corrente della skill\\n4. skill_update({ name: \"' + $('Code \u2014 Route Classifier').first().json.skill + '\", content: CONTENUTO_AGGIORNATO, reason: \"Applied via Telegram approval\" })\\n5. memory_add({ type: \"Fact\", context: \"Skill update applied\", problem: \"Proposal was pending\", solution: \"Applied to skill ' + $('Code \u2014 Route Classifier').first().json.skill + '\", reason: \"User approved via Telegram\", tags: [\"skill-proposal\", \"skill:' + $('Code \u2014 Route Classifier').first().json.skill + '\", \"status:applied\"], confidence: 9, importance: 5, project: \"skillbrain\" })\\nConferma: {\"status\":\"applied\"}', messages: [{ role: 'user', content: 'Apply proposal' }] }) }}"
+      },
+      "id": "node-api-approve",
+      "name": "Anthropic \u2014 Apply Proposal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1560,
+        540
+      ]
+    },
     {
       "parameters": {
         "method": "POST",
@@ -311,43 +407,25 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'Markdown', text: '✅ *skill:' + $('Extract Skill (Approve)').first().json.skill + '* aggiornata con le memorie recenti!' }) }}"
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, parse_mode: 'Markdown', text: '\u2705 *skill:' + $('Code \u2014 Route Classifier').first().json.skill + '* aggiornata!' }) }}"
       },
       "id": "node-tg-approved",
-      "name": "Telegram — Approved",
+      "name": "Telegram \u2014 Approved",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1380, 440]
+      "position": [
+        1780,
+        540
+      ]
     },
-
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.anthropic.com/v1/messages",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "anthropic-beta", "value": "mcp-client-1.0" }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 512, mcp_servers: [{ url: 'https://memory.fl1.it/mcp', type: 'url', authorization_token: $env.CODEGRAPH_AUTH_TOKEN }], system: 'Trova la proposal pending per skill \"' + $json.skill + '\" con memory_search({ query: \"skill-proposal skill:' + $json.skill + ' status:pending\", limit: 1 }) e salvane una versione con status:rejected usando memory_add con tags [\"skill-proposal\",\"skill:' + $json.skill + '\",\"status:rejected\"]. Poi rispondi: {\"status\":\"rejected\",\"skill\":\"' + $json.skill + '\"}', messages: [{ role: 'user', content: 'Reject proposal for skill: ' + $json.skill }] }) }}"
-      },
-      "id": "node-api-reject",
-      "name": "Anthropic — Reject Proposal",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [940, 580]
-    },
-
     {
       "parameters": {
         "method": "POST",
@@ -355,67 +433,242 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Extract Skill (Reject)').first().json.callback_query_id, text: '❌ Proposta scartata' }) }}"
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $('Code \u2014 Route Classifier').first().json.callback_query_id, text: '\u274c Proposta scartata' }) }}"
       },
-      "id": "node-tg-rejected",
-      "name": "Telegram — Rejected",
+      "id": "node-tg-ack-reject",
+      "name": "Telegram \u2014 Ack Reject",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [1160, 580]
+      "position": [
+        1340,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "anthropic-beta",
+              "value": "mcp-client-1.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 512, mcp_servers: [{ url: 'https://memory.fl1.it/mcp', type: 'url', authorization_token: $env.CODEGRAPH_AUTH_TOKEN }], system: 'Trova la proposal pending per skill \"' + $('Code \u2014 Route Classifier').first().json.skill + '\" con memory_search({ query: \"skill-proposal skill:' + $('Code \u2014 Route Classifier').first().json.skill + ' status:pending\", limit: 1 }) e aggiungi una nota di rifiuto con memory_add({ type: \"Fact\", context: \"Proposal rejected\", problem: \"User rejected proposal\", solution: \"Proposal for skill ' + $('Code \u2014 Route Classifier').first().json.skill + ' rejected by user\", tags: [\"skill-proposal\", \"skill:' + $('Code \u2014 Route Classifier').first().json.skill + '\", \"status:rejected\"], confidence: 9, importance: 3, project: \"skillbrain\" }). Rispondi: {\"status\":\"rejected\"}', messages: [{ role: 'user', content: 'Reject proposal' }] }) }}"
+      },
+      "id": "node-api-reject",
+      "name": "Anthropic \u2014 Reject Proposal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1560,
+        660
+      ]
     }
   ],
   "connections": {
     "Telegram Webhook": {
-      "main": [[{ "node": "Route Message", "type": "main", "index": 0 }]]
-    },
-    "Route Message": {
       "main": [
-        [{ "node": "Anthropic — Run Sync", "type": "main", "index": 0 }],
-        [{ "node": "Anthropic — Show Pending", "type": "main", "index": 0 }],
-        [{ "node": "Extract Skill (Approve)", "type": "main", "index": 0 }],
-        [{ "node": "Extract Skill (Reject)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Code \u2014 Route Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Anthropic — Run Sync": {
-      "main": [[{ "node": "Parse Proposals", "type": "main", "index": 0 }]]
+    "Code \u2014 Route Classifier": {
+      "main": [
+        [
+          {
+            "node": "IF \u2014 Is Sync?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF \u2014 Is Sync?": {
+      "main": [
+        [
+          {
+            "node": "Anthropic \u2014 Run Sync",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF \u2014 Is Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF \u2014 Is Pending?": {
+      "main": [
+        [
+          {
+            "node": "Anthropic \u2014 Show Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF \u2014 Is Approve?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF \u2014 Is Approve?": {
+      "main": [
+        [
+          {
+            "node": "Telegram \u2014 Ack Approve",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram \u2014 Ack Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram \u2014 Ack Approve": {
+      "main": [
+        [
+          {
+            "node": "Anthropic \u2014 Apply Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic \u2014 Apply Proposal": {
+      "main": [
+        [
+          {
+            "node": "Telegram \u2014 Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram \u2014 Ack Reject": {
+      "main": [
+        [
+          {
+            "node": "Anthropic \u2014 Reject Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic \u2014 Run Sync": {
+      "main": [
+        [
+          {
+            "node": "Parse Proposals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Proposals": {
-      "main": [[{ "node": "Proposals Found?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Proposals Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Proposals Found?": {
       "main": [
-        [{ "node": "Build Proposals Message", "type": "main", "index": 0 }],
-        [{ "node": "Telegram — No Proposals", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Build Proposals Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram \u2014 No Proposals",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Build Proposals Message": {
-      "main": [[{ "node": "Telegram — Send Proposals", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Telegram \u2014 Send Proposals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Anthropic — Show Pending": {
-      "main": [[{ "node": "Parse Pending", "type": "main", "index": 0 }]]
+    "Anthropic \u2014 Show Pending": {
+      "main": [
+        [
+          {
+            "node": "Parse Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Pending": {
-      "main": [[{ "node": "Telegram — Send Pending", "type": "main", "index": 0 }]]
-    },
-    "Extract Skill (Approve)": {
-      "main": [[{ "node": "Anthropic — Apply Proposal", "type": "main", "index": 0 }]]
-    },
-    "Anthropic — Apply Proposal": {
-      "main": [[{ "node": "Telegram — Ack Approve", "type": "main", "index": 0 }]]
-    },
-    "Telegram — Ack Approve": {
-      "main": [[{ "node": "Telegram — Approved", "type": "main", "index": 0 }]]
-    },
-    "Extract Skill (Reject)": {
-      "main": [[{ "node": "Anthropic — Reject Proposal", "type": "main", "index": 0 }]]
-    },
-    "Anthropic — Reject Proposal": {
-      "main": [[{ "node": "Telegram — Rejected", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Telegram \u2014 Send Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -424,9 +677,14 @@
     "saveExecutionProgress": true,
     "executionTimeout": 300
   },
-  "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "tags": ["skillbrain", "telegram", "automation"]
+  "_setup_notes": {
+    "n8n_env_vars_needed": [
+      "ANTHROPIC_API_KEY",
+      "CODEGRAPH_AUTH_TOKEN",
+      "TELEGRAM_BOT_TOKEN",
+      "TELEGRAM_CHAT_ID"
+    ],
+    "live_workflow_id": "7IPuUvHAgV5hQdoZ",
+    "webhook_path": "skillbrain-telegram"
+  }
 }

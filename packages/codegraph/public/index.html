@@ -46,6 +46,10 @@
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span>
       Design Systems
     </a>
+    <a href="#/team" class="nav-item" data-page="team">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      Team
+    </a>
     <div class="nav-footer">
       <span id="server-status">connecting...</span>
     </div>
@@ -65,6 +69,32 @@
     </div>
     <div id="detail-content"></div>
   </div>
+
+  <!-- Team page modals -->
+  <dialog id="modal-add-member">
+    <h2>Add Team Member</h2>
+    <label>Name<input id="input-member-name" type="text" placeholder="Marco Rossi"></label>
+    <label>Email (optional)<input id="input-member-email" type="email" placeholder="marco@example.com"></label>
+    <label>Key label<input id="input-key-label" type="text" placeholder="Marco's laptop"></label>
+    <div class="modal-actions">
+      <button id="btn-cancel-member">Cancel</button>
+      <button id="btn-create-member" class="btn-primary">Generate Key</button>
+    </div>
+  </dialog>
+
+  <dialog id="modal-show-key">
+    <h2>New API Key</h2>
+    <p>Copy this key now — it won't be shown again.</p>
+    <code id="new-key-value" class="key-display"></code>
+    <div class="modal-actions">
+      <button id="btn-copy-key">Copy</button>
+      <button id="btn-close-key-modal" class="btn-primary">Done</button>
+    </div>
+    <details>
+      <summary>How to connect</summary>
+      <pre id="connection-snippet"></pre>
+    </details>
+  </dialog>
 
   <script type="module" src="/app.js"></script>
 </body>

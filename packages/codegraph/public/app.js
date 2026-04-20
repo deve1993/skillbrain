@@ -45,6 +45,7 @@ function route() {
     case 'sessions': renderSessions(); break
     case 'components': renderComponents(); break
     case 'design-systems': renderDesignSystems(); break
+    case 'team': renderTeam(); break
     default: renderHome()
   }
 }
@@ -202,6 +203,102 @@ window.renderComponents = renderComponents
 window.openComponentDetail = (id) => openComponentDetail(id, openDetail)
 window.renderDesignSystems = renderDesignSystems
 window.openDesignSystemDetail = (project) => openDesignSystemDetail(project, openDetail)
+
+// ── Team page ──
+async function renderTeam() {
+  const page = $('#page')
+  page.innerHTML = `
+    <div class="page-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+      <h1 style="margin:0">Team</h1>
+      <button id="btn-add-member" class="btn-primary">+ Add Member</button>
+    </div>
+    <div id="team-list"></div>`
+
+  document.getElementById('btn-add-member').addEventListener('click', () => {
+    document.getElementById('input-member-name').value = ''
+    document.getElementById('input-member-email').value = ''
+    document.getElementById('input-key-label').value = ''
+    document.getElementById('modal-add-member').showModal()
+  })
+
+  await loadTeamList()
+}
+
+async function loadTeamList() {
+  const res = await fetch('/api/admin/team')
+  const { users } = await res.json()
+  const el = document.getElementById('team-list')
+  if (!el) return
+
+  if (!users || users.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-muted)">No team members yet. Click "+ Add Member" to invite someone.</p>'
+    return
+  }
+
+  el.innerHTML = users.map(u => {
+    const keys = JSON.parse(u.keys || '[]').filter(k => k.id)
+    return `<div class="card" style="margin-bottom:1rem;padding:1rem">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+        <strong>${escHtml(u.name)}</strong>
+        <span style="font-size:.75rem;background:var(--bg-2);padding:.2rem .5rem;border-radius:4px">${u.role}</span>
+        ${u.email ? `<span style="color:var(--text-muted);font-size:.85rem">${escHtml(u.email)}</span>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        ${keys.length === 0 ? '<span style="color:var(--text-muted);font-size:.85rem">No active keys</span>' : ''}
+        ${keys.map(k => `
+          <div style="display:flex;align-items:center;gap:.75rem;font-size:.85rem;${k.revoked ? 'opacity:.5' : ''}">
+            <span style="flex:1">${escHtml(k.label)}</span>
+            <span style="color:var(--text-muted)">last used: ${k.last_used_at ? k.last_used_at.slice(0,10) : 'never'}</span>
+            ${!k.revoked
+              ? `<button onclick="revokeKey('${k.id}')" style="font-size:.75rem;padding:.2rem .5rem;background:var(--bg-2);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--error,#f44)">Revoke</button>`
+              : '<span style="font-size:.75rem;color:var(--text-muted)">(revoked)</span>'}
+          </div>`).join('')}
+      </div>
+    </div>`
+  }).join('')
+}
+
+async function revokeKey(id) {
+  if (!confirm('Revoke this key? This cannot be undone.')) return
+  await fetch(`/api/admin/team/keys/${id}`, { method: 'DELETE' })
+  await loadTeamList()
+}
+
+document.getElementById('btn-cancel-member')?.addEventListener('click', () => {
+  document.getElementById('modal-add-member').close()
+})
+
+document.getElementById('btn-create-member')?.addEventListener('click', async () => {
+  const name = document.getElementById('input-member-name').value.trim()
+  const email = document.getElementById('input-member-email').value.trim()
+  const label = document.getElementById('input-key-label').value.trim()
+  if (!name) { alert('Name is required'); return }
+
+  const res = await fetch('/api/admin/team/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email: email || undefined, label: label || undefined }),
+  })
+  const { key } = await res.json()
+
+  document.getElementById('modal-add-member').close()
+  document.getElementById('new-key-value').textContent = key
+  document.getElementById('connection-snippet').textContent =
+    `SKILLBRAIN_MCP_URL=https://memory.fl1.it/mcp\nCODEGRAPH_AUTH_TOKEN=${key}`
+  document.getElementById('modal-show-key').showModal()
+  await loadTeamList()
+})
+
+document.getElementById('btn-copy-key')?.addEventListener('click', async () => {
+  const key = document.getElementById('new-key-value').textContent
+  try { await navigator.clipboard.writeText(key) } catch { prompt('Copy this key:', key) }
+})
+
+document.getElementById('btn-close-key-modal')?.addEventListener('click', () => {
+  document.getElementById('modal-show-key').close()
+})
+
+window.revokeKey = revokeKey
 
 // ── Init ──
 route()
