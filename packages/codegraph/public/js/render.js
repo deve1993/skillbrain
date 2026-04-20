@@ -692,16 +692,40 @@ export async function openComponentDetail(id, openDetailFn) {
 // ── Design Systems ──
 
 export async function renderDesignSystems() {
-  const data = await api.get('/api/design-systems')
+  const [data, pendingData] = await Promise.all([
+    api.get('/api/design-systems'),
+    api.get('/api/design-systems/pending').catch(() => ({ scans: [] })),
+  ])
   const systems = data.designSystems || []
+  const pending = pendingData.scans || []
 
   document.getElementById('page').innerHTML = `
     <div class="section-title">Design Systems <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${systems.length} projects</span></div>
 
-    ${systems.length === 0 ? `
+    ${pending.length > 0 ? `
+    <div class="card" style="border-color:rgba(245,158,11,.3);margin-bottom:16px">
+      <div class="card-title" style="color:var(--yellow)">
+        Pending Review
+        <span class="count" style="background:rgba(245,158,11,.15);color:var(--yellow)">${pending.length}</span>
+      </div>
+      ${pending.map(scan => `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <strong style="flex:1">${escHtml(scan.project)}</strong>
+          <span style="color:var(--text-muted);font-size:11px">
+            ${scan.sources.map(s => s.source).join(', ')} &middot;
+            ${Object.keys(scan.merged.colors || {}).length} colors
+            ${scan.conflicts.length > 0 ? `&middot; <span style="color:var(--yellow)">${scan.conflicts.length} conflicts</span>` : ''}
+          </span>
+          <button onclick="reviewScan('${escHtml(scan.project)}', '${escHtml(scan.id)}')" style="padding:4px 10px;border-radius:6px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow);font-size:11px;cursor:pointer">Review</button>
+          <button onclick="dismissScan('${escHtml(scan.id)}')" style="padding:4px 10px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:11px;cursor:pointer">Dismiss</button>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${systems.length === 0 && pending.length === 0 ? `
       <div class="card" style="text-align:center;padding:32px">
         <p style="color:var(--text-muted);font-size:14px;margin-bottom:8px">No design systems saved yet.</p>
-        <p style="color:var(--text-muted);font-size:12px">Use <code>design_system_set</code> from Claude Code to store colors, fonts, and tokens per client project.</p>
+        <p style="color:var(--text-muted);font-size:12px">Use <code>design_system_scan</code> or <code>design_system_set</code> from Claude Code.</p>
       </div>
     ` : ''}
 
@@ -800,6 +824,78 @@ export async function openDesignSystemDetail(project, openDetailFn) {
 
     ${ds.notes ? `<div class="card"><div class="card-title">Notes</div><p style="font-size:13px">${escHtml(ds.notes)}</p></div>` : ''}
     ${ds.tailwindConfig ? `<div class="card"><div class="card-title">Tailwind Config</div><pre style="font-size:11px;overflow:auto;max-height:300px">${escHtml(ds.tailwindConfig)}</pre></div>` : ''}
+  `)
+}
+
+export async function renderScanReview(project, scanId, openDetailFn) {
+  const data = await api.get(`/api/design-systems/scans/${encodeURIComponent(project)}`)
+  const scan = (data.scans || []).find(s => s.id === scanId)
+  if (!scan) { openDetailFn?.('Scan not found', '<p style="color:var(--red)">Scan not found or already applied.</p>'); return }
+
+  const colorEntries = Object.entries(scan.merged.colors || {})
+  const fontEntries = Object.entries(scan.merged.fonts || {})
+  const spacingEntries = Object.entries(scan.merged.spacing || {})
+  const radiusEntries = Object.entries(scan.merged.radius || {})
+
+  openDetailFn?.(`Review: ${project}`, `
+    <div style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">
+      Sources: ${scan.sources.map(s => `<code>${s.source}</code>`).join(', ')} &middot;
+      Scanned: ${scan.scannedAt?.split('T')[0] || '?'}
+    </div>
+
+    ${scan.conflicts.length > 0 ? `
+    <div class="card" style="border-color:rgba(245,158,11,.3);margin-bottom:12px">
+      <div class="card-title" style="color:var(--yellow)">Conflicts <span class="count" style="background:rgba(245,158,11,.15);color:var(--yellow)">${scan.conflicts.length}</span></div>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px">Same token found in multiple sources with different values. Renamed versions are already included in the merged result.</p>
+      ${scan.conflicts.map(c => `
+        <div style="margin-bottom:10px;padding:10px;background:rgba(245,158,11,.05);border-radius:6px;border:1px solid rgba(245,158,11,.15)">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px"><code>${escHtml(c.field)}.${escHtml(c.key)}</code></div>
+          ${c.values.map(v => `
+            <div style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:8px;margin-bottom:3px">
+              ${c.field === 'colors' ? `<span style="width:14px;height:14px;border-radius:3px;background:${escHtml(String(v.value))};display:inline-block;flex-shrink:0;border:1px solid rgba(255,255,255,.1)"></span>` : ''}
+              <span style="color:var(--text-muted)">${escHtml(v.source)}:</span>
+              <code>${escHtml(String(v.value))}</code>
+            </div>
+          `).join('')}
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    ${colorEntries.length ? `
+    <div class="card">
+      <div class="card-title">Colors <span class="count">${colorEntries.length}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+        ${colorEntries.map(([k, v]) => `
+          <div style="display:flex;align-items:center;gap:5px" title="${escHtml(k)}: ${escHtml(v)}">
+            <div style="width:20px;height:20px;border-radius:4px;background:${escHtml(v)};border:1px solid rgba(255,255,255,.1);flex-shrink:0"></div>
+            <span style="font-size:11px;color:var(--text-dim)">${escHtml(k)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>` : ''}
+
+    ${fontEntries.length ? `
+    <div class="card">
+      <div class="card-title">Fonts</div>
+      ${fontEntries.map(([k, v]) => `<div class="row"><span class="row-label"><code>${escHtml(k)}</code></span><span class="row-val">${escHtml(String(v))}</span></div>`).join('')}
+    </div>` : ''}
+
+    ${spacingEntries.length ? `
+    <div class="card">
+      <div class="card-title">Spacing</div>
+      ${spacingEntries.map(([k, v]) => `<div class="row"><span class="row-label"><code>${escHtml(k)}</code></span><span class="row-val">${escHtml(String(v))}</span></div>`).join('')}
+    </div>` : ''}
+
+    ${radiusEntries.length ? `
+    <div class="card">
+      <div class="card-title">Border Radius</div>
+      ${radiusEntries.map(([k, v]) => `<div class="row"><span class="row-label"><code>${escHtml(k)}</code></span><span class="row-val"><code>${escHtml(String(v))}</code></span></div>`).join('')}
+    </div>` : ''}
+
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button onclick="applyScan('${escHtml(project)}', '${escHtml(scanId)}')" class="btn-primary">Apply Design System</button>
+      <button onclick="dismissScan('${escHtml(scanId)}')" class="btn-ghost">Dismiss</button>
+    </div>
   `)
 }
 

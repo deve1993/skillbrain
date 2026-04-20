@@ -691,6 +691,60 @@ export async function startHttpServer(port, authToken) {
             res.status(500).json({ error: 'Internal error' });
         }
     });
+    // ── Design System Scan endpoints ──
+    app.get('/api/design-systems/pending', (_req, res) => {
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new ComponentsStore(db);
+            const scans = store.getPendingScans();
+            closeDb(db);
+            res.json({ scans });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    app.get('/api/design-systems/scans/:project', (req, res) => {
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new ComponentsStore(db);
+            const scans = store.getPendingScans(req.params.project);
+            closeDb(db);
+            res.json({ scans });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    app.post('/api/design-systems/:project/apply-scan', express.json(), (req, res) => {
+        const { scanId, resolved } = req.body;
+        if (!scanId) {
+            res.status(400).json({ error: 'scanId required' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new ComponentsStore(db);
+            const ds = store.applyDesignSystemScan(scanId, resolved);
+            closeDb(db);
+            res.json({ ok: true, designSystem: ds });
+        }
+        catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    app.delete('/api/design-systems/scans/:scanId', (req, res) => {
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new ComponentsStore(db);
+            store.dismissDesignSystemScan(req.params.scanId);
+            closeDb(db);
+            res.json({ ok: true });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
     // ── Team / API Keys admin routes ──
     function generateApiKey() {
         return 'sk-codegraph-' + crypto.randomBytes(12).toString('hex');

@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import type { TokenSource, Conflict } from './design-token-parser.js';
 export type SectionType = 'hero' | 'navbar' | 'footer' | 'cta' | 'pricing' | 'features' | 'testimonials' | 'faq' | 'comparison' | 'process' | 'gallery' | 'demo' | 'form' | 'card' | 'other';
 export interface UiComponent {
     id: string;
@@ -58,6 +59,15 @@ export interface ComponentSearchResult {
     component: UiComponent;
     rank: number;
 }
+export interface DesignSystemScan {
+    id: string;
+    project: string;
+    scannedAt: string;
+    sources: TokenSource[];
+    merged: Partial<DesignSystemInput>;
+    conflicts: Conflict[];
+    status: 'pending' | 'applied' | 'dismissed';
+}
 export declare class ComponentsStore {
     private db;
     constructor(db: Database.Database);
@@ -79,6 +89,16 @@ export declare class ComponentsStore {
     upsertDesignSystem(input: DesignSystemInput): DesignSystem;
     getDesignSystem(project: string): DesignSystem | undefined;
     listDesignSystems(): DesignSystem[];
+    addDesignSystemScan(scan: {
+        project: string;
+        sources: TokenSource[];
+        merged: Partial<DesignSystemInput>;
+        conflicts: Conflict[];
+    }): DesignSystemScan;
+    getPendingScans(project?: string): DesignSystemScan[];
+    applyDesignSystemScan(scanId: string, resolved: Partial<DesignSystemInput>): DesignSystem;
+    dismissDesignSystemScan(scanId: string): void;
+    private rowToScan;
     private populateFts;
     private rowToComponent;
     private rowToDesignSystem;

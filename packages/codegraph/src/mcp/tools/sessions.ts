@@ -2,7 +2,12 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
 import { MemoryStore } from '../../storage/memory-store.js'
+import { ComponentsStore } from '../../storage/components-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import {
+  detectDesignFiles, parseTailwindConfig, parseCSSVariables,
+  parseTokensJson, mergeTokenSources, type TokenSource,
+} from '../../storage/design-token-parser.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -66,6 +71,35 @@ export function registerSessionTools(server: McpServer, _ctx: ToolContext): void
           if (prev.blockers) resumeContext += `\n  Blockers: ${prev.blockers}`
           resumeContext += `\n\nUse session_resume for full project history.`
         }
+      }
+
+      // Auto-scan design tokens if workspacePath + project provided
+      if (workspacePath && project) {
+        try {
+          const files = detectDesignFiles(workspacePath)
+          if (files.tailwind || files.css || files.tokensJson) {
+            const sources: TokenSource[] = []
+            if (files.tailwind) sources.push({ source: 'tailwind', path: files.tailwind, tokens: parseTailwindConfig(files.tailwind) })
+            if (files.css) sources.push({ source: 'css', path: files.css, tokens: parseCSSVariables(files.css) })
+            if (files.tokensJson) sources.push({ source: 'tokens_json', path: files.tokensJson, tokens: parseTokensJson(files.tokensJson) })
+
+            const { merged, conflicts } = mergeTokenSources(sources)
+            const db = openDb(resolved.path)
+            const store = new ComponentsStore(db)
+            try {
+              if (conflicts.length === 0) {
+                store.upsertDesignSystem({ project, ...merged })
+                const colorCount = Object.keys(merged.colors ?? {}).length
+                resumeContext += `\n\n🎨 Design system auto-updated (${colorCount} colors, ${Object.keys(merged.fonts ?? {}).length} fonts)`
+              } else {
+                const scan = store.addDesignSystemScan({ project, sources, merged, conflicts })
+                resumeContext += `\n\n⚠️  Design system scan pending review (${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}) — memory.fl1.it/#/design-systems [${scan.id}]`
+              }
+            } finally {
+              closeDb(db)
+            }
+          }
+        } catch { /* non-blocking — don't fail session_start */ }
       }
 
       return { content: [{ type: 'text', text: `Session started: ${session.id} (${sessionName}${project ? ` / ${project}` : ''})${resumeContext}` }] }

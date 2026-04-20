@@ -3,6 +3,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
 import { ComponentsStore } from '../../storage/components-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import {
+  detectDesignFiles, parseTailwindConfig, parseCSSVariables,
+  parseTokensJson, mergeTokenSources, type TokenSource,
+} from '../../storage/design-token-parser.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -253,6 +257,45 @@ export function registerComponentTools(server: McpServer, _ctx: ToolContext): vo
         return { content: [{ type: 'text', text: parts.join('\n') }] }
       } catch (err) {
         return { content: [{ type: 'text', text: `❌ Error: ${(err as Error).message}` }] }
+      }
+    },
+  )
+
+  // ── design_system_scan ──────────────────────────────
+  server.tool(
+    'design_system_scan',
+    'Scan project files for design tokens (Tailwind config, CSS variables, tokens.json) and auto-populate the design system. If no conflicts are found, saves immediately. If conflicts exist, saves as pending for dashboard review at memory.fl1.it/#/design-systems.',
+    {
+      project: z.string().describe('Project name (e.g., "quickfy", "terrae-mare")'),
+      workspacePath: z.string().describe('Absolute path to the project root directory'),
+      autoSave: z.boolean().optional().default(true).describe('Auto-save if no conflicts (default: true)'),
+    },
+    async ({ project, workspacePath, autoSave = true }) => {
+      try {
+        const files = detectDesignFiles(workspacePath)
+        const fileList = Object.entries(files).filter(([, v]) => v).map(([k]) => k)
+        if (fileList.length === 0) {
+          return { content: [{ type: 'text', text: `No design files found in ${workspacePath}. Expected: tailwind.config.ts, globals.css, or tokens.json.` }] }
+        }
+
+        const sources: TokenSource[] = []
+        if (files.tailwind) sources.push({ source: 'tailwind', path: files.tailwind, tokens: parseTailwindConfig(files.tailwind) })
+        if (files.css) sources.push({ source: 'css', path: files.css, tokens: parseCSSVariables(files.css) })
+        if (files.tokensJson) sources.push({ source: 'tokens_json', path: files.tokensJson, tokens: parseTokensJson(files.tokensJson) })
+
+        const { merged, conflicts } = mergeTokenSources(sources)
+        const colorCount = Object.keys(merged.colors ?? {}).length
+        const fontCount = Object.keys(merged.fonts ?? {}).length
+
+        if (conflicts.length === 0 && autoSave) {
+          withStore(store => store.upsertDesignSystem({ project, ...merged }))
+          return { content: [{ type: 'text', text: `✅ Design system auto-populated for "${project}" from ${sources.length} source(s) (${fileList.join(', ')}).\n  Colors: ${colorCount} | Fonts: ${fontCount} | Dark mode: ${merged.darkMode ? 'yes' : 'no'}` }] }
+        }
+
+        const scan = withStore(store => store.addDesignSystemScan({ project, sources, merged, conflicts }))
+        return { content: [{ type: 'text', text: `⚠️ Design system scan for "${project}" saved as pending (${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}).\n  Colors: ${colorCount} | Fonts: ${fontCount}\n  Review and apply at memory.fl1.it/#/design-systems\n  Scan ID: ${scan.id}` }] }
+      } catch (err) {
+        return { content: [{ type: 'text', text: `❌ Scan error: ${(err as Error).message}` }] }
       }
     },
   )

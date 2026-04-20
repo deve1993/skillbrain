@@ -13,7 +13,7 @@ import {
   renderSessions, renderProjects, renderProjectDetail,
   renderProjectTab, loadEnvVars, searchGlobal, renderWorkLog,
   renderComponents, openComponentDetail,
-  renderDesignSystems, openDesignSystemDetail,
+  renderDesignSystems, openDesignSystemDetail, renderScanReview,
   escHtml,
 } from './js/render.js'
 
@@ -203,6 +203,20 @@ window.renderComponents = renderComponents
 window.openComponentDetail = (id) => openComponentDetail(id, openDetail)
 window.renderDesignSystems = renderDesignSystems
 window.openDesignSystemDetail = (project) => openDesignSystemDetail(project, openDetail)
+window.reviewScan = (project, scanId) => renderScanReview(project, scanId, openDetail)
+window.applyScan = async (project, scanId) => {
+  const res = await fetch(`/api/design-systems/${encodeURIComponent(project)}/apply-scan`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scanId, resolved: {} }),
+  })
+  if (res.ok) { closeDetail(); renderDesignSystems() }
+  else alert('Apply failed')
+}
+window.dismissScan = async (scanId) => {
+  if (!confirm('Dismiss this scan? The tokens won\'t be saved.')) return
+  await fetch(`/api/design-systems/scans/${scanId}`, { method: 'DELETE' })
+  renderDesignSystems()
+}
 
 // ── Team page ──
 async function renderTeam() {

@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3'
 import { randomId } from '../utils/hash.js'
+import type { TokenSource, Conflict } from './design-token-parser.js'
 
 // ── Types ──────────────────────────────────────────────
 
@@ -69,6 +70,16 @@ export interface DesignSystemInput {
 export interface ComponentSearchResult {
   component: UiComponent
   rank: number
+}
+
+export interface DesignSystemScan {
+  id: string
+  project: string
+  scannedAt: string
+  sources: TokenSource[]
+  merged: Partial<DesignSystemInput>
+  conflicts: Conflict[]
+  status: 'pending' | 'applied' | 'dismissed'
 }
 
 // ── Store ──────────────────────────────────────────────
@@ -267,6 +278,62 @@ export class ComponentsStore {
   listDesignSystems(): DesignSystem[] {
     return (this.db.prepare('SELECT * FROM design_systems ORDER BY project').all() as any[])
       .map(this.rowToDesignSystem)
+  }
+
+  // ── Design System Scans ───────────────────────────
+
+  addDesignSystemScan(scan: {
+    project: string
+    sources: TokenSource[]
+    merged: Partial<DesignSystemInput>
+    conflicts: Conflict[]
+  }): DesignSystemScan {
+    const now = new Date().toISOString()
+    const id = `DSS-${randomId()}`
+    this.db.prepare(`
+      INSERT INTO design_system_scans (id, project, scanned_at, sources, merged, conflicts, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    `).run(
+      id, scan.project, now,
+      JSON.stringify(scan.sources),
+      JSON.stringify(scan.merged),
+      JSON.stringify(scan.conflicts),
+    )
+    return { id, scannedAt: now, status: 'pending' as const, ...scan }
+  }
+
+  getPendingScans(project?: string): DesignSystemScan[] {
+    const sql = project
+      ? `SELECT * FROM design_system_scans WHERE status = 'pending' AND project = ? ORDER BY scanned_at DESC`
+      : `SELECT * FROM design_system_scans WHERE status = 'pending' ORDER BY scanned_at DESC`
+    const rows = project
+      ? (this.db.prepare(sql).all(project) as any[])
+      : (this.db.prepare(sql).all() as any[])
+    return rows.map(this.rowToScan)
+  }
+
+  applyDesignSystemScan(scanId: string, resolved: Partial<DesignSystemInput>): DesignSystem {
+    const row = this.db.prepare('SELECT * FROM design_system_scans WHERE id = ?').get(scanId) as any
+    if (!row) throw new Error(`Scan ${scanId} not found`)
+    const ds = this.upsertDesignSystem({ project: row.project, ...resolved })
+    this.db.prepare(`UPDATE design_system_scans SET status = 'applied' WHERE id = ?`).run(scanId)
+    return ds
+  }
+
+  dismissDesignSystemScan(scanId: string): void {
+    this.db.prepare(`UPDATE design_system_scans SET status = 'dismissed' WHERE id = ?`).run(scanId)
+  }
+
+  private rowToScan(row: any): DesignSystemScan {
+    return {
+      id: row.id,
+      project: row.project,
+      scannedAt: row.scanned_at,
+      sources: JSON.parse(row.sources || '[]'),
+      merged: JSON.parse(row.merged || '{}'),
+      conflicts: JSON.parse(row.conflicts || '[]'),
+      status: row.status,
+    }
   }
 
   // ── FTS Population ────────────────────────────────

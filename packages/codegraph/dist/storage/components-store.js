@@ -154,6 +154,47 @@ export class ComponentsStore {
         return this.db.prepare('SELECT * FROM design_systems ORDER BY project').all()
             .map(this.rowToDesignSystem);
     }
+    // ── Design System Scans ───────────────────────────
+    addDesignSystemScan(scan) {
+        const now = new Date().toISOString();
+        const id = `DSS-${randomId()}`;
+        this.db.prepare(`
+      INSERT INTO design_system_scans (id, project, scanned_at, sources, merged, conflicts, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    `).run(id, scan.project, now, JSON.stringify(scan.sources), JSON.stringify(scan.merged), JSON.stringify(scan.conflicts));
+        return { id, scannedAt: now, status: 'pending', ...scan };
+    }
+    getPendingScans(project) {
+        const sql = project
+            ? `SELECT * FROM design_system_scans WHERE status = 'pending' AND project = ? ORDER BY scanned_at DESC`
+            : `SELECT * FROM design_system_scans WHERE status = 'pending' ORDER BY scanned_at DESC`;
+        const rows = project
+            ? this.db.prepare(sql).all(project)
+            : this.db.prepare(sql).all();
+        return rows.map(this.rowToScan);
+    }
+    applyDesignSystemScan(scanId, resolved) {
+        const row = this.db.prepare('SELECT * FROM design_system_scans WHERE id = ?').get(scanId);
+        if (!row)
+            throw new Error(`Scan ${scanId} not found`);
+        const ds = this.upsertDesignSystem({ project: row.project, ...resolved });
+        this.db.prepare(`UPDATE design_system_scans SET status = 'applied' WHERE id = ?`).run(scanId);
+        return ds;
+    }
+    dismissDesignSystemScan(scanId) {
+        this.db.prepare(`UPDATE design_system_scans SET status = 'dismissed' WHERE id = ?`).run(scanId);
+    }
+    rowToScan(row) {
+        return {
+            id: row.id,
+            project: row.project,
+            scannedAt: row.scanned_at,
+            sources: JSON.parse(row.sources || '[]'),
+            merged: JSON.parse(row.merged || '{}'),
+            conflicts: JSON.parse(row.conflicts || '[]'),
+            status: row.status,
+        };
+    }
     // ── FTS Population ────────────────────────────────
     populateFts(component) {
         try {
