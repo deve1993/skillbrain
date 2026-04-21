@@ -3,7 +3,7 @@ import { openDb, closeDb } from '../../storage/db.js';
 import { ComponentsStore } from '../../storage/components-store.js';
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js';
 import { detectDesignFiles, parseTailwindConfig, parseTailwindConfigFromContent, parseCSSVariables, parseCSSVariablesFromContent, parseTokensJson, parseTokensJsonFromContent, mergeTokenSources, } from '../../storage/design-token-parser.js';
-import { parseComponentFile } from '../../storage/component-parser.js';
+import { parseComponentFile, extractUsedTokens } from '../../storage/component-parser.js';
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain';
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '';
 function resolveRepo() {
@@ -217,6 +217,8 @@ export function registerComponentTools(server, _ctx) {
         try {
             const existing = overwrite ? [] : withStore(store => store.listComponents({ project, limit: 500 })).map(c => c.filePath);
             const existingPaths = new Set(existing.filter(Boolean));
+            // Load design system once for token cross-referencing
+            const designSystem = withStore(store => store.getDesignSystem(project)) ?? {};
             const added = [];
             const skipped = [];
             const byCategory = {};
@@ -236,7 +238,7 @@ export function registerComponentTools(server, _ctx) {
                         tags: [project, c.category],
                         propsSchema: c.props,
                         codeSnippet: c.codeSnippet,
-                        designTokens: {},
+                        designTokens: extractUsedTokens(content, designSystem),
                     }));
                     added.push(`${c.category}/${c.name}`);
                     byCategory[c.category] = (byCategory[c.category] ?? 0) + 1;

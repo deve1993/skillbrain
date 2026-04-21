@@ -10,7 +10,7 @@ import {
   parseTokensJson, parseTokensJsonFromContent,
   mergeTokenSources, type TokenSource,
 } from '../../storage/design-token-parser.js'
-import { parseComponentFile, categoryFromPath } from '../../storage/component-parser.js'
+import { parseComponentFile, extractUsedTokens } from '../../storage/component-parser.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -279,6 +279,9 @@ export function registerComponentTools(server: McpServer, _ctx: ToolContext): vo
         const existing = overwrite ? [] : withStore(store => store.listComponents({ project, limit: 500 })).map(c => c.filePath)
         const existingPaths = new Set(existing.filter(Boolean))
 
+        // Load design system once for token cross-referencing
+        const designSystem = withStore(store => store.getDesignSystem(project)) ?? {}
+
         const added: string[] = []
         const skipped: string[] = []
         const byCategory: Record<string, number> = {}
@@ -297,7 +300,7 @@ export function registerComponentTools(server: McpServer, _ctx: ToolContext): vo
               tags: [project, c.category],
               propsSchema: c.props,
               codeSnippet: c.codeSnippet,
-              designTokens: {},
+              designTokens: extractUsedTokens(content, designSystem),
             }))
             added.push(`${c.category}/${c.name}`)
             byCategory[c.category] = (byCategory[c.category] ?? 0) + 1

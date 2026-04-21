@@ -111,8 +111,34 @@ export function parseComponentFile(filePath, content) {
         const props = extractProps(content, name);
         const description = extractDescription(content, name);
         const codeSnippet = content.slice(0, 800);
-        results.push({ name, sectionType, category, description, filePath, props, codeSnippet });
+        results.push({ name, sectionType, category, description, filePath, props, codeSnippet, designTokens: {} });
     }
     return results;
+}
+// ── Design token cross-reference ───────────────────────
+export function extractUsedTokens(content, designSystem) {
+    const used = {};
+    const varRefs = new Set();
+    const varRegex = /var\(--([a-z0-9][a-z0-9-]*)\)/g;
+    let m;
+    while ((m = varRegex.exec(content)) !== null)
+        varRefs.add(m[1]);
+    for (const [key, value] of Object.entries(designSystem.colors ?? {})) {
+        if (varRefs.has(`color-${key}`) || varRefs.has(key))
+            used[`color-${key}`] = value;
+    }
+    for (const [key, value] of Object.entries(designSystem.fonts ?? {})) {
+        if (varRefs.has(`font-${key}`) || varRefs.has(key))
+            used[`font-${key}`] = String(value);
+    }
+    for (const [key, value] of Object.entries(designSystem.spacing ?? {})) {
+        if (varRefs.has(key))
+            used[key] = String(value);
+    }
+    for (const [key, value] of Object.entries(designSystem.radius ?? {})) {
+        if (varRefs.has(`radius-${key}`) || varRefs.has(key))
+            used[`radius-${key}`] = value;
+    }
+    return used;
 }
 //# sourceMappingURL=component-parser.js.map
