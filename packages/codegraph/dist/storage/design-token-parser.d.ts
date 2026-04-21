@@ -24,8 +24,11 @@ export interface DesignFiles {
     tokensJson?: string;
 }
 export declare function detectDesignFiles(workspacePath: string): DesignFiles;
+export declare function parseTailwindConfigFromContent(text: string): Partial<DesignSystemInput>;
 export declare function parseTailwindConfig(filePath: string): Partial<DesignSystemInput>;
+export declare function parseCSSVariablesFromContent(text: string): Partial<DesignSystemInput>;
 export declare function parseCSSVariables(filePath: string): Partial<DesignSystemInput>;
+export declare function parseTokensJsonFromContent(content: string): Partial<DesignSystemInput>;
 export declare function parseTokensJson(filePath: string): Partial<DesignSystemInput>;
 export declare function mergeTokenSources(sources: TokenSource[]): MergeResult;
 //# sourceMappingURL=design-token-parser.d.ts.map

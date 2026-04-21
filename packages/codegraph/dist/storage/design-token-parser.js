@@ -16,6 +16,7 @@ export function detectDesignFiles(workspacePath) {
     const cssCandidates = [
         'src/app/globals.css', 'app/globals.css', 'src/styles/globals.css',
         'styles/globals.css', 'src/index.css', 'src/global.css', 'styles/main.css',
+        'src/app/tailwind.css', 'src/styles/tailwind.css',
     ];
     for (const f of cssCandidates) {
         const p = path.join(workspacePath, f);
@@ -89,15 +90,10 @@ function parseSimpleObject(block) {
         return {};
     }
 }
-export function parseTailwindConfig(filePath) {
+export function parseTailwindConfigFromContent(text) {
     const result = {};
-    let text;
-    try {
-        text = fs.readFileSync(filePath, 'utf8');
-    }
-    catch {
+    if (!text)
         return result;
-    }
     // darkMode
     if (/darkMode\s*:\s*['"]class['"]/.test(text) || /darkMode\s*:\s*\[/.test(text)) {
         result.darkMode = true;
@@ -167,26 +163,36 @@ export function parseTailwindConfig(filePath) {
         result.tailwindConfig = source.slice(0, 500);
     return result;
 }
-// ── CSS variables parser ───────────────────────────────
-export function parseCSSVariables(filePath) {
-    const result = {};
-    let text;
+export function parseTailwindConfig(filePath) {
     try {
-        text = fs.readFileSync(filePath, 'utf8');
+        return parseTailwindConfigFromContent(fs.readFileSync(filePath, 'utf8'));
     }
     catch {
-        return result;
+        return {};
     }
+}
+// ── CSS variables parser ───────────────────────────────
+export function parseCSSVariablesFromContent(text) {
+    const result = {};
+    if (!text)
+        return result;
     const colors = {};
     const fonts = {};
     const spacing = {};
     const radius = {};
+    // Tailwind v4 uses @theme inline { ... } instead of tailwind.config.ts
+    const isTailwindV4 = /@theme\s+(inline\s*)?\{/.test(text);
+    if (isTailwindV4)
+        result.colorFormat = 'oklch';
     const regex = /--([a-z0-9][a-z0-9-]*)\s*:\s*([^;}\n]+)/g;
     let match;
     while ((match = regex.exec(text)) !== null) {
         const name = match[1].trim();
         const value = match[2].trim();
         if (!name || !value)
+            continue;
+        // Skip CSS variable cross-references (e.g. var(--font-yeseva)) — not useful as token values
+        if (value.startsWith('var(--'))
             continue;
         if (/^(color|clr|c)-/.test(name)) {
             colors[name.replace(/^(color|clr|c)-/, '')] = value;
@@ -218,6 +224,14 @@ export function parseCSSVariables(filePath) {
         result.radius = radius;
     return result;
 }
+export function parseCSSVariables(filePath) {
+    try {
+        return parseCSSVariablesFromContent(fs.readFileSync(filePath, 'utf8'));
+    }
+    catch {
+        return {};
+    }
+}
 // ── W3C Design Tokens parser ───────────────────────────
 function flattenW3CTokens(obj, prefix = '') {
     const result = {};
@@ -237,11 +251,11 @@ function flattenW3CTokens(obj, prefix = '') {
     }
     return result;
 }
-export function parseTokensJson(filePath) {
+export function parseTokensJsonFromContent(content) {
     const result = {};
     let raw;
     try {
-        raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        raw = JSON.parse(content);
     }
     catch {
         return result;
@@ -273,6 +287,14 @@ export function parseTokensJson(filePath) {
     if (Object.keys(radius).length > 0)
         result.radius = radius;
     return result;
+}
+export function parseTokensJson(filePath) {
+    try {
+        return parseTokensJsonFromContent(fs.readFileSync(filePath, 'utf8'));
+    }
+    catch {
+        return {};
+    }
 }
 // ── Merge with conflict detection ─────────────────────
 const FIELDS = ['colors', 'fonts', 'spacing', 'radius'];
