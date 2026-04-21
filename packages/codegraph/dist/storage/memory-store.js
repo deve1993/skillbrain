@@ -403,11 +403,13 @@ export class MemoryStore {
     listProjects() {
         // Get all unique projects from sessions
         const sessionStats = this.db.prepare(`
-      SELECT project, COUNT(*) as total,
-        MAX(started_at) as last_date
-      FROM session_log
-      WHERE project IS NOT NULL AND project != ''
-      GROUP BY project
+      SELECT sl.project, COUNT(*) as total,
+        MAX(sl.started_at) as last_date
+      FROM session_log sl
+      INNER JOIN projects p ON sl.project = p.name
+      WHERE sl.project IS NOT NULL AND sl.project != ''
+        AND p.status NOT IN ('archived', 'completed')
+      GROUP BY sl.project
       ORDER BY last_date DESC
     `).all();
         return sessionStats.map((ps) => {
