@@ -4,8 +4,11 @@ import { openDb, closeDb } from '../../storage/db.js'
 import { ComponentsStore } from '../../storage/components-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
 import {
-  detectDesignFiles, parseTailwindConfig, parseCSSVariables,
-  parseTokensJson, mergeTokenSources, type TokenSource,
+  detectDesignFiles,
+  parseTailwindConfig, parseTailwindConfigFromContent,
+  parseCSSVariables, parseCSSVariablesFromContent,
+  parseTokensJson, parseTokensJsonFromContent,
+  mergeTokenSources, type TokenSource,
 } from '../../storage/design-token-parser.js'
 import type { ToolContext } from './index.js'
 
@@ -264,32 +267,50 @@ export function registerComponentTools(server: McpServer, _ctx: ToolContext): vo
   // ── design_system_scan ──────────────────────────────
   server.tool(
     'design_system_scan',
-    'Scan project files for design tokens (Tailwind config, CSS variables, tokens.json) and auto-populate the design system. If no conflicts are found, saves immediately. If conflicts exist, saves as pending for dashboard review at memory.fl1.it/#/design-systems.',
+    'Scan project design tokens and auto-populate the design system. Pass file contents directly via cssContent/tailwindContent/tokensContent (recommended — avoids server filesystem access), or provide workspacePath for local server setups. If no conflicts, saves immediately. If conflicts exist, saves as pending for dashboard review at memory.fl1.it/#/design-systems.',
     {
       project: z.string().describe('Project name (e.g., "quickfy", "terrae-mare")'),
-      workspacePath: z.string().describe('Absolute path to the project root directory'),
+      workspacePath: z.string().optional().describe('Absolute path to the project root (used only if *Content params are not provided)'),
+      cssContent: z.string().optional().describe('Content of globals.css / main CSS file (preferred over workspacePath for remote servers)'),
+      tailwindContent: z.string().optional().describe('Content of tailwind.config.ts/js (preferred over workspacePath for remote servers)'),
+      tokensContent: z.string().optional().describe('Content of tokens.json / design-tokens.json (preferred over workspacePath for remote servers)'),
       autoSave: z.boolean().optional().default(true).describe('Auto-save if no conflicts (default: true)'),
     },
-    async ({ project, workspacePath, autoSave = true }) => {
+    async ({ project, workspacePath, cssContent, tailwindContent, tokensContent, autoSave = true }) => {
       try {
-        const files = detectDesignFiles(workspacePath)
-        const fileList = Object.entries(files).filter(([, v]) => v).map(([k]) => k)
-        if (fileList.length === 0) {
-          return { content: [{ type: 'text', text: `No design files found in ${workspacePath}. Expected: tailwind.config.ts, globals.css, or tokens.json.` }] }
+        const sources: TokenSource[] = []
+
+        if (cssContent || tailwindContent || tokensContent) {
+          // Client-side content provided — no filesystem access needed
+          if (tailwindContent) sources.push({ source: 'tailwind', path: 'tailwind.config', tokens: parseTailwindConfigFromContent(tailwindContent) })
+          if (cssContent) sources.push({ source: 'css', path: 'globals.css', tokens: parseCSSVariablesFromContent(cssContent) })
+          if (tokensContent) sources.push({ source: 'tokens_json', path: 'tokens.json', tokens: parseTokensJsonFromContent(tokensContent) })
+        } else if (workspacePath) {
+          // Fallback: read from filesystem (works only when server has local access)
+          const files = detectDesignFiles(workspacePath)
+          const fileList = Object.entries(files).filter(([, v]) => v).map(([k]) => k)
+          if (fileList.length === 0) {
+            return { content: [{ type: 'text', text: `No design files found in ${workspacePath}. Expected: tailwind.config.ts, globals.css, or tokens.json.\n\nTip: Pass file contents directly via cssContent/tailwindContent/tokensContent params instead.` }] }
+          }
+          if (files.tailwind) sources.push({ source: 'tailwind', path: files.tailwind, tokens: parseTailwindConfig(files.tailwind) })
+          if (files.css) sources.push({ source: 'css', path: files.css, tokens: parseCSSVariables(files.css) })
+          if (files.tokensJson) sources.push({ source: 'tokens_json', path: files.tokensJson, tokens: parseTokensJson(files.tokensJson) })
+        } else {
+          return { content: [{ type: 'text', text: '❌ Provide either cssContent/tailwindContent/tokensContent or workspacePath.' }] }
         }
 
-        const sources: TokenSource[] = []
-        if (files.tailwind) sources.push({ source: 'tailwind', path: files.tailwind, tokens: parseTailwindConfig(files.tailwind) })
-        if (files.css) sources.push({ source: 'css', path: files.css, tokens: parseCSSVariables(files.css) })
-        if (files.tokensJson) sources.push({ source: 'tokens_json', path: files.tokensJson, tokens: parseTokensJson(files.tokensJson) })
+        if (sources.length === 0) {
+          return { content: [{ type: 'text', text: '❌ No parseable content found. Check that the provided file contents are valid.' }] }
+        }
 
         const { merged, conflicts } = mergeTokenSources(sources)
         const colorCount = Object.keys(merged.colors ?? {}).length
         const fontCount = Object.keys(merged.fonts ?? {}).length
+        const sourceList = sources.map(s => s.path).join(', ')
 
         if (conflicts.length === 0 && autoSave) {
           withStore(store => store.upsertDesignSystem({ project, ...merged }))
-          return { content: [{ type: 'text', text: `✅ Design system auto-populated for "${project}" from ${sources.length} source(s) (${fileList.join(', ')}).\n  Colors: ${colorCount} | Fonts: ${fontCount} | Dark mode: ${merged.darkMode ? 'yes' : 'no'}` }] }
+          return { content: [{ type: 'text', text: `✅ Design system auto-populated for "${project}" from ${sources.length} source(s) (${sourceList}).\n  Colors: ${colorCount} | Fonts: ${fontCount} | Dark mode: ${merged.darkMode ? 'yes' : 'no'}` }] }
         }
 
         const scan = withStore(store => store.addDesignSystemScan({ project, sources, merged, conflicts }))

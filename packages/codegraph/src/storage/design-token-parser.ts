@@ -111,10 +111,9 @@ function parseSimpleObject(block: string): Record<string, unknown> {
   }
 }
 
-export function parseTailwindConfig(filePath: string): Partial<DesignSystemInput> {
+export function parseTailwindConfigFromContent(text: string): Partial<DesignSystemInput> {
   const result: Partial<DesignSystemInput> = {}
-  let text: string
-  try { text = fs.readFileSync(filePath, 'utf8') } catch { return result }
+  if (!text) return result
 
   // darkMode
   if (/darkMode\s*:\s*['"]class['"]/.test(text) || /darkMode\s*:\s*\[/.test(text)) {
@@ -185,12 +184,15 @@ export function parseTailwindConfig(filePath: string): Partial<DesignSystemInput
   return result
 }
 
+export function parseTailwindConfig(filePath: string): Partial<DesignSystemInput> {
+  try { return parseTailwindConfigFromContent(fs.readFileSync(filePath, 'utf8')) } catch { return {} }
+}
+
 // ── CSS variables parser ───────────────────────────────
 
-export function parseCSSVariables(filePath: string): Partial<DesignSystemInput> {
+export function parseCSSVariablesFromContent(text: string): Partial<DesignSystemInput> {
   const result: Partial<DesignSystemInput> = {}
-  let text: string
-  try { text = fs.readFileSync(filePath, 'utf8') } catch { return result }
+  if (!text) return result
 
   const colors: Record<string, string> = {}
   const fonts: Record<string, unknown> = {}
@@ -236,6 +238,10 @@ export function parseCSSVariables(filePath: string): Partial<DesignSystemInput> 
   return result
 }
 
+export function parseCSSVariables(filePath: string): Partial<DesignSystemInput> {
+  try { return parseCSSVariablesFromContent(fs.readFileSync(filePath, 'utf8')) } catch { return {} }
+}
+
 // ── W3C Design Tokens parser ───────────────────────────
 
 function flattenW3CTokens(obj: Record<string, unknown>, prefix = ''): Record<string, string> {
@@ -255,10 +261,10 @@ function flattenW3CTokens(obj: Record<string, unknown>, prefix = ''): Record<str
   return result
 }
 
-export function parseTokensJson(filePath: string): Partial<DesignSystemInput> {
+export function parseTokensJsonFromContent(content: string): Partial<DesignSystemInput> {
   const result: Partial<DesignSystemInput> = {}
   let raw: Record<string, unknown>
-  try { raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) } catch { return result }
+  try { raw = JSON.parse(content) } catch { return result }
 
   const colors: Record<string, string> = {}
   const fonts: Record<string, unknown> = {}
@@ -282,6 +288,10 @@ export function parseTokensJson(filePath: string): Partial<DesignSystemInput> {
   if (Object.keys(radius).length > 0) result.radius = radius
 
   return result
+}
+
+export function parseTokensJson(filePath: string): Partial<DesignSystemInput> {
+  try { return parseTokensJsonFromContent(fs.readFileSync(filePath, 'utf8')) } catch { return {} }
 }
 
 // ── Merge with conflict detection ─────────────────────
