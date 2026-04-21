@@ -10,6 +10,7 @@ import {
   parseTokensJson, parseTokensJsonFromContent,
   mergeTokenSources, type TokenSource,
 } from '../../storage/design-token-parser.js'
+import { parseComponentFile, categoryFromPath } from '../../storage/component-parser.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -260,6 +261,64 @@ export function registerComponentTools(server: McpServer, _ctx: ToolContext): vo
         return { content: [{ type: 'text', text: parts.join('\n') }] }
       } catch (err) {
         return { content: [{ type: 'text', text: `❌ Error: ${(err as Error).message}` }] }
+      }
+    },
+  )
+
+  // ── component_scan ────────────────────────────────────
+  server.tool(
+    'component_scan',
+    'Scan multiple component files and bulk-catalog them for a project. Pass a fileMap of { relativePath: fileContent } pairs. Components are auto-categorized by folder structure (e.g. components/ui/ → "ui", components/sections/ → "sections") and tagged by project.',
+    {
+      project: z.string().describe('Project name (e.g. "terrae-mare")'),
+      fileMap: z.record(z.string(), z.string()).describe('Map of { "relative/path/to/Component.tsx": "<file content>" }'),
+      overwrite: z.boolean().optional().default(false).describe('If true, re-add components even if already cataloged (default: false)'),
+    },
+    async ({ project, fileMap, overwrite = false }) => {
+      try {
+        const existing = overwrite ? [] : withStore(store => store.listComponents({ project, limit: 500 })).map(c => c.filePath)
+        const existingPaths = new Set(existing.filter(Boolean))
+
+        const added: string[] = []
+        const skipped: string[] = []
+        const byCategory: Record<string, number> = {}
+
+        for (const [filePath, content] of Object.entries(fileMap)) {
+          if (existingPaths.has(filePath)) { skipped.push(filePath); continue }
+
+          const components = parseComponentFile(filePath, content)
+          for (const c of components) {
+            withStore(store => store.addComponent({
+              project,
+              name: c.name,
+              sectionType: c.sectionType,
+              description: c.description,
+              filePath: c.filePath,
+              tags: [project, c.category],
+              propsSchema: c.props,
+              codeSnippet: c.codeSnippet,
+              designTokens: {},
+            }))
+            added.push(`${c.category}/${c.name}`)
+            byCategory[c.category] = (byCategory[c.category] ?? 0) + 1
+          }
+        }
+
+        if (added.length === 0 && skipped.length === 0) {
+          return { content: [{ type: 'text', text: `⚠️ No React components found in the provided files. Make sure to pass .tsx/.jsx files with exported PascalCase components.` }] }
+        }
+
+        const categoryBreakdown = Object.entries(byCategory).map(([k, v]) => `${k}: ${v}`).join(' | ')
+        const summary = [
+          `✅ component_scan complete for "${project}"`,
+          `  Added: ${added.length} components${categoryBreakdown ? ` (${categoryBreakdown})` : ''}`,
+          skipped.length > 0 ? `  Skipped (already cataloged): ${skipped.length}` : '',
+          added.length > 0 ? `\n  Components:\n  ${added.map(n => `• ${n}`).join('\n  ')}` : '',
+        ].filter(Boolean).join('\n')
+
+        return { content: [{ type: 'text', text: summary }] }
+      } catch (err) {
+        return { content: [{ type: 'text', text: `❌ Scan error: ${(err as Error).message}` }] }
       }
     },
   )
