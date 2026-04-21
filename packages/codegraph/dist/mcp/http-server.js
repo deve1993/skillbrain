@@ -486,6 +486,18 @@ export async function startHttpServer(port, authToken) {
             res.status(500).json({ error: err.message });
         }
     });
+    app.delete('/api/projects-meta/:name', (_req, res) => {
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new ProjectsStore(db);
+            store.delete(_req.params.name);
+            closeDb(db);
+            res.json({ ok: true });
+        }
+        catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
     // Env var management (list names only — values never returned via API for UI safety)
     app.get('/api/projects-meta/:name/env', (_req, res) => {
         try {
