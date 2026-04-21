@@ -46,6 +46,7 @@ export function detectDesignFiles(workspacePath: string): DesignFiles {
   const cssCandidates = [
     'src/app/globals.css', 'app/globals.css', 'src/styles/globals.css',
     'styles/globals.css', 'src/index.css', 'src/global.css', 'styles/main.css',
+    'src/app/tailwind.css', 'src/styles/tailwind.css',
   ]
   for (const f of cssCandidates) {
     const p = path.join(workspacePath, f)
@@ -196,12 +197,19 @@ export function parseCSSVariables(filePath: string): Partial<DesignSystemInput> 
   const spacing: Record<string, unknown> = {}
   const radius: Record<string, string> = {}
 
+  // Tailwind v4 uses @theme inline { ... } instead of tailwind.config.ts
+  const isTailwindV4 = /@theme\s+(inline\s*)?\{/.test(text)
+  if (isTailwindV4) result.colorFormat = 'oklch'
+
   const regex = /--([a-z0-9][a-z0-9-]*)\s*:\s*([^;}\n]+)/g
   let match: RegExpExecArray | null
   while ((match = regex.exec(text)) !== null) {
     const name = match[1].trim()
     const value = match[2].trim()
     if (!name || !value) continue
+
+    // Skip CSS variable cross-references (e.g. var(--font-yeseva)) — not useful as token values
+    if (value.startsWith('var(--')) continue
 
     if (/^(color|clr|c)-/.test(name)) {
       colors[name.replace(/^(color|clr|c)-/, '')] = value
