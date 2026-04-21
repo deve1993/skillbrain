@@ -625,9 +625,9 @@ export class MemoryStore {
       SELECT sl.project, COUNT(*) as total,
         MAX(sl.started_at) as last_date
       FROM session_log sl
-      INNER JOIN projects p ON sl.project = p.name
+      LEFT JOIN projects p ON sl.project = p.name
       WHERE sl.project IS NOT NULL AND sl.project != ''
-        AND p.status NOT IN ('archived', 'completed')
+        AND (p.name IS NULL OR p.status NOT IN ('archived', 'completed'))
       GROUP BY sl.project
       ORDER BY last_date DESC
     `).all() as any[]
