@@ -155,3 +155,95 @@ export async function saveProject(event, name, onSaved) {
   }
   return false
 }
+
+// ── Merge Projects dialog ──
+
+export async function showMergeDialog(primaryName) {
+  let projects = []
+  try {
+    const data = await api.get('/api/projects-meta')
+    projects = (data.projects || []).filter((p) => p.name !== primaryName)
+  } catch {
+    alert('Failed to load projects list')
+    return
+  }
+
+  let overlay = document.getElementById('merge-modal')
+  if (overlay) overlay.remove()
+  overlay = document.createElement('div')
+  overlay.id = 'merge-modal'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;justify-content:center;align-items:center;padding:20px'
+
+  overlay.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:min(520px,90vw);max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+        <h2 style="font-size:16px;color:var(--accent);margin:0">Merge into <strong>${escHtml(primaryName)}</strong></h2>
+        <button onclick="closeMergeModal()" style="background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer;padding:0 8px">&times;</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px">Select the duplicate projects to absorb. Their sessions, memories, and env vars will be moved to <strong style="color:var(--text)">${escHtml(primaryName)}</strong>, then deleted.</p>
+      <div id="merge-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px">
+        ${projects.length === 0
+          ? '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No other projects found.</div>'
+          : projects.map((p) => `
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid var(--border);cursor:pointer">
+            <input type="checkbox" value="${escHtml(p.name)}" style="width:14px;height:14px;accent-color:var(--accent)">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.name)}</div>
+              ${p.displayName && p.displayName !== p.name ? `<div style="font-size:11px;color:var(--text-muted)">${escHtml(p.displayName)}</div>` : ''}
+            </div>
+          </label>`).join('')}
+      </div>
+      <div id="merge-result" style="display:none;margin-top:12px;padding:10px;border-radius:6px;font-size:12px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+        <button onclick="closeMergeModal()" style="padding:8px 16px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;cursor:pointer">Cancel</button>
+        <button id="merge-confirm-btn" onclick="confirmMerge('${escHtml(primaryName)}')" style="padding:8px 20px;background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;border-radius:6px;font-weight:600;cursor:pointer">Merge selected</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeMergeModal() })
+}
+
+export function closeMergeModal() {
+  const m = document.getElementById('merge-modal')
+  if (m) m.remove()
+}
+
+export async function confirmMerge(primaryName) {
+  const checks = [...document.querySelectorAll('#merge-list input[type=checkbox]:checked')]
+  const aliases = checks.map((c) => c.value)
+  if (aliases.length === 0) {
+    alert('Select at least one project to merge.')
+    return
+  }
+
+  const btn = document.getElementById('merge-confirm-btn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Merging...' }
+
+  try {
+    const result = await api.post('/api/projects-meta/merge', { primary: primaryName, aliases })
+    const resultEl = document.getElementById('merge-result')
+    if (resultEl) {
+      resultEl.style.display = 'block'
+      resultEl.style.background = 'rgba(52,211,153,.08)'
+      resultEl.style.border = '1px solid rgba(52,211,153,.25)'
+      resultEl.style.color = 'var(--green)'
+      resultEl.innerHTML = `✅ Merged ${aliases.length} project${aliases.length > 1 ? 's' : ''} into <strong>${escHtml(primaryName)}</strong><br>Sessions: +${result.movedSessions} &middot; Memories: +${result.movedMemories} &middot; Env vars: +${result.movedEnvVars}`
+    }
+    if (btn) { btn.textContent = 'Done'; btn.style.background = 'var(--green)' }
+    setTimeout(() => {
+      closeMergeModal()
+      if (typeof window.renderProjects === 'function') window.renderProjects()
+    }, 2000)
+  } catch (err) {
+    const resultEl = document.getElementById('merge-result')
+    if (resultEl) {
+      resultEl.style.display = 'block'
+      resultEl.style.background = 'rgba(248,113,113,.08)'
+      resultEl.style.border = '1px solid rgba(248,113,113,.25)'
+      resultEl.style.color = 'var(--red)'
+      resultEl.textContent = `Error: ${err.message || 'Merge failed'}`
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Merge selected' }
+  }
+}

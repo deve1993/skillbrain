@@ -498,6 +498,23 @@ export async function startHttpServer(port, authToken) {
             res.status(500).json({ error: err.message });
         }
     });
+    // Merge duplicate projects into one primary
+    app.post('/api/projects-meta/merge', (req, res) => {
+        const { primary, aliases } = req.body;
+        if (!primary || !Array.isArray(aliases) || aliases.length === 0) {
+            return res.status(400).json({ error: 'primary and aliases[] required' });
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new ProjectsStore(db);
+            const result = store.merge(primary, aliases);
+            closeDb(db);
+            res.json({ ok: true, ...result });
+        }
+        catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    });
     // Env var management (list names only — values never returned via API for UI safety)
     app.get('/api/projects-meta/:name/env', (_req, res) => {
         try {

@@ -6,6 +6,7 @@ import { api } from './js/api.js'
 import {
   openEditProjectModal, closeEditModal, saveProject,
   editField, editSelect, memberRow,
+  showMergeDialog, closeMergeModal, confirmMerge,
 } from './js/modal.js'
 import {
   renderHome, renderSkills, searchSkills, openSkillDetail,
@@ -189,6 +190,9 @@ window.switchProjectTab = switchProjectTab
 window.openEditProjectModal = openEditProjectModal
 window.closeEditModal = closeEditModal
 window.saveProject = saveProject
+window.showMergeDialog = showMergeDialog
+window.closeMergeModal = closeMergeModal
+window.confirmMerge = confirmMerge
 window.addMemberRow = addMemberRow
 window.deleteMemory = deleteMemory
 window.deprecateMemory = deprecateMemory
