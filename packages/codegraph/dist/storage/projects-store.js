@@ -83,9 +83,7 @@ export class ProjectsStore {
      * Throws if the primary project does not exist.
      */
     merge(primary, aliases) {
-        if (!this.get(primary)) {
-            throw new Error(`Primary project '${primary}' does not exist`);
-        }
+        // primary may only exist in session_log/memories (no metadata scan yet) — that is fine
         let movedSessions = 0;
         let movedMemories = 0;
         let movedEnvVars = 0;
