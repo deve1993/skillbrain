@@ -703,6 +703,23 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
+  // Merge two design systems into one primary
+  app.post('/api/design-systems/merge', (req, res) => {
+    const { primary, alias } = req.body as { primary: string; alias: string }
+    if (!primary || !alias) {
+      return res.status(400).json({ error: 'primary and alias required' })
+    }
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new ComponentsStore(db)
+      const result = store.mergeDesignSystems(primary, alias)
+      closeDb(db)
+      res.json({ ok: true, designSystem: result })
+    } catch (err: any) {
+      res.status(400).json({ error: err.message })
+    }
+  })
+
   // ── Design System Scan endpoints ──
   app.get('/api/design-systems/pending', (_req, res) => {
     try {

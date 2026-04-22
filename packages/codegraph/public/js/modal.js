@@ -247,3 +247,93 @@ export async function confirmMerge(primaryName) {
     if (btn) { btn.disabled = false; btn.textContent = 'Merge selected' }
   }
 }
+
+// ── Merge Design Systems dialog ──
+
+export async function showDsMergeDialog(primaryProject) {
+  let designSystems = []
+  try {
+    const data = await api.get('/api/design-systems')
+    designSystems = (data.designSystems || []).filter((ds) => ds.project !== primaryProject)
+  } catch {
+    alert('Failed to load design systems list')
+    return
+  }
+
+  let overlay = document.getElementById('ds-merge-modal')
+  if (overlay) overlay.remove()
+  overlay = document.createElement('div')
+  overlay.id = 'ds-merge-modal'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;justify-content:center;align-items:center;padding:20px'
+
+  overlay.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:min(520px,90vw);max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+        <h2 style="font-size:16px;color:var(--accent);margin:0">Merge design system into <strong>${escHtml(primaryProject)}</strong></h2>
+        <button onclick="closeDsMergeModal()" style="background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer;padding:0 8px">&times;</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px">Scegli il design system duplicato da assorbire. I suoi token saranno uniti in <strong style="color:var(--text)">${escHtml(primaryProject)}</strong> (che ha la priorità sui conflitti), poi il duplicato verrà cancellato.</p>
+      <div id="ds-merge-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px">
+        ${designSystems.length === 0
+          ? '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Nessun altro design system trovato.</div>'
+          : designSystems.map((ds) => `
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid var(--border);cursor:pointer">
+            <input type="radio" name="ds-alias" value="${escHtml(ds.project)}" style="width:14px;height:14px;accent-color:var(--accent)">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:500">${escHtml(ds.project)}</div>
+              ${ds.clientName ? `<div style="font-size:11px;color:var(--text-muted)">${escHtml(ds.clientName)}</div>` : ''}
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${Object.keys(ds.colors || {}).length} colors &middot; ${Object.keys(ds.fonts || {}).length} fonts</div>
+            </div>
+          </label>`).join('')}
+      </div>
+      <div id="ds-merge-result" style="display:none;margin-top:12px;padding:10px;border-radius:6px;font-size:12px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+        <button onclick="closeDsMergeModal()" style="padding:8px 16px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;cursor:pointer">Annulla</button>
+        <button id="ds-merge-confirm-btn" onclick="confirmDsMerge('${escHtml(primaryProject)}')" style="padding:8px 20px;background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;border-radius:6px;font-weight:600;cursor:pointer">Merge</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeDsMergeModal() })
+}
+
+export function closeDsMergeModal() {
+  const m = document.getElementById('ds-merge-modal')
+  if (m) m.remove()
+}
+
+export async function confirmDsMerge(primaryProject) {
+  const radio = document.querySelector('#ds-merge-list input[type=radio]:checked')
+  if (!radio) { alert('Seleziona un design system da assorbire.'); return }
+  const alias = radio.value
+
+  const btn = document.getElementById('ds-merge-confirm-btn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Merging...' }
+
+  try {
+    await api.post('/api/design-systems/merge', { primary: primaryProject, alias })
+    const resultEl = document.getElementById('ds-merge-result')
+    if (resultEl) {
+      resultEl.style.display = 'block'
+      resultEl.style.background = 'rgba(52,211,153,.08)'
+      resultEl.style.border = '1px solid rgba(52,211,153,.25)'
+      resultEl.style.color = 'var(--green)'
+      resultEl.innerHTML = `✅ Design system <strong>${escHtml(alias)}</strong> unito in <strong>${escHtml(primaryProject)}</strong>`
+    }
+    if (btn) { btn.textContent = 'Done'; btn.style.background = 'var(--green)' }
+    setTimeout(() => {
+      closeDsMergeModal()
+      if (typeof window.renderDesignSystems === 'function') window.renderDesignSystems()
+    }, 1800)
+  } catch (err) {
+    const resultEl = document.getElementById('ds-merge-result')
+    if (resultEl) {
+      resultEl.style.display = 'block'
+      resultEl.style.background = 'rgba(248,113,113,.08)'
+      resultEl.style.border = '1px solid rgba(248,113,113,.25)'
+      resultEl.style.color = 'var(--red)'
+      resultEl.textContent = `Errore: ${err.message || 'Merge fallito'}`
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Merge' }
+  }
+}

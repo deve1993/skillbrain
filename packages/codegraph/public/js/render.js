@@ -782,9 +782,12 @@ export async function openDesignSystemDetail(project, openDetailFn) {
   const radiusEntries = Object.entries(ds.radius || {})
 
   openDetailFn?.(ds.project, `
-    <div style="margin-bottom:12px;font-size:12px;color:var(--text-muted)">
-      ${ds.clientName ? `Client: <strong>${escHtml(ds.clientName)}</strong> &middot; ` : ''}
-      Format: ${ds.colorFormat} &middot; Dark mode: ${ds.darkMode ? 'yes' : 'no'}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-muted)">
+        ${ds.clientName ? `Client: <strong>${escHtml(ds.clientName)}</strong> &middot; ` : ''}
+        Format: ${ds.colorFormat} &middot; Dark mode: ${ds.darkMode ? 'yes' : 'no'}
+      </div>
+      <button onclick="showDsMergeDialog('${escHtml(ds.project)}')" style="padding:6px 12px;border-radius:6px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">Merge</button>
     </div>
 
     ${colorEntries.length ? `

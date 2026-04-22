@@ -324,6 +324,32 @@ export class ComponentsStore {
     this.db.prepare(`UPDATE design_system_scans SET status = 'dismissed' WHERE id = ?`).run(scanId)
   }
 
+  mergeDesignSystems(primary: string, alias: string): DesignSystem {
+    const pri = this.getDesignSystem(primary)
+    const ali = this.getDesignSystem(alias)
+    if (!pri) throw new Error(`Primary design system '${primary}' not found`)
+    if (!ali) throw new Error(`Alias design system '${alias}' not found`)
+
+    // Merge tokens: alias provides base, primary overrides (primary wins on conflict)
+    const merged: DesignSystemInput = {
+      project: primary,
+      clientName: pri.clientName ?? ali.clientName,
+      colors: { ...ali.colors, ...pri.colors },
+      fonts: { ...ali.fonts, ...pri.fonts },
+      spacing: { ...ali.spacing, ...pri.spacing },
+      radius: { ...ali.radius, ...pri.radius },
+      animations: pri.animations.length ? pri.animations : ali.animations,
+      darkMode: pri.darkMode || ali.darkMode,
+      colorFormat: pri.colorFormat,
+      tailwindConfig: pri.tailwindConfig ?? ali.tailwindConfig,
+      notes: [pri.notes, ali.notes].filter(Boolean).join('\n\n') || undefined,
+    }
+
+    const result = this.upsertDesignSystem(merged)
+    this.db.prepare('DELETE FROM design_systems WHERE project = ?').run(alias)
+    return result
+  }
+
   private rowToScan(row: any): DesignSystemScan {
     return {
       id: row.id,

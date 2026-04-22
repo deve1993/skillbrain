@@ -7,6 +7,7 @@ import {
   openEditProjectModal, closeEditModal, saveProject,
   editField, editSelect, memberRow,
   showMergeDialog, closeMergeModal, confirmMerge,
+  showDsMergeDialog, closeDsMergeModal, confirmDsMerge,
 } from './js/modal.js'
 import {
   renderHome, renderSkills, searchSkills, openSkillDetail,
@@ -193,6 +194,9 @@ window.saveProject = saveProject
 window.showMergeDialog = showMergeDialog
 window.closeMergeModal = closeMergeModal
 window.confirmMerge = confirmMerge
+window.showDsMergeDialog = showDsMergeDialog
+window.closeDsMergeModal = closeDsMergeModal
+window.confirmDsMerge = confirmDsMerge
 window.addMemberRow = addMemberRow
 window.deleteMemory = deleteMemory
 window.deprecateMemory = deprecateMemory
