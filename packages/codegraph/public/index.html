@@ -91,6 +91,30 @@
     </div>
   </dialog>
 
+  <dialog id="modal-edit-member">
+    <h2>Edit Team Member</h2>
+    <input type="hidden" id="edit-member-id">
+    <div class="form-field">
+      <label>Name</label>
+      <input id="edit-member-name" type="text">
+    </div>
+    <div class="form-field">
+      <label>Email <span style="opacity:.5">(optional)</span></label>
+      <input id="edit-member-email" type="email">
+    </div>
+    <div class="form-field">
+      <label>Role</label>
+      <select id="edit-member-role">
+        <option value="member">member</option>
+        <option value="admin">admin</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-cancel-edit-member" class="btn-ghost">Cancel</button>
+      <button id="btn-save-edit-member" class="btn-primary">Save</button>
+    </div>
+  </dialog>
+
   <dialog id="modal-show-key">
     <h2>New API Key</h2>
     <p>Copy this key now — it won't be shown again.</p>

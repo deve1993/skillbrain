@@ -269,6 +269,10 @@ async function loadTeamList() {
           ${u.email ? `<div class="member-email">${escHtml(u.email)}</div>` : ''}
         </div>
         <span class="badge ${roleBadge}">${u.role}</span>
+        <div style="display:flex;gap:4px;margin-left:8px">
+          <button class="btn-ghost" style="font-size:11px;padding:2px 8px" onclick="editUser('${u.id}','${escHtml(u.name)}','${escHtml(u.email||'')}','${u.role}')">Edit</button>
+          <button class="btn-danger" style="font-size:11px;padding:2px 8px" onclick="deleteUser('${u.id}','${escHtml(u.name)}')">Delete</button>
+        </div>
       </div>
       ${keys.length === 0
         ? '<p style="color:var(--text-muted);font-size:12px;margin:0">No active keys</p>'
@@ -290,6 +294,45 @@ async function revokeKey(id) {
   await fetch(`/api/admin/team/keys/${id}`, { method: 'DELETE' })
   await loadTeamList()
 }
+
+function editUser(id, name, email, role) {
+  document.getElementById('edit-member-id').value = id
+  document.getElementById('edit-member-name').value = name
+  document.getElementById('edit-member-email').value = email
+  document.getElementById('edit-member-role').value = role
+  document.getElementById('modal-edit-member').showModal()
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Delete ${name}? This will also remove all their API keys.`)) return
+  const res = await fetch(`/api/admin/team/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  if (res.ok) await loadTeamList()
+  else alert('Delete failed')
+}
+
+document.getElementById('btn-cancel-edit-member')?.addEventListener('click', () => {
+  document.getElementById('modal-edit-member').close()
+})
+
+document.getElementById('btn-save-edit-member')?.addEventListener('click', async () => {
+  const id = document.getElementById('edit-member-id').value
+  const name = document.getElementById('edit-member-name').value.trim()
+  const email = document.getElementById('edit-member-email').value.trim()
+  const role = document.getElementById('edit-member-role').value
+  if (!name) { alert('Name is required'); return }
+  const res = await fetch(`/api/admin/team/users/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email: email || undefined, role }),
+  })
+  if (res.ok) {
+    document.getElementById('modal-edit-member').close()
+    await loadTeamList()
+  } else {
+    const { error } = await res.json()
+    alert(`Error: ${error}`)
+  }
+})
 
 document.getElementById('btn-cancel-member')?.addEventListener('click', () => {
   document.getElementById('modal-add-member').close()
@@ -326,6 +369,8 @@ document.getElementById('btn-close-key-modal')?.addEventListener('click', () => 
 })
 
 window.revokeKey = revokeKey
+window.editUser = editUser
+window.deleteUser = deleteUser
 
 // ── Init ──
 route()

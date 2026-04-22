@@ -831,6 +831,35 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
+  app.put('/api/admin/team/users/:id', express.json(), (req, res) => {
+    const { name, email, role } = req.body as { name?: string; email?: string; role?: string }
+    if (!name) { res.status(400).json({ error: 'name required' }); return }
+    if (role && !['admin', 'member'].includes(role)) { res.status(400).json({ error: 'invalid role' }); return }
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const result = db.prepare(`UPDATE users SET name = ?, email = ?, role = COALESCE(?, role) WHERE id = ?`)
+        .run(name, email ?? null, role ?? null, req.params.id)
+      closeDb(db)
+      if (result.changes === 0) { res.status(404).json({ error: 'User not found' }); return }
+      res.json({ ok: true })
+    } catch {
+      res.status(500).json({ error: 'Internal error' })
+    }
+  })
+
+  app.delete('/api/admin/team/users/:id', (req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      db.prepare(`DELETE FROM api_keys WHERE user_id = ?`).run(req.params.id)
+      const result = db.prepare(`DELETE FROM users WHERE id = ?`).run(req.params.id)
+      closeDb(db)
+      if (result.changes === 0) { res.status(404).json({ error: 'User not found' }); return }
+      res.json({ ok: true })
+    } catch {
+      res.status(500).json({ error: 'Internal error' })
+    }
+  })
+
   // ── Static files (dashboard SPA) ──
   const publicDir = path.resolve(__dirname, '..', '..', 'public')
   app.use(express.static(publicDir))
