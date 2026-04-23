@@ -1,1 +1,1 @@
-{"version":3,"file":"http-server.d.ts","sourceRoot":"","sources":["../../src/mcp/http-server.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAuHH,wBAAsB,eAAe,CAAC,IAAI,EAAE,MAAM,EAAE,SAAS,CAAC,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAu5BrF"}
+{"version":3,"file":"http-server.d.ts","sourceRoot":"","sources":["../../src/mcp/http-server.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AA0HH,wBAAsB,eAAe,CAAC,IAAI,EAAE,MAAM,EAAE,SAAS,CAAC,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAkqCrF"}

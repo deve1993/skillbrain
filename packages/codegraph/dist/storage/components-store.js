@@ -22,12 +22,24 @@ export class ComponentsStore {
             designTokens: input.designTokens ?? {},
             createdAt: now,
             updatedAt: now,
+            status: input.status ?? 'active',
+            createdByUserId: input.createdByUserId,
         };
-        this.db.prepare(`
-      INSERT INTO ui_components
-        (id, project, name, section_type, description, file_path, tags, props_schema, code_snippet, design_tokens, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(component.id, component.project, component.name, component.sectionType, component.description ?? null, component.filePath ?? null, JSON.stringify(component.tags), JSON.stringify(component.propsSchema), component.codeSnippet ?? null, JSON.stringify(component.designTokens), component.createdAt, component.updatedAt);
+        try {
+            this.db.prepare(`
+        INSERT INTO ui_components
+          (id, project, name, section_type, description, file_path, tags, props_schema, code_snippet, design_tokens, created_at, updated_at, status, created_by_user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(component.id, component.project, component.name, component.sectionType, component.description ?? null, component.filePath ?? null, JSON.stringify(component.tags), JSON.stringify(component.propsSchema), component.codeSnippet ?? null, JSON.stringify(component.designTokens), component.createdAt, component.updatedAt, component.status, component.createdByUserId ?? null);
+        }
+        catch {
+            // Fall back to insert without ownership columns if migration 010 not applied yet
+            this.db.prepare(`
+        INSERT INTO ui_components
+          (id, project, name, section_type, description, file_path, tags, props_schema, code_snippet, design_tokens, created_at, updated_at, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(component.id, component.project, component.name, component.sectionType, component.description ?? null, component.filePath ?? null, JSON.stringify(component.tags), JSON.stringify(component.propsSchema), component.codeSnippet ?? null, JSON.stringify(component.designTokens), component.createdAt, component.updatedAt, component.status);
+        }
         this.populateFts(component);
         return component;
     }
@@ -245,6 +257,9 @@ export class ComponentsStore {
             designTokens: JSON.parse(row.design_tokens || '{}'),
             createdAt: row.created_at,
             updatedAt: row.updated_at,
+            status: row.status ?? 'active',
+            createdByUserId: row.created_by_user_id ?? undefined,
+            updatedByUserId: row.updated_by_user_id ?? undefined,
         };
     }
     rowToDesignSystem(row) {

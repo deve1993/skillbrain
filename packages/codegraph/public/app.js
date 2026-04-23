@@ -461,6 +461,39 @@ document.getElementById('btn-save-cp')?.addEventListener('click', async () => {
   }
 })
 
+// ── Skill History ──
+window.viewSkillHistory = async (name) => {
+  const data = await api.get(`/api/skills/${encodeURIComponent(name)}/versions`)
+  const versions = data.versions || []
+  const html = versions.length === 0
+    ? '<p style="color:var(--text-muted)">No version history yet.</p>'
+    : `<div style="display:flex;flex-direction:column;gap:8px">
+        ${versions.map(v => `
+          <div style="border:1px solid var(--border);border-radius:8px;padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-weight:600">v${v.versionNumber}</span>
+              <span style="font-size:11px;color:var(--text-muted)">${v.createdAt?.slice(0,16).replace('T',' ')} &middot; ${escHtml(v.changeReason)}</span>
+            </div>
+            <details>
+              <summary style="font-size:12px;color:var(--text-muted);cursor:pointer">Preview content</summary>
+              <pre style="font-size:11px;background:var(--bg-surface,#111);border:1px solid var(--border);border-radius:6px;padding:8px;overflow:auto;max-height:150px;white-space:pre-wrap;color:var(--text-secondary);margin-top:6px">${escHtml((v.content||'').slice(0,1000))}${(v.content||'').length>1000?'\n...':''}</pre>
+            </details>
+            <button onclick="rollbackSkill('${escHtml(name)}','${escHtml(v.id)}')" style="margin-top:8px;padding:3px 10px;border-radius:6px;background:rgba(99,102,241,.12);border:1px solid var(--purple,#6366f1);color:var(--purple,#6366f1);font-size:11px;cursor:pointer">Rollback to this</button>
+          </div>
+        `).join('')}
+      </div>`
+  openDetail(`History: ${name}`, html)
+}
+
+window.rollbackSkill = async (name, versionId) => {
+  if (!confirm(`Rollback "${name}" to version ${versionId}? This will create a new version entry.`)) return
+  const res = await fetch(`/api/skills/${encodeURIComponent(name)}/rollback/${encodeURIComponent(versionId)}`, { method: 'POST' })
+  if (res.ok) { alert('Rollback successful'); viewSkillHistory(name) }
+  else { const d = await res.json(); alert(`Error: ${d.error}`) }
+}
+
+window.filterMemoriesScope = (scope) => renderMemories('', scope)
+
 // ── Init ──
 route()
 updateReviewBadge()

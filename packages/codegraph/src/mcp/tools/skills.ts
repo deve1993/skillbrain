@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
 import { MemoryStore } from '../../storage/memory-store.js'
-import { SkillsStore } from '../../storage/skills-store.js'
+import { SkillsStore, ConcurrencyError } from '../../storage/skills-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
 import type { ToolContext } from './index.js'
 
@@ -91,36 +91,44 @@ export function registerSkillTools(server: McpServer, _ctx: ToolContext): void {
       content: z.string().describe('Full updated SKILL.md content (complete replacement)'),
       reason: z.string().optional().describe('Why this update was made'),
       draft: z.boolean().optional().default(false).describe('If true, stores as pending for dashboard approval instead of going live immediately'),
+      expectedUpdatedAt: z.string().optional().describe('Optimistic lock: pass the skill\'s current updatedAt to detect concurrent edits'),
       repo: z.string().optional(),
     },
-    async ({ name, content, reason, draft, repo }) => {
+    async ({ name, content, reason, draft, expectedUpdatedAt, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
-      const result = withSkillsStore(resolved.path, (store) => {
-        const existing = store.get(name)
-        if (!existing) return null
-        store.upsert({
-          ...existing,
-          content,
-          lines: content.split('\n').length,
-          updatedAt: new Date().toISOString(),
-          status: draft ? 'pending' : 'active',
+      try {
+        const result = withSkillsStore(resolved.path, (store) => {
+          const existing = store.get(name)
+          if (!existing) return null
+          store.upsert({
+            ...existing,
+            content,
+            lines: content.split('\n').length,
+            updatedAt: new Date().toISOString(),
+            status: draft ? 'pending' : 'active',
+          }, { reason: reason ?? 'manual', expectedUpdatedAt })
+          return existing.name
         })
-        return existing.name
-      })
 
-      if (!result) {
-        return { content: [{ type: 'text', text: `Skill "${name}" not found. Use skill_list to see available skills.` }] }
-      }
+        if (!result) {
+          return { content: [{ type: 'text', text: `Skill "${name}" not found. Use skill_list to see available skills.` }] }
+        }
 
-      return {
-        content: [{
-          type: 'text',
-          text: draft
-            ? `⏳ Skill "${name}" queued for review — approve at memory.fl1.it/#/review${reason ? `. Reason: ${reason}` : ''}`
-            : `Skill "${name}" updated successfully.${reason ? ` Reason: ${reason}` : ''}`,
-        }],
+        return {
+          content: [{
+            type: 'text',
+            text: draft
+              ? `⏳ Skill "${name}" queued for review — approve at memory.fl1.it/#/review${reason ? `. Reason: ${reason}` : ''}`
+              : `Skill "${name}" updated successfully.${reason ? ` Reason: ${reason}` : ''}`,
+          }],
+        }
+      } catch (err) {
+        if (err instanceof ConcurrencyError) {
+          return { content: [{ type: 'text', text: `⚠️ ${err.message}` }] }
+        }
+        throw err
       }
     },
   )
@@ -149,7 +157,7 @@ export function registerSkillTools(server: McpServer, _ctx: ToolContext): void {
           lines: content.split('\n').length,
           updatedAt: new Date().toISOString(),
           status: draft ? 'pending' : 'active',
-        })
+        }, { reason: 'manual' })
       })
 
       return {

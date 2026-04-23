@@ -118,7 +118,38 @@ export function registerSessionTools(server, _ctx) {
         if (!resolved)
             return { content: [{ type: 'text', text: 'Repository not found.' }] };
         withMemoryStore(resolved.path, (store) => store.endSession(sessionId, summary, memoriesCreated, memoriesValidated, filesChanged, nextSteps, blockers, commits, status, workType, deliverables));
-        return { content: [{ type: 'text', text: `Session ${sessionId} ended (${status}).${deliverables ? `\nDelivered: ${deliverables}` : ''}${nextSteps ? `\nNext steps: ${nextSteps}` : ''}` }] };
+        // Skill proposal analysis: group memories from this session by skill tag
+        const skillProposals = withMemoryStore(resolved.path, (store) => {
+            const mems = store.db.prepare(`SELECT id, tags FROM memories WHERE source_session = ? AND tags LIKE '%skill:%' AND status != 'deprecated'`).all(sessionId);
+            const grouped = {};
+            for (const m of mems) {
+                const tags = JSON.parse(m.tags || '[]');
+                for (const tag of tags) {
+                    if (tag.startsWith('skill:')) {
+                        const skillName = tag.replace('skill:', '');
+                        grouped[skillName] = [...(grouped[skillName] ?? []), m.id];
+                    }
+                }
+            }
+            const created = [];
+            for (const [skillName, memIds] of Object.entries(grouped)) {
+                if (memIds.length >= 2) {
+                    const propId = `SP-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                    try {
+                        ;
+                        store.db.prepare(`INSERT OR IGNORE INTO skill_proposals (id, skill_name, session_id, memory_ids) VALUES (?, ?, ?, ?)`).run(propId, skillName, sessionId, JSON.stringify(memIds));
+                        created.push(skillName);
+                    }
+                    catch { /* table may not exist yet in old DBs */ }
+                }
+            }
+            return created;
+        });
+        let text = `Session ${sessionId} ended (${status}).${deliverables ? `\nDelivered: ${deliverables}` : ''}${nextSteps ? `\nNext steps: ${nextSteps}` : ''}`;
+        if (skillProposals.length > 0) {
+            text += `\n\n💡 Skill update proposals created for: ${skillProposals.join(', ')} — review at memory.fl1.it/#/review`;
+        }
+        return { content: [{ type: 'text', text }] };
     });
     // --- Tool: session_heartbeat ---
     server.tool('session_heartbeat', 'Update session last_heartbeat timestamp (called periodically by proxy to keep session alive)', {

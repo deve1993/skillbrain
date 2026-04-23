@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { openDb, closeDb } from '../../storage/db.js';
 import { MemoryStore } from '../../storage/memory-store.js';
-import { SkillsStore } from '../../storage/skills-store.js';
+import { SkillsStore, ConcurrencyError } from '../../storage/skills-store.js';
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js';
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain';
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '';
@@ -72,30 +72,74 @@ export function registerSkillTools(server, _ctx) {
         name: z.string().describe('Skill name (must exist — use skill_list to verify)'),
         content: z.string().describe('Full updated SKILL.md content (complete replacement)'),
         reason: z.string().optional().describe('Why this update was made'),
+        draft: z.boolean().optional().default(false).describe('If true, stores as pending for dashboard approval instead of going live immediately'),
+        expectedUpdatedAt: z.string().optional().describe('Optimistic lock: pass the skill\'s current updatedAt to detect concurrent edits'),
         repo: z.string().optional(),
-    }, async ({ name, content, reason, repo }) => {
+    }, async ({ name, content, reason, draft, expectedUpdatedAt, repo }) => {
         const resolved = resolveMemoryRepo(repo);
         if (!resolved)
             return { content: [{ type: 'text', text: 'Repository not found.' }] };
-        const result = withSkillsStore(resolved.path, (store) => {
-            const existing = store.get(name);
-            if (!existing)
-                return null;
+        try {
+            const result = withSkillsStore(resolved.path, (store) => {
+                const existing = store.get(name);
+                if (!existing)
+                    return null;
+                store.upsert({
+                    ...existing,
+                    content,
+                    lines: content.split('\n').length,
+                    updatedAt: new Date().toISOString(),
+                    status: draft ? 'pending' : 'active',
+                }, { reason: reason ?? 'manual', expectedUpdatedAt });
+                return existing.name;
+            });
+            if (!result) {
+                return { content: [{ type: 'text', text: `Skill "${name}" not found. Use skill_list to see available skills.` }] };
+            }
+            return {
+                content: [{
+                        type: 'text',
+                        text: draft
+                            ? `⏳ Skill "${name}" queued for review — approve at memory.fl1.it/#/review${reason ? `. Reason: ${reason}` : ''}`
+                            : `Skill "${name}" updated successfully.${reason ? ` Reason: ${reason}` : ''}`,
+                    }],
+            };
+        }
+        catch (err) {
+            if (err instanceof ConcurrencyError) {
+                return { content: [{ type: 'text', text: `⚠️ ${err.message}` }] };
+            }
+            throw err;
+        }
+    });
+    // --- Tool: skill_add ---
+    server.tool('skill_add', 'Add a new skill to the database. Stores as pending draft by default — requires approval in dashboard.', {
+        name: z.string().describe('Skill name (unique, kebab-case, e.g. "nextjs-app-router")'),
+        category: z.string().describe('Category (e.g. "frontend", "backend", "devops")'),
+        description: z.string().describe('One-line description of what this skill covers'),
+        content: z.string().describe('Full SKILL.md content'),
+        type: z.enum(['domain', 'lifecycle', 'process', 'agent', 'command']),
+        tags: z.array(z.string()).describe('Searchable tags'),
+        draft: z.boolean().optional().default(true).describe('If true (default), stores as pending for review. Set false to go live immediately.'),
+        repo: z.string().optional(),
+    }, async ({ name, category, description, content, type, tags, draft, repo }) => {
+        const resolved = resolveMemoryRepo(repo);
+        if (!resolved)
+            return { content: [{ type: 'text', text: 'Repository not found.' }] };
+        withSkillsStore(resolved.path, (store) => {
             store.upsert({
-                ...existing,
-                content,
+                name, category, description, content, type, tags,
                 lines: content.split('\n').length,
                 updatedAt: new Date().toISOString(),
-            });
-            return existing.name;
+                status: draft ? 'pending' : 'active',
+            }, { reason: 'manual' });
         });
-        if (!result) {
-            return { content: [{ type: 'text', text: `Skill "${name}" not found. Use skill_list to see available skills.` }] };
-        }
         return {
             content: [{
                     type: 'text',
-                    text: `Skill "${name}" updated successfully.${reason ? ` Reason: ${reason}` : ''}`,
+                    text: draft
+                        ? `⏳ Skill "${name}" created as draft — approve at memory.fl1.it/#/review`
+                        : `✅ Skill "${name}" created and active.`,
                 }],
         };
     });

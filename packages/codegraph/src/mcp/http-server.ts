@@ -25,6 +25,7 @@ import { MemoryStore } from '../storage/memory-store.js'
 import { SkillsStore } from '../storage/skills-store.js'
 import { ProjectsStore } from '../storage/projects-store.js'
 import { ComponentsStore } from '../storage/components-store.js'
+import { AuditStore } from '../storage/audit-store.js'
 import { assertEncryptionUsable, decrypt } from '../storage/crypto.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -273,6 +274,21 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     })
   }
 
+  // Helper: require admin role for sensitive operations
+  function requireAdmin(req: any, res: any, next: any) {
+    const userId: string | undefined = req.userId
+    if (!userId) { res.status(401).json({ error: 'Authentication required' }); return }
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const user = db.prepare('SELECT role FROM users WHERE id = ?').get(userId) as { role: string } | undefined
+      closeDb(db)
+      if (user?.role === 'admin') { next(); return }
+    } catch { /* users table not yet migrated — fall through */ }
+    // Legacy admin (no per-user auth) or legacy-admin placeholder: allow
+    if (userId === 'legacy-admin') { next(); return }
+    res.status(403).json({ error: 'Only admins can perform this action' })
+  }
+
   // ── MCP Protocol: POST /mcp ──
   app.post('/mcp', async (req, res) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined
@@ -410,9 +426,43 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
+  // ── API: Skill versioning ──
+  app.get('/api/skills/:name/versions', (req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new SkillsStore(db)
+      const versions = store.listVersions(req.params.name)
+      closeDb(db)
+      res.json({ versions })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.post('/api/skills/:name/rollback/:versionId', requireAdmin, (req, res) => {
+    const userId = (req as any).userId ?? 'unknown'
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new SkillsStore(db)
+      const skill = store.rollback(req.params.name, req.params.versionId, userId)
+      new AuditStore(db).log({
+        entityType: 'skill',
+        entityId: req.params.name,
+        action: 'rollback',
+        reviewedBy: userId,
+        metadata: { versionId: req.params.versionId },
+      })
+      closeDb(db)
+      res.json({ skill })
+    } catch (err: any) {
+      res.status(400).json({ error: err.message })
+    }
+  })
+
   // ── API: Memories ──
   app.get('/api/memories', (_req, res) => {
-    const { type, minConfidence, skill, project, status, search, limit } = _req.query as any
+    const { type, minConfidence, skill, project, status, search, limit, scope } = _req.query as any
+    const userId = (_req as any).userId as string | undefined
     try {
       const db = openDb(SKILLBRAIN_ROOT)
       const store = new MemoryStore(db)
@@ -427,6 +477,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
           type: typeArr,
           minConfidence: minConfidence ? parseInt(minConfidence, 10) : undefined,
           skill, project, status,
+          scope: scope || undefined,
+          userId,
           limit: parseInt(limit || '50', 10),
         }).map((m) => ({ ...m, edges: store.getEdges(m.id) }))
       }
@@ -986,6 +1038,18 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
+  // ── API: Audit Log ──
+  app.get('/api/audit/:entityType/:entityId', (req, res) => {
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const entries = new AuditStore(db).listForEntity(req.params.entityType, req.params.entityId)
+      closeDb(db)
+      res.json({ entries })
+    } catch {
+      res.json({ entries: [] })
+    }
+  })
+
   // ── API: Review Queue ──────────────────────────────────────────────────────
 
   app.get('/api/review/pending', (_req, res) => {
@@ -1020,32 +1084,41 @@ export async function startHttpServer(port: number, authToken?: string): Promise
 
   app.post('/api/review/memory/:id/approve', (req, res) => {
     const db = openDb(SKILLBRAIN_ROOT)
+    const now = new Date().toISOString()
     db.prepare(`UPDATE memories SET status = 'active', updated_at = ? WHERE id = ?`)
-      .run(new Date().toISOString(), req.params.id)
+      .run(now, req.params.id)
+    new AuditStore(db).log({ entityType: 'memory', entityId: req.params.id, action: 'approve', reviewedBy: (req as any).userId ?? 'unknown' })
     closeDb(db)
     res.json({ ok: true })
   })
 
   app.post('/api/review/memory/:id/reject', (req, res) => {
     const db = openDb(SKILLBRAIN_ROOT)
+    const now = new Date().toISOString()
     db.prepare(`UPDATE memories SET status = 'deprecated', updated_at = ? WHERE id = ?`)
-      .run(new Date().toISOString(), req.params.id)
+      .run(now, req.params.id)
+    new AuditStore(db).log({ entityType: 'memory', entityId: req.params.id, action: 'reject', reviewedBy: (req as any).userId ?? 'unknown' })
     closeDb(db)
     res.json({ ok: true })
   })
 
   app.post('/api/review/skill/:name/approve', (req, res) => {
     const db = openDb(SKILLBRAIN_ROOT)
+    const name = decodeURIComponent(req.params.name)
     db.prepare(`UPDATE skills SET status = 'active', updated_at = ? WHERE name = ?`)
-      .run(new Date().toISOString(), decodeURIComponent(req.params.name))
+      .run(new Date().toISOString(), name)
+    new AuditStore(db).log({ entityType: 'skill', entityId: name, action: 'approve', reviewedBy: (req as any).userId ?? 'unknown' })
     closeDb(db)
     res.json({ ok: true })
   })
 
   app.post('/api/review/skill/:name/reject', (req, res) => {
     const db = openDb(SKILLBRAIN_ROOT)
-    db.prepare(`DELETE FROM skills WHERE name = ? AND status = 'pending'`)
-      .run(decodeURIComponent(req.params.name))
+    const name = decodeURIComponent(req.params.name)
+    const now = new Date().toISOString()
+    db.prepare(`UPDATE skills SET status = 'deprecated', updated_at = ?, updated_by_user_id = ? WHERE name = ? AND status = 'pending'`)
+      .run(now, (req as any).userId ?? null, name)
+    new AuditStore(db).log({ entityType: 'skill', entityId: name, action: 'reject', reviewedBy: (req as any).userId ?? 'unknown' })
     closeDb(db)
     res.json({ ok: true })
   })
@@ -1054,13 +1127,17 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     const db = openDb(SKILLBRAIN_ROOT)
     db.prepare(`UPDATE ui_components SET status = 'active', updated_at = ? WHERE id = ?`)
       .run(new Date().toISOString(), req.params.id)
+    new AuditStore(db).log({ entityType: 'component', entityId: req.params.id, action: 'approve', reviewedBy: (req as any).userId ?? 'unknown' })
     closeDb(db)
     res.json({ ok: true })
   })
 
   app.post('/api/review/component/:id/reject', (req, res) => {
     const db = openDb(SKILLBRAIN_ROOT)
-    db.prepare(`DELETE FROM ui_components WHERE id = ? AND status = 'pending'`).run(req.params.id)
+    const now = new Date().toISOString()
+    db.prepare(`UPDATE ui_components SET status = 'deprecated', updated_at = ?, updated_by_user_id = ? WHERE id = ? AND status = 'pending'`)
+      .run(now, (req as any).userId ?? null, req.params.id)
+    new AuditStore(db).log({ entityType: 'component', entityId: req.params.id, action: 'reject', reviewedBy: (req as any).userId ?? 'unknown' })
     closeDb(db)
     res.json({ ok: true })
   })
@@ -1070,12 +1147,13 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     try {
       db.prepare(`UPDATE skill_proposals SET status = 'dismissed', reviewed_at = ? WHERE id = ?`)
         .run(new Date().toISOString(), req.params.id)
+      new AuditStore(db).log({ entityType: 'proposal', entityId: req.params.id, action: 'dismiss', reviewedBy: (req as any).userId ?? 'unknown' })
     } catch { /* ignore if table not migrated */ }
     closeDb(db)
     res.json({ ok: true })
   })
 
-  app.post('/api/review/proposal/:id/generate', async (req, res) => {
+  app.post('/api/review/proposal/:id/generate', requireAdmin, async (req, res) => {
     if (!ANTHROPIC_API_KEY) {
       res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' }); return
     }
@@ -1132,6 +1210,7 @@ Generate an improved SKILL.md for skill "${proposal.skill_name}" that incorporat
       try {
         db2.prepare(`UPDATE skill_proposals SET proposed_content = ? WHERE id = ?`)
           .run(generatedContent, req.params.id)
+        new AuditStore(db2).log({ entityType: 'proposal', entityId: req.params.id, action: 'generate', reviewedBy: (req as any).userId ?? 'unknown' })
       } finally {
         closeDb(db2)
       }
@@ -1141,7 +1220,7 @@ Generate an improved SKILL.md for skill "${proposal.skill_name}" that incorporat
     }
   })
 
-  app.post('/api/review/proposal/:id/apply', (req, res) => {
+  app.post('/api/review/proposal/:id/apply', requireAdmin, (req, res) => {
     const db = openDb(SKILLBRAIN_ROOT)
     try {
       const proposal = db.prepare('SELECT * FROM skill_proposals WHERE id = ?').get(req.params.id) as any
@@ -1151,15 +1230,24 @@ Generate an improved SKILL.md for skill "${proposal.skill_name}" that incorporat
       const existing = db.prepare('SELECT * FROM skills WHERE name = ?').get(proposal.skill_name) as any
       const now = new Date().toISOString()
       const content = proposal.proposed_content
+      const userId = (req as any).userId ?? null
       if (existing) {
-        db.prepare(`UPDATE skills SET content = ?, lines = ?, updated_at = ?, status = 'active' WHERE name = ?`)
-          .run(content, content.split('\n').length, now, proposal.skill_name)
+        const store = new SkillsStore(db)
+        store.upsert({
+          ...existing,
+          content,
+          lines: content.split('\n').length,
+          updatedAt: now,
+          status: 'active',
+          updatedByUserId: userId,
+        }, { changedBy: userId, reason: 'haiku-evolution' })
       } else {
-        db.prepare(`INSERT INTO skills (name, category, description, content, type, tags, lines, updated_at, status) VALUES (?, ?, ?, ?, 'domain', '[]', ?, ?, 'active')`)
-          .run(proposal.skill_name, proposal.skill_name, `Auto-generated from memories`, content, content.split('\n').length, now)
+        db.prepare(`INSERT INTO skills (name, category, description, content, type, tags, lines, updated_at, status, created_by_user_id) VALUES (?, ?, ?, ?, 'domain', '[]', ?, ?, 'active', ?)`)
+          .run(proposal.skill_name, proposal.skill_name, `Auto-generated from memories`, content, content.split('\n').length, now, userId)
       }
       db.prepare(`UPDATE skill_proposals SET status = 'dismissed', reviewed_at = ? WHERE id = ?`)
         .run(now, req.params.id)
+      new AuditStore(db).log({ entityType: 'proposal', entityId: req.params.id, action: 'apply', reviewedBy: userId ?? 'unknown', metadata: { skillName: proposal.skill_name } })
       res.json({ ok: true, skillName: proposal.skill_name })
     } finally {
       closeDb(db)

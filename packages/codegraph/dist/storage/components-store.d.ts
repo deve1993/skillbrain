@@ -14,6 +14,9 @@ export interface UiComponent {
     designTokens: Record<string, unknown>;
     createdAt: string;
     updatedAt: string;
+    status: 'active' | 'pending' | 'deprecated';
+    createdByUserId?: string;
+    updatedByUserId?: string;
 }
 export interface UiComponentInput {
     project: string;
@@ -25,6 +28,9 @@ export interface UiComponentInput {
     propsSchema?: Record<string, unknown>;
     codeSnippet?: string;
     designTokens?: Record<string, unknown>;
+    status?: 'active' | 'pending' | 'deprecated';
+    createdByUserId?: string;
+    updatedByUserId?: string;
 }
 export interface DesignSystem {
     id: string;

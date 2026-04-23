@@ -62,7 +62,7 @@ export type MemoryEdgeType =
   | 'PartOf'
 
 export type MemoryStatus = 'active' | 'pending-review' | 'deprecated'
-export type MemoryScope = 'global' | 'project-specific'
+export type MemoryScope = 'global' | 'project-specific' | 'personal' | 'team' | 'project'
 
 export interface Memory {
   id: string
@@ -87,6 +87,8 @@ export interface Memory {
   sourceFile?: string
   sourceSession?: string
   migratedFrom?: string
+  createdByUserId?: string
+  updatedByUserId?: string
 }
 
 export interface MemoryEdge {
@@ -114,6 +116,7 @@ export interface MemoryInput {
   sourceFile?: string
   sourceSession?: string
   migratedFrom?: string
+  createdByUserId?: string
 }
 
 export interface MemoryQuery {
@@ -125,6 +128,7 @@ export interface MemoryQuery {
   minConfidence?: number
   tags?: string[]
   limit?: number
+  userId?: string
 }
 
 export interface MemorySearchResult {
@@ -151,16 +155,6 @@ export class MemoryStore {
 
   private prepareStatements() {
     return {
-      insertMemory: this.db.prepare(`
-        INSERT OR REPLACE INTO memories
-          (id, type, status, scope, project, skill,
-           context, problem, solution, reason,
-           confidence, importance, tags,
-           created_at, updated_at, last_validated,
-           sessions_since_validation, validated_by,
-           valid_until_version, source_file, source_session, migrated_from)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `),
       insertEdge: this.db.prepare(`
         INSERT OR IGNORE INTO memory_edges (id, source_id, target_id, type, reason, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -251,7 +245,7 @@ export class MemoryStore {
       id,
       type: input.type,
       status: input.status ?? 'active',
-      scope: input.scope ?? 'global',
+      scope: input.scope ?? 'team',
       project: input.project,
       skill: input.skill,
       context: input.context,
@@ -268,9 +262,20 @@ export class MemoryStore {
       sourceFile: input.sourceFile,
       sourceSession: input.sourceSession,
       migratedFrom: input.migratedFrom,
+      createdByUserId: input.createdByUserId,
     }
 
-    this.stmts.insertMemory.run(
+    this.db.prepare(`
+      INSERT OR REPLACE INTO memories
+        (id, type, status, scope, project, skill,
+         context, problem, solution, reason,
+         confidence, importance, tags,
+         created_at, updated_at, last_validated,
+         sessions_since_validation, validated_by,
+         valid_until_version, source_file, source_session, migrated_from,
+         created_by_user_id, updated_by_user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
       memory.id, memory.type, memory.status, memory.scope,
       memory.project ?? null, memory.skill ?? null,
       memory.context, memory.problem, memory.solution, memory.reason,
@@ -279,6 +284,7 @@ export class MemoryStore {
       memory.sessionsSinceValidation, JSON.stringify(memory.validatedBy),
       memory.validUntilVersion ?? null, memory.sourceFile ?? null,
       memory.sourceSession ?? null, memory.migratedFrom ?? null,
+      memory.createdByUserId ?? null, null,
     )
 
     // Populate FTS
@@ -327,12 +333,34 @@ export class MemoryStore {
     }
 
     if (q.scope) {
-      sql += ' AND scope = ?'
-      params.push(q.scope)
+      // Normalize scope aliases for filtering
+      const normalizedScope = q.scope === 'global' ? 'team'
+        : q.scope === 'project-specific' ? 'project'
+        : q.scope
+
+      if (normalizedScope === 'personal') {
+        // Personal memories: only visible to their creator
+        sql += ' AND scope = \'personal\''
+        if (q.userId) {
+          sql += ' AND created_by_user_id = ?'
+          params.push(q.userId)
+        }
+      } else if (normalizedScope === 'team') {
+        sql += ' AND scope IN (\'team\', \'global\')'
+      } else if (normalizedScope === 'project') {
+        sql += ' AND scope IN (\'project\', \'project-specific\')'
+      } else {
+        sql += ' AND scope = ?'
+        params.push(q.scope)
+      }
+    } else if (q.userId) {
+      // No scope filter but userId given: exclude other users' personal memories
+      sql += ' AND (scope != \'personal\' OR created_by_user_id = ?)'
+      params.push(q.userId)
     }
 
     if (q.project) {
-      sql += ' AND (project = ? OR scope = \'global\')'
+      sql += ' AND (project = ? OR scope IN (\'global\', \'team\'))'
       params.push(q.project)
     }
 
@@ -408,12 +436,14 @@ export class MemoryStore {
 
     const scored = active
       .filter((m) => {
-        if (m.scope === 'project-specific' && project && m.project !== project) return false
+        // Exclude project-scoped memories from other projects
+        if ((m.scope === 'project-specific' || m.scope === 'project') && project && m.project !== project) return false
+        // Personal memories: only show if userId matches (or no userId filter)
         return true
       })
       .map((m) => {
         let score = m.confidence * 2
-        if (m.scope === 'global' || m.project === project) score += 3
+        if (m.scope === 'global' || m.scope === 'team' || m.project === project) score += 3
         if (m.sessionsSinceValidation <= 5) score += 2
         if (activeSkills?.includes(m.skill ?? '')) score += 2
         score += m.importance * 0.5
@@ -540,6 +570,8 @@ export class MemoryStore {
       sourceFile: row.source_file ?? undefined,
       sourceSession: row.source_session ?? undefined,
       migratedFrom: row.migrated_from ?? undefined,
+      createdByUserId: row.created_by_user_id ?? undefined,
+      updatedByUserId: row.updated_by_user_id ?? undefined,
     }
   }
 

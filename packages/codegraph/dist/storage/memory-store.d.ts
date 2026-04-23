@@ -34,7 +34,7 @@ export interface Notification {
 export type MemoryType = 'Fact' | 'Preference' | 'Decision' | 'Pattern' | 'AntiPattern' | 'BugFix' | 'Goal' | 'Todo';
 export type MemoryEdgeType = 'RelatedTo' | 'Updates' | 'Contradicts' | 'CausedBy' | 'PartOf';
 export type MemoryStatus = 'active' | 'pending-review' | 'deprecated';
-export type MemoryScope = 'global' | 'project-specific';
+export type MemoryScope = 'global' | 'project-specific' | 'personal' | 'team' | 'project';
 export interface Memory {
     id: string;
     type: MemoryType;
@@ -58,6 +58,8 @@ export interface Memory {
     sourceFile?: string;
     sourceSession?: string;
     migratedFrom?: string;
+    createdByUserId?: string;
+    updatedByUserId?: string;
 }
 export interface MemoryEdge {
     id: string;
@@ -69,6 +71,7 @@ export interface MemoryEdge {
 }
 export interface MemoryInput {
     type: MemoryType;
+    status?: MemoryStatus;
     scope?: MemoryScope;
     project?: string;
     skill?: string;
@@ -82,6 +85,7 @@ export interface MemoryInput {
     sourceFile?: string;
     sourceSession?: string;
     migratedFrom?: string;
+    createdByUserId?: string;
 }
 export interface MemoryQuery {
     type?: MemoryType | MemoryType[];
@@ -92,6 +96,7 @@ export interface MemoryQuery {
     minConfidence?: number;
     tags?: string[];
     limit?: number;
+    userId?: string;
 }
 export interface MemorySearchResult {
     memory: Memory;

@@ -129,13 +129,17 @@ export async function renderSkills(typeFilter) {
 
     <div class="item-list">
       ${window.skillsCache.map(s => `
-        <div class="item" onclick="openSkillDetail('${s.name}')">
-          <div class="item-header">
+        <div class="item">
+          <div class="item-header" onclick="openSkillDetail('${s.name}')" style="cursor:pointer">
             <span class="item-name">${badge(s.type)} ${s.name}</span>
             <span class="item-meta">${s.lines} lines &middot; ${s.category}</span>
           </div>
-          <div class="item-desc">${escHtml(s.description)}</div>
+          <div class="item-desc" onclick="openSkillDetail('${s.name}')" style="cursor:pointer">${escHtml(s.description)}</div>
           ${tagsHtml(s.tags)}
+          <div style="margin-top:6px;display:flex;gap:8px;align-items:center">
+            ${s.updatedAt ? `<span style="font-size:10px;color:var(--text-dim)">Updated ${s.updatedAt.slice(0,10)}</span>` : ''}
+            <button class="btn-sm" onclick="event.stopPropagation();viewSkillHistory('${escHtml(s.name)}')" style="font-size:10px;padding:2px 8px">History</button>
+          </div>
         </div>
       `).join('')}
     </div>
@@ -177,19 +181,25 @@ export async function openSkillDetail(name, openDetailFn) {
 
 // ── Memories ──
 
-export async function renderMemories(typeFilter) {
-  const url = typeFilter ? `/api/memories?type=${typeFilter}` : `/api/memories`
+export async function renderMemories(typeFilter, scopeFilter) {
+  let url = `/api/memories?limit=100`
+  if (typeFilter) url += `&type=${typeFilter}`
+  if (scopeFilter) url += `&scope=${scopeFilter}`
   const data = await api.get(url)
   window.memoriesCache = data.memories || []
 
   const types = ['Pattern', 'BugFix', 'AntiPattern', 'Fact', 'Decision', 'Preference', 'Goal', 'Todo']
+  const scopes = [{ val: '', label: 'All' }, { val: 'personal', label: 'My memories' }, { val: 'team', label: 'Team' }, { val: 'project', label: 'Project' }]
 
   document.getElementById('page').innerHTML = `
     <div class="section-title">Memory Explorer <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${data.total} total</span></div>
 
     <div class="filters">
-      <button class="filter-btn ${!typeFilter ? 'active' : ''}" onclick="renderMemories()">All</button>
-      ${types.map(t => `<button class="filter-btn ${typeFilter === t ? 'active' : ''}" onclick="renderMemories('${t}')">${t}</button>`).join('')}
+      <button class="filter-btn ${!typeFilter ? 'active' : ''}" onclick="renderMemories(null, '${scopeFilter||''}')">All types</button>
+      ${types.map(t => `<button class="filter-btn ${typeFilter === t ? 'active' : ''}" onclick="renderMemories('${t}', '${scopeFilter||''}')">${t}</button>`).join('')}
+    </div>
+    <div class="filters" style="margin-top:4px">
+      ${scopes.map(s => `<button class="filter-btn ${(scopeFilter||'') === s.val ? 'active' : ''}" onclick="renderMemories('${typeFilter||''}', '${s.val}')">${s.label}</button>`).join('')}
     </div>
 
     <div class="item-list">
@@ -200,7 +210,7 @@ export async function renderMemories(typeFilter) {
             <span class="item-meta">${confBar(m.confidence)}</span>
           </div>
           <div class="item-desc">${escHtml(m.context)}</div>
-          <div style="margin-top:4px;font-size:11px;color:var(--text-muted)">${m.skill || ''}</div>
+          <div style="margin-top:4px;font-size:11px;color:var(--text-muted)">${m.skill || ''} ${m.scope && m.scope !== 'team' && m.scope !== 'global' ? `&middot; <span style="color:var(--blue)">${m.scope}</span>` : ''}</div>
           ${tagsHtml(m.tags)}
         </div>
       `).join('')}
@@ -1015,6 +1025,7 @@ export async function renderReview() {
 
   renderReviewSection('review-memories', 'Memories', data.memories || [], (item) => ({
     id: item.id,
+    entityType: 'memory',
     title: `<span style="opacity:.6;font-size:11px">${item.type}</span> ${escHtml(item.context?.slice(0, 100) || '')}`,
     body: escHtml(item.solution?.slice(0, 200) || ''),
     meta: item.skill ? `skill: ${item.skill}` : '',
@@ -1025,22 +1036,24 @@ export async function renderReview() {
 
   renderReviewSection('review-skills', 'Skills', data.skills || [], (item) => ({
     id: item.name,
+    entityType: 'skill',
     title: `<span style="opacity:.6;font-size:11px">${item.type}</span> ${escHtml(item.name)}`,
     body: escHtml(item.description || ''),
     meta: item.category || '',
     approveUrl: `/api/review/skill/${encodeURIComponent(item.name)}/approve`,
     rejectUrl:  `/api/review/skill/${encodeURIComponent(item.name)}/reject`,
-    rejectLabel: 'Delete draft',
+    rejectLabel: 'Deprecate draft',
   }))
 
   renderReviewSection('review-components', 'Components', data.components || [], (item) => ({
     id: item.id,
+    entityType: 'component',
     title: `<span style="opacity:.6;font-size:11px">${item.section_type}</span> ${escHtml(item.name)}`,
     body: escHtml(item.description || ''),
     meta: item.project || '',
     approveUrl: `/api/review/component/${item.id}/approve`,
     rejectUrl:  `/api/review/component/${item.id}/reject`,
-    rejectLabel: 'Delete draft',
+    rejectLabel: 'Deprecate draft',
   }))
 
   renderProposalSection('review-proposals', data.proposals || [])
@@ -1053,18 +1066,35 @@ function renderReviewSection(containerId, label, items, mapper) {
   el.innerHTML = `
     <div class="card-title" style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">${label} <span class="count">(${items.length})</span></div>
     ${items.map(item => {
-      const { title, body, meta, approveUrl, rejectUrl, rejectLabel } = mapper(item)
+      const { id, title, body, meta, approveUrl, rejectUrl, rejectLabel, entityType } = mapper(item)
+      const auditElId = `audit-${containerId}-${id}`.replace(/[^a-zA-Z0-9-]/g, '-')
       return `
         <div class="card" style="margin-bottom:8px">
           <div style="font-weight:600;margin-bottom:4px">${title}</div>
           ${meta ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">${escHtml(meta)}</div>` : ''}
           <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5">${body}</div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button onclick="reviewAction('${approveUrl}', this)" style="padding:4px 14px;border-radius:6px;background:rgba(74,222,128,.12);border:1px solid var(--green);color:var(--green);font-size:12px;cursor:pointer;font-weight:600">✓ Approve</button>
             <button onclick="reviewAction('${rejectUrl}', this)" style="padding:4px 14px;border-radius:6px;background:rgba(248,113,113,.1);border:1px solid var(--red);color:var(--red);font-size:12px;cursor:pointer">${rejectLabel}</button>
+            <button onclick="loadAuditLog('${entityType || label.toLowerCase().slice(0,-1)}','${id}','${auditElId}')" style="padding:4px 10px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:11px;cursor:pointer">Log</button>
           </div>
+          <div id="${auditElId}" style="margin-top:8px;font-size:11px;color:var(--text-dim)"></div>
         </div>`
     }).join('')}`
+}
+
+async function loadAuditLog(entityType, entityId, elId) {
+  const el = document.getElementById(elId)
+  if (!el) return
+  if (el.dataset.loaded) { el.style.display = el.style.display === 'none' ? 'block' : 'none'; return }
+  try {
+    const data = await api.get(`/api/audit/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`)
+    const entries = data.entries || []
+    el.innerHTML = entries.length
+      ? entries.map(e => `<div style="padding:2px 0;border-top:1px solid var(--border-subtle,#1a1a2a)">${escHtml(e.action)} by <b>${escHtml(e.reviewedBy)}</b> on ${e.createdAt?.slice(0,16).replace('T',' ')}</div>`).join('')
+      : '<div style="color:var(--text-dim)">No audit entries yet.</div>'
+    el.dataset.loaded = '1'
+  } catch { el.textContent = 'Could not load audit log.' }
 }
 
 function renderProposalSection(containerId, proposals) {
