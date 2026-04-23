@@ -52,6 +52,7 @@
     </a>
     <div class="nav-footer">
       <span id="server-status">connecting...</span>
+      <button id="btn-change-password" class="btn-ghost" style="font-size:11px;padding:4px 10px;margin-top:8px;width:100%">Change Password</button>
     </div>
   </nav>
 
@@ -88,6 +89,27 @@
     <div class="modal-actions">
       <button id="btn-cancel-member" class="btn-ghost">Cancel</button>
       <button id="btn-create-member" class="btn-primary">Generate Key</button>
+    </div>
+  </dialog>
+
+  <dialog id="modal-change-password">
+    <h2>Change Password</h2>
+    <div class="form-field">
+      <label>Current password</label>
+      <input id="cp-current" type="password" autocomplete="current-password">
+    </div>
+    <div class="form-field">
+      <label>New password <span style="opacity:.5">(min 8 characters)</span></label>
+      <input id="cp-new" type="password" autocomplete="new-password">
+    </div>
+    <div class="form-field">
+      <label>Confirm new password</label>
+      <input id="cp-confirm" type="password" autocomplete="new-password">
+    </div>
+    <div id="cp-error" style="color:#f87171;font-size:12px;display:none"></div>
+    <div class="modal-actions">
+      <button id="btn-cancel-cp" class="btn-ghost">Cancel</button>
+      <button id="btn-save-cp" class="btn-primary">Save</button>
     </div>
   </dialog>
 

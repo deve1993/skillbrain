@@ -372,5 +372,43 @@ window.revokeKey = revokeKey
 window.editUser = editUser
 window.deleteUser = deleteUser
 
+// ── Change Password ──
+document.getElementById('btn-change-password')?.addEventListener('click', () => {
+  document.getElementById('cp-current').value = ''
+  document.getElementById('cp-new').value = ''
+  document.getElementById('cp-confirm').value = ''
+  document.getElementById('cp-error').style.display = 'none'
+  document.getElementById('modal-change-password').showModal()
+})
+
+document.getElementById('btn-cancel-cp')?.addEventListener('click', () => {
+  document.getElementById('modal-change-password').close()
+})
+
+document.getElementById('btn-save-cp')?.addEventListener('click', async () => {
+  const current = document.getElementById('cp-current').value
+  const newPw = document.getElementById('cp-new').value
+  const confirm = document.getElementById('cp-confirm').value
+  const errEl = document.getElementById('cp-error')
+
+  if (!current || !newPw) { errEl.textContent = 'All fields are required'; errEl.style.display = 'block'; return }
+  if (newPw.length < 8) { errEl.textContent = 'New password must be at least 8 characters'; errEl.style.display = 'block'; return }
+  if (newPw !== confirm) { errEl.textContent = 'Passwords do not match'; errEl.style.display = 'block'; return }
+
+  const res = await fetch('/api/auth/password', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current, newPassword: newPw }),
+  })
+  if (res.ok) {
+    document.getElementById('modal-change-password').close()
+    alert('Password changed successfully')
+  } else {
+    const { error } = await res.json()
+    errEl.textContent = error || 'Failed to change password'
+    errEl.style.display = 'block'
+  }
+})
+
 // ── Init ──
 route()

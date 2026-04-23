@@ -14,7 +14,9 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
+import nodemailer from 'nodemailer'
 import { createMcpServer } from './server.js'
 import { loadRegistry } from '../storage/registry.js'
 import { openDb, closeDb } from '../storage/db.js'
@@ -29,6 +31,61 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session'
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || ''
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
+const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || ''
+const SMTP_HOST      = process.env.SMTP_HOST || ''
+const SMTP_PORT      = parseInt(process.env.SMTP_PORT || '587', 10)
+const SMTP_USER      = process.env.SMTP_USER || ''
+const SMTP_PASS      = process.env.SMTP_PASS || ''
+const SMTP_FROM      = process.env.SMTP_FROM || 'SkillBrain <noreply@memory.fl1.it>'
+const SMTP_SECURE    = process.env.SMTP_SECURE === 'true'
+
+// ── Password helpers ──
+const scryptAsync = promisify(crypto.scrypt)
+
+async function hashPassword(plain: string): Promise<{ hash: string; salt: string }> {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hash = (await scryptAsync(plain, salt, 64) as Buffer).toString('hex')
+  return { hash, salt }
+}
+
+async function verifyPassword(plain: string, hash: string, salt: string): Promise<boolean> {
+  try {
+    const derived = (await scryptAsync(plain, salt, 64) as Buffer)
+    const stored = Buffer.from(hash, 'hex')
+    return derived.length === stored.length && crypto.timingSafeEqual(derived, stored)
+  } catch { return false }
+}
+
+function generatePassword(len = 12): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  return Array.from(crypto.randomBytes(len)).map(b => chars[b % chars.length]).join('')
+}
+
+async function sendInviteEmail(to: string, name: string, password: string, apiKey: string): Promise<void> {
+  if (!SMTP_HOST || !to) return
+  const t = nodemailer.createTransport({ host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_SECURE, auth: { user: SMTP_USER, pass: SMTP_PASS } })
+  await t.sendMail({
+    from: SMTP_FROM,
+    to,
+    subject: 'Accesso a SkillBrain',
+    text: [
+      `Ciao ${name},`,
+      '',
+      'Sei stato aggiunto al team SkillBrain.',
+      '',
+      'Dashboard: https://memory.fl1.it/',
+      `Email:     ${to}`,
+      `Password:  ${password}`,
+      '',
+      'API key per Claude Code:',
+      '  SKILLBRAIN_MCP_URL=https://memory.fl1.it/mcp',
+      `  CODEGRAPH_AUTH_TOKEN=${apiKey}`,
+      '',
+      'Cambia la password dopo il primo accesso dal menu in alto a destra.',
+      'Conserva questa email in un posto sicuro.',
+    ].join('\n'),
+  })
+}
 
 function loadRegistrySafe() {
   try {
@@ -100,32 +157,94 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     res.status(401).json({ error: 'Unauthorized' })
   })
 
-  // ── Dashboard auth (password-based) ──
-  function createSessionToken(): string {
-    const payload = `skillbrain:${Date.now()}`
-    return crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex')
+  // ── Dashboard auth (per-user email+password) ──
+  function createSessionToken(userId: string): string {
+    const payload = `${userId}:${Date.now()}`
+    const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex')
+    return Buffer.from(`${payload}:${sig}`).toString('base64url')
   }
 
-  function isValidSession(token: string | undefined): boolean {
-    if (!DASHBOARD_PASSWORD) return true // no password = no auth
-    if (!token) return false
-    // Token is valid if it's a proper HMAC hex string (64 chars)
-    return /^[a-f0-9]{64}$/.test(token)
+  function parseSessionToken(token: string): string | null {
+    try {
+      const decoded = Buffer.from(token, 'base64url').toString()
+      const lastColon = decoded.lastIndexOf(':')
+      if (lastColon < 0) return null
+      const sig = decoded.slice(lastColon + 1)
+      const payload = decoded.slice(0, lastColon)
+      const expected = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex')
+      if (sig.length !== expected.length) return null
+      if (!crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'))) return null
+      return payload.split(':')[0] // userId
+    } catch { return null }
+  }
+
+  function getUserIdFromSession(token: string | undefined): string | null {
+    if (!token) return null
+    // Backward compat: old 64-char hex tokens valid only when ADMIN_EMAIL not configured
+    if (/^[a-f0-9]{64}$/.test(token) && !ADMIN_EMAIL) return 'legacy-admin'
+    return parseSessionToken(token)
+  }
+
+  // Admin bootstrap: create admin user on first run if ADMIN_EMAIL + DASHBOARD_PASSWORD are set
+  if (ADMIN_EMAIL && DASHBOARD_PASSWORD) {
+    const db = openDb(SKILLBRAIN_ROOT)
+    const exists = db.prepare('SELECT id FROM users WHERE email = ?').get(ADMIN_EMAIL)
+    if (!exists) {
+      const { hash, salt } = await hashPassword(DASHBOARD_PASSWORD)
+      const adminId = randomUUID().replace(/-/g, '').slice(0, 12)
+      db.prepare(`INSERT INTO users (id, name, email, role, password_hash, password_salt) VALUES (?, 'Admin', ?, 'admin', ?, ?)`)
+        .run(adminId, ADMIN_EMAIL, hash, salt)
+      console.log(`[auth] Admin user created for ${ADMIN_EMAIL}`)
+    }
+    closeDb(db)
   }
 
   // Login endpoint
-  app.post('/auth/login', (req, res) => {
-    const { password } = req.body || {}
+  app.post('/auth/login', express.json(), async (req, res) => {
+    const { email, password } = req.body || {}
+    // New per-user auth (when ADMIN_EMAIL is configured)
+    if (ADMIN_EMAIL) {
+      if (!email || !password) { res.status(400).json({ ok: false, error: 'email and password required' }); return }
+      const db = openDb(SKILLBRAIN_ROOT)
+      const user = db.prepare('SELECT id, password_hash, password_salt FROM users WHERE email = ?').get(email) as any
+      closeDb(db)
+      if (!user?.password_hash || !await verifyPassword(password, user.password_hash, user.password_salt)) {
+        res.status(401).json({ ok: false, error: 'Wrong email or password' }); return
+      }
+      const token = createSessionToken(user.id)
+      res.json({ ok: true, token }); return
+    }
+    // Legacy: single shared password
     if (!DASHBOARD_PASSWORD || password === DASHBOARD_PASSWORD) {
-      const token = createSessionToken()
+      const token = createSessionToken('legacy-admin')
       res.json({ ok: true, token })
     } else {
       res.status(401).json({ ok: false, error: 'Wrong password' })
     }
   })
 
+  // Change password endpoint (authenticated)
+  app.put('/api/auth/password', express.json(), async (req, res) => {
+    const userId = (req as any).userId
+    if (!userId || userId === 'legacy-admin') { res.status(401).json({ error: 'Unauthorized' }); return }
+    const { current, newPassword } = req.body || {}
+    if (!current || !newPassword || newPassword.length < 8) {
+      res.status(400).json({ error: 'current and newPassword (min 8 chars) required' }); return
+    }
+    const db = openDb(SKILLBRAIN_ROOT)
+    const user = db.prepare('SELECT password_hash, password_salt FROM users WHERE id = ?').get(userId) as any
+    if (!user || !await verifyPassword(current, user.password_hash, user.password_salt)) {
+      closeDb(db); res.status(401).json({ error: 'Current password wrong' }); return
+    }
+    const { hash, salt } = await hashPassword(newPassword)
+    db.prepare('UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?').run(hash, salt, userId)
+    closeDb(db)
+    res.json({ ok: true })
+  })
+
   // Auth check for dashboard routes (not /mcp, not /auth)
-  if (DASHBOARD_PASSWORD) {
+  const authEnabled = !!(DASHBOARD_PASSWORD || ADMIN_EMAIL)
+  if (authEnabled) {
     app.use((req, res, next) => {
       // Skip auth for MCP protocol and login
       if (req.path.startsWith('/mcp') || req.path.startsWith('/auth/')) {
@@ -139,7 +258,9 @@ export async function startHttpServer(port: number, authToken?: string): Promise
         .find(([k]) => k === 'sb_session')?.[1]
       const headerToken = req.headers['x-dashboard-token'] as string | undefined
 
-      if (isValidSession(cookieToken) || isValidSession(headerToken)) {
+      const userId = getUserIdFromSession(cookieToken) ?? getUserIdFromSession(headerToken)
+      if (userId) {
+        ;(req as any).userId = userId
         next()
       } else if (req.path.startsWith('/api/')) {
         res.status(401).json({ error: 'Authentication required' })
@@ -799,7 +920,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
-  app.post('/api/admin/team/users', express.json(), (req, res) => {
+  app.post('/api/admin/team/users', express.json(), async (req, res) => {
     const { name, email, label } = req.body as { name?: string; email?: string; label?: string }
     if (!name) { res.status(400).json({ error: 'name required' }); return }
     try {
@@ -808,11 +929,14 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       const keyId = randomUUID().replace(/-/g, '').slice(0, 12)
       const plainKey = generateApiKey()
       const keyHash = crypto.createHash('sha256').update(plainKey).digest('hex')
-      db.prepare(`INSERT INTO users (id, name, email, role) VALUES (?, ?, ?, 'member')`)
-        .run(userId, name, email ?? null)
+      const plainPw = generatePassword()
+      const { hash: pwHash, salt: pwSalt } = await hashPassword(plainPw)
+      db.prepare(`INSERT INTO users (id, name, email, role, password_hash, password_salt) VALUES (?, ?, ?, 'member', ?, ?)`)
+        .run(userId, name, email ?? null, pwHash, pwSalt)
       db.prepare(`INSERT INTO api_keys (id, user_id, key_hash, label) VALUES (?, ?, ?, ?)`)
         .run(keyId, userId, keyHash, label ?? `${name}'s key`)
       closeDb(db)
+      if (email) sendInviteEmail(email, name, plainPw, plainKey).catch(console.error)
       res.json({ userId, keyId, key: plainKey })
     } catch {
       res.status(500).json({ error: 'Internal error' })
@@ -939,18 +1063,20 @@ button:hover{opacity:.9}
 </style></head><body>
 <div class="login">
 <h1>SkillBrain</h1>
-<div class="sub">Enter password to access the dashboard</div>
+<div class="sub">Sign in to your account</div>
 <form onsubmit="return doLogin(event)">
-<input type="password" id="pw" placeholder="Password" autofocus>
+<input type="email" id="em" placeholder="Email" autofocus>
+<input type="password" id="pw" placeholder="Password">
 <button type="submit">Login</button>
 </form>
-<div class="err" id="err">Wrong password</div>
+<div class="err" id="err">Wrong email or password</div>
 </div>
 <script>
 async function doLogin(e){
   e.preventDefault();
+  const em=document.getElementById('em').value;
   const pw=document.getElementById('pw').value;
-  const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+  const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
   const d=await r.json();
   if(d.ok){
     document.cookie='sb_session='+d.token+';path=/;max-age=604800;SameSite=Lax';

@@ -98,6 +98,7 @@ export declare class ComponentsStore {
     getPendingScans(project?: string): DesignSystemScan[];
     applyDesignSystemScan(scanId: string, resolved: Partial<DesignSystemInput>): DesignSystem;
     dismissDesignSystemScan(scanId: string): void;
+    mergeDesignSystems(primary: string, alias: string): DesignSystem;
     private rowToScan;
     private populateFts;
     private rowToComponent;
