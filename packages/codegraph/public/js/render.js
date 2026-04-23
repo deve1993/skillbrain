@@ -184,12 +184,16 @@ export async function openSkillDetail(name, openDetailFn) {
 export async function renderMemories(typeFilter, scopeFilter) {
   let url = `/api/memories?limit=100`
   if (typeFilter) url += `&type=${typeFilter}`
-  if (scopeFilter) url += `&scope=${scopeFilter}`
+  if (scopeFilter === 'mine') {
+    url += `&mine=true`
+  } else if (scopeFilter) {
+    url += `&scope=${scopeFilter}`
+  }
   const data = await api.get(url)
   window.memoriesCache = data.memories || []
 
   const types = ['Pattern', 'BugFix', 'AntiPattern', 'Fact', 'Decision', 'Preference', 'Goal', 'Todo']
-  const scopes = [{ val: '', label: 'All' }, { val: 'personal', label: 'My memories' }, { val: 'team', label: 'Team' }, { val: 'project', label: 'Project' }]
+  const scopes = [{ val: '', label: 'All' }, { val: 'mine', label: 'My memories' }, { val: 'team', label: 'Team' }, { val: 'project', label: 'Project' }]
 
   document.getElementById('page').innerHTML = `
     <div class="section-title">Memory Explorer <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${data.total} total</span></div>

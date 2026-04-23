@@ -97,6 +97,7 @@ export interface MemoryQuery {
     tags?: string[];
     limit?: number;
     userId?: string;
+    mine?: boolean;
 }
 export interface MemorySearchResult {
     memory: Memory;

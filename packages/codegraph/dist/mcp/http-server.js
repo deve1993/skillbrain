@@ -475,7 +475,7 @@ export async function startHttpServer(port, authToken) {
     });
     // ── API: Memories ──
     app.get('/api/memories', (_req, res) => {
-        const { type, minConfidence, skill, project, status, search, limit, scope } = _req.query;
+        const { type, minConfidence, skill, project, status, search, limit, scope, mine } = _req.query;
         const userId = _req.userId;
         try {
             const db = openDb(SKILLBRAIN_ROOT);
@@ -494,6 +494,7 @@ export async function startHttpServer(port, authToken) {
                     skill, project, status,
                     scope: scope || undefined,
                     userId,
+                    mine: mine === 'true' || mine === '1',
                     limit: parseInt(limit || '50', 10),
                 }).map((m) => ({ ...m, edges: store.getEdges(m.id) }));
             }

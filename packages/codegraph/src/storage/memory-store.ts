@@ -129,6 +129,7 @@ export interface MemoryQuery {
   tags?: string[]
   limit?: number
   userId?: string
+  mine?: boolean  // filter by created_by_user_id = userId, regardless of scope
 }
 
 export interface MemorySearchResult {
@@ -356,6 +357,11 @@ export class MemoryStore {
     } else if (q.userId) {
       // No scope filter but userId given: exclude other users' personal memories
       sql += ' AND (scope != \'personal\' OR created_by_user_id = ?)'
+      params.push(q.userId)
+    }
+
+    if (q.mine && q.userId) {
+      sql += ' AND created_by_user_id = ?'
       params.push(q.userId)
     }
 

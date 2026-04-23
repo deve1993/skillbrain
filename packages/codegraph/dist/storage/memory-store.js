@@ -195,6 +195,10 @@ export class MemoryStore {
             sql += ' AND (scope != \'personal\' OR created_by_user_id = ?)';
             params.push(q.userId);
         }
+        if (q.mine && q.userId) {
+            sql += ' AND created_by_user_id = ?';
+            params.push(q.userId);
+        }
         if (q.project) {
             sql += ' AND (project = ? OR scope IN (\'global\', \'team\'))';
             params.push(q.project);
