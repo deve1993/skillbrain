@@ -100,6 +100,7 @@ export interface MemoryEdge {
 
 export interface MemoryInput {
   type: MemoryType
+  status?: MemoryStatus
   scope?: MemoryScope
   project?: string
   skill?: string
@@ -249,7 +250,7 @@ export class MemoryStore {
     const memory: Memory = {
       id,
       type: input.type,
-      status: 'active',
+      status: input.status ?? 'active',
       scope: input.scope ?? 'global',
       project: input.project,
       skill: input.skill,

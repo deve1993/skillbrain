@@ -17,6 +17,7 @@ import crypto from 'node:crypto'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import nodemailer from 'nodemailer'
+import Anthropic from '@anthropic-ai/sdk'
 import { createMcpServer } from './server.js'
 import { loadRegistry } from '../storage/registry.js'
 import { openDb, closeDb } from '../storage/db.js'
@@ -37,7 +38,8 @@ const SMTP_PORT      = parseInt(process.env.SMTP_PORT || '587', 10)
 const SMTP_USER      = process.env.SMTP_USER || ''
 const SMTP_PASS      = process.env.SMTP_PASS || ''
 const SMTP_FROM      = process.env.SMTP_FROM || 'SkillBrain <noreply@memory.fl1.it>'
-const SMTP_SECURE    = process.env.SMTP_SECURE === 'true'
+const SMTP_SECURE      = process.env.SMTP_SECURE === 'true'
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
 
 // ── Password helpers ──
 const scryptAsync = promisify(crypto.scrypt)
@@ -981,6 +983,186 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       res.json({ ok: true })
     } catch {
       res.status(500).json({ error: 'Internal error' })
+    }
+  })
+
+  // ── API: Review Queue ──────────────────────────────────────────────────────
+
+  app.get('/api/review/pending', (_req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    try {
+      const memories = db.prepare(
+        `SELECT id, type, context, solution, skill, tags, created_at FROM memories WHERE status = 'pending-review' ORDER BY created_at DESC LIMIT 50`
+      ).all()
+      const skills = db.prepare(
+        `SELECT name, category, description, type, updated_at FROM skills WHERE status = 'pending' ORDER BY updated_at DESC`
+      ).all()
+      const components = db.prepare(
+        `SELECT id, name, project, section_type, description, created_at FROM ui_components WHERE status = 'pending' ORDER BY created_at DESC`
+      ).all()
+      let proposals: unknown[] = []
+      let dsScans: unknown[] = []
+      try {
+        proposals = db.prepare(
+          `SELECT * FROM skill_proposals WHERE status = 'pending' ORDER BY proposed_at DESC`
+        ).all()
+      } catch { /* table not yet migrated */ }
+      try {
+        dsScans = db.prepare(
+          `SELECT * FROM design_system_scans WHERE status = 'pending' ORDER BY scanned_at DESC`
+        ).all()
+      } catch { /* ignore */ }
+      res.json({ memories, skills, components, proposals, dsScans })
+    } finally {
+      closeDb(db)
+    }
+  })
+
+  app.post('/api/review/memory/:id/approve', (req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    db.prepare(`UPDATE memories SET status = 'active', updated_at = ? WHERE id = ?`)
+      .run(new Date().toISOString(), req.params.id)
+    closeDb(db)
+    res.json({ ok: true })
+  })
+
+  app.post('/api/review/memory/:id/reject', (req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    db.prepare(`UPDATE memories SET status = 'deprecated', updated_at = ? WHERE id = ?`)
+      .run(new Date().toISOString(), req.params.id)
+    closeDb(db)
+    res.json({ ok: true })
+  })
+
+  app.post('/api/review/skill/:name/approve', (req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    db.prepare(`UPDATE skills SET status = 'active', updated_at = ? WHERE name = ?`)
+      .run(new Date().toISOString(), decodeURIComponent(req.params.name))
+    closeDb(db)
+    res.json({ ok: true })
+  })
+
+  app.post('/api/review/skill/:name/reject', (req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    db.prepare(`DELETE FROM skills WHERE name = ? AND status = 'pending'`)
+      .run(decodeURIComponent(req.params.name))
+    closeDb(db)
+    res.json({ ok: true })
+  })
+
+  app.post('/api/review/component/:id/approve', (req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    db.prepare(`UPDATE ui_components SET status = 'active', updated_at = ? WHERE id = ?`)
+      .run(new Date().toISOString(), req.params.id)
+    closeDb(db)
+    res.json({ ok: true })
+  })
+
+  app.post('/api/review/component/:id/reject', (req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    db.prepare(`DELETE FROM ui_components WHERE id = ? AND status = 'pending'`).run(req.params.id)
+    closeDb(db)
+    res.json({ ok: true })
+  })
+
+  app.post('/api/review/proposal/:id/dismiss', (req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    try {
+      db.prepare(`UPDATE skill_proposals SET status = 'dismissed', reviewed_at = ? WHERE id = ?`)
+        .run(new Date().toISOString(), req.params.id)
+    } catch { /* ignore if table not migrated */ }
+    closeDb(db)
+    res.json({ ok: true })
+  })
+
+  app.post('/api/review/proposal/:id/generate', async (req, res) => {
+    if (!ANTHROPIC_API_KEY) {
+      res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' }); return
+    }
+    const db = openDb(SKILLBRAIN_ROOT)
+    let proposal: any, skill: any, memories: any[]
+    try {
+      proposal = db.prepare('SELECT * FROM skill_proposals WHERE id = ?').get(req.params.id)
+      if (!proposal) { closeDb(db); res.status(404).json({ error: 'Proposal not found' }); return }
+      skill = db.prepare('SELECT * FROM skills WHERE name = ?').get(proposal.skill_name)
+      const memIds: string[] = JSON.parse(proposal.memory_ids || '[]')
+      memories = memIds
+        .map(id => db.prepare('SELECT type, context, problem, solution, reason FROM memories WHERE id = ?').get(id))
+        .filter(Boolean) as any[]
+    } finally {
+      closeDb(db)
+    }
+
+    const memoriesText = memories.map((m: any) =>
+      `### [${m.type}]\nContext: ${m.context}\nProblem: ${m.problem}\nSolution: ${m.solution}\nWhy: ${m.reason}`
+    ).join('\n\n')
+
+    const currentContent = skill?.content
+      ? `## Current Skill Content\n\`\`\`\n${skill.content}\n\`\`\``
+      : `## Note\nThis skill does not exist yet — create it from scratch based on the learnings below.`
+
+    const prompt = `You are improving a SkillBrain skill file based on recent learnings.
+
+## Skill: ${proposal.skill_name}
+Category: ${skill?.category || 'unknown'}
+Description: ${skill?.description || '(new skill)'}
+
+${currentContent}
+
+## New Learnings to Incorporate
+${memoriesText}
+
+## Instructions
+Generate an improved SKILL.md for skill "${proposal.skill_name}" that incorporates these learnings.
+- Keep the existing structure and format if a current version exists
+- Add concrete examples, gotchas, and actionable patterns from the learnings
+- Be specific and practical — this file is read by an AI agent before working on a task
+- Output ONLY the updated Markdown content, nothing else`
+
+    try {
+      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
+      const response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      const generatedContent = (response.content[0] as any).text as string
+
+      const db2 = openDb(SKILLBRAIN_ROOT)
+      try {
+        db2.prepare(`UPDATE skill_proposals SET proposed_content = ? WHERE id = ?`)
+          .run(generatedContent, req.params.id)
+      } finally {
+        closeDb(db2)
+      }
+      res.json({ ok: true, content: generatedContent })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Generation failed' })
+    }
+  })
+
+  app.post('/api/review/proposal/:id/apply', (req, res) => {
+    const db = openDb(SKILLBRAIN_ROOT)
+    try {
+      const proposal = db.prepare('SELECT * FROM skill_proposals WHERE id = ?').get(req.params.id) as any
+      if (!proposal?.proposed_content) {
+        res.status(400).json({ error: 'No generated content — run generate first' }); return
+      }
+      const existing = db.prepare('SELECT * FROM skills WHERE name = ?').get(proposal.skill_name) as any
+      const now = new Date().toISOString()
+      const content = proposal.proposed_content
+      if (existing) {
+        db.prepare(`UPDATE skills SET content = ?, lines = ?, updated_at = ?, status = 'active' WHERE name = ?`)
+          .run(content, content.split('\n').length, now, proposal.skill_name)
+      } else {
+        db.prepare(`INSERT INTO skills (name, category, description, content, type, tags, lines, updated_at, status) VALUES (?, ?, ?, ?, 'domain', '[]', ?, ?, 'active')`)
+          .run(proposal.skill_name, proposal.skill_name, `Auto-generated from memories`, content, content.split('\n').length, now)
+      }
+      db.prepare(`UPDATE skill_proposals SET status = 'dismissed', reviewed_at = ? WHERE id = ?`)
+        .run(now, req.params.id)
+      res.json({ ok: true, skillName: proposal.skill_name })
+    } finally {
+      closeDb(db)
     }
   })
 

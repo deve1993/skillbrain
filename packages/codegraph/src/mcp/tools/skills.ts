@@ -90,9 +90,10 @@ export function registerSkillTools(server: McpServer, _ctx: ToolContext): void {
       name: z.string().describe('Skill name (must exist — use skill_list to verify)'),
       content: z.string().describe('Full updated SKILL.md content (complete replacement)'),
       reason: z.string().optional().describe('Why this update was made'),
+      draft: z.boolean().optional().default(false).describe('If true, stores as pending for dashboard approval instead of going live immediately'),
       repo: z.string().optional(),
     },
-    async ({ name, content, reason, repo }) => {
+    async ({ name, content, reason, draft, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
@@ -104,6 +105,7 @@ export function registerSkillTools(server: McpServer, _ctx: ToolContext): void {
           content,
           lines: content.split('\n').length,
           updatedAt: new Date().toISOString(),
+          status: draft ? 'pending' : 'active',
         })
         return existing.name
       })
@@ -115,7 +117,47 @@ export function registerSkillTools(server: McpServer, _ctx: ToolContext): void {
       return {
         content: [{
           type: 'text',
-          text: `Skill "${name}" updated successfully.${reason ? ` Reason: ${reason}` : ''}`,
+          text: draft
+            ? `⏳ Skill "${name}" queued for review — approve at memory.fl1.it/#/review${reason ? `. Reason: ${reason}` : ''}`
+            : `Skill "${name}" updated successfully.${reason ? ` Reason: ${reason}` : ''}`,
+        }],
+      }
+    },
+  )
+
+  // --- Tool: skill_add ---
+  server.tool(
+    'skill_add',
+    'Add a new skill to the database. Stores as pending draft by default — requires approval in dashboard.',
+    {
+      name: z.string().describe('Skill name (unique, kebab-case, e.g. "nextjs-app-router")'),
+      category: z.string().describe('Category (e.g. "frontend", "backend", "devops")'),
+      description: z.string().describe('One-line description of what this skill covers'),
+      content: z.string().describe('Full SKILL.md content'),
+      type: z.enum(['domain', 'lifecycle', 'process', 'agent', 'command']),
+      tags: z.array(z.string()).describe('Searchable tags'),
+      draft: z.boolean().optional().default(true).describe('If true (default), stores as pending for review. Set false to go live immediately.'),
+      repo: z.string().optional(),
+    },
+    async ({ name, category, description, content, type, tags, draft, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      withSkillsStore(resolved.path, (store) => {
+        store.upsert({
+          name, category, description, content, type, tags,
+          lines: content.split('\n').length,
+          updatedAt: new Date().toISOString(),
+          status: draft ? 'pending' : 'active',
+        })
+      })
+
+      return {
+        content: [{
+          type: 'text',
+          text: draft
+            ? `⏳ Skill "${name}" created as draft — approve at memory.fl1.it/#/review`
+            : `✅ Skill "${name}" created and active.`,
         }],
       }
     },

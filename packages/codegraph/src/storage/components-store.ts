@@ -22,6 +22,7 @@ export interface UiComponent {
   designTokens: Record<string, unknown>
   createdAt: string
   updatedAt: string
+  status: 'active' | 'pending' | 'deprecated'
 }
 
 export interface UiComponentInput {
@@ -34,6 +35,7 @@ export interface UiComponentInput {
   propsSchema?: Record<string, unknown>
   codeSnippet?: string
   designTokens?: Record<string, unknown>
+  status?: 'active' | 'pending' | 'deprecated'
 }
 
 export interface DesignSystem {
@@ -105,18 +107,19 @@ export class ComponentsStore {
       designTokens: input.designTokens ?? {},
       createdAt: now,
       updatedAt: now,
+      status: input.status ?? 'active',
     }
 
     this.db.prepare(`
       INSERT INTO ui_components
-        (id, project, name, section_type, description, file_path, tags, props_schema, code_snippet, design_tokens, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, project, name, section_type, description, file_path, tags, props_schema, code_snippet, design_tokens, created_at, updated_at, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       component.id, component.project, component.name, component.sectionType,
       component.description ?? null, component.filePath ?? null,
       JSON.stringify(component.tags), JSON.stringify(component.propsSchema),
       component.codeSnippet ?? null, JSON.stringify(component.designTokens),
-      component.createdAt, component.updatedAt,
+      component.createdAt, component.updatedAt, component.status,
     )
 
     this.populateFts(component)
@@ -395,6 +398,7 @@ export class ComponentsStore {
       designTokens: JSON.parse(row.design_tokens || '{}'),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      status: row.status ?? 'active',
     }
   }
 

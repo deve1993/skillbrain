@@ -51,14 +51,15 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       scope: z.enum(['global', 'project-specific']).optional().default('global'),
       project: z.string().optional().describe('Project name (if scope is project-specific)'),
       skill: z.string().optional().describe('Associated skill name'),
+      draft: z.boolean().optional().default(false).describe('If true, stores as pending-review for dashboard approval instead of going live immediately'),
       repo: z.string().optional().describe('Repository to store memory in'),
     },
-    async ({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill, repo }) => {
+    async ({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill, draft, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found. Run codegraph_list_repos.' }] }
 
       const memory = withMemoryStore(resolved.path, (store) => {
-        const mem = store.add({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill })
+        const mem = store.add({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill, status: draft ? 'pending-review' : 'active' })
 
         // Auto-detect contradictions
         const contradictions = store.detectContradictions(mem)
@@ -69,7 +70,9 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
         return { mem, contradictionWarnings }
       })
 
-      let text = `✅ Memory added: ${memory.mem.id} (${memory.mem.type}, confidence: ${memory.mem.confidence})`
+      let text = draft
+        ? `⏳ Memory queued for review: ${memory.mem.id} (${memory.mem.type}) — approve at memory.fl1.it/#/review`
+        : `✅ Memory added: ${memory.mem.id} (${memory.mem.type}, confidence: ${memory.mem.confidence})`
       if (memory.contradictionWarnings.length > 0) {
         text += '\n\n' + memory.contradictionWarnings.join('\n')
         text += '\n\nUse memory_add_edge to create Contradicts edges if confirmed.'

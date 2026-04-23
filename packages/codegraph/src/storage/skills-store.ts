@@ -11,6 +11,7 @@ export interface Skill {
   tags: string[]
   lines: number
   updatedAt: string
+  status?: 'active' | 'pending' | 'deprecated'
 }
 
 export interface SkillSearchResult {
@@ -28,13 +29,13 @@ export class SkillsStore {
   private prepareStatements() {
     return {
       upsert: this.db.prepare(`
-        INSERT OR REPLACE INTO skills (name, category, description, content, type, tags, lines, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO skills (name, category, description, content, type, tags, lines, updated_at, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `),
       get: this.db.prepare('SELECT * FROM skills WHERE name = ?'),
-      listAll: this.db.prepare('SELECT name, category, description, type, tags, lines FROM skills ORDER BY category, name'),
-      listByType: this.db.prepare('SELECT name, category, description, type, tags, lines FROM skills WHERE type = ? ORDER BY category, name'),
-      listByCategory: this.db.prepare('SELECT name, category, description, type, tags, lines FROM skills WHERE category = ? ORDER BY name'),
+      listAll: this.db.prepare("SELECT name, category, description, type, tags, lines, status FROM skills WHERE status = 'active' ORDER BY category, name"),
+      listByType: this.db.prepare("SELECT name, category, description, type, tags, lines, status FROM skills WHERE type = ? AND status = 'active' ORDER BY category, name"),
+      listByCategory: this.db.prepare("SELECT name, category, description, type, tags, lines, status FROM skills WHERE category = ? AND status = 'active' ORDER BY name"),
       searchFts: this.db.prepare(`
         SELECT s.*, fts.rank
         FROM skills_fts fts
@@ -54,6 +55,7 @@ export class SkillsStore {
     this.stmts.upsert.run(
       skill.name, skill.category, skill.description, skill.content,
       skill.type, JSON.stringify(skill.tags), skill.lines, skill.updatedAt,
+      skill.status ?? 'active',
     )
     // Populate FTS
     try {
@@ -130,6 +132,7 @@ export class SkillsStore {
       tags: JSON.parse(row.tags || '[]'),
       lines: row.lines,
       updatedAt: row.updated_at,
+      status: row.status ?? 'active',
     }
   }
 }

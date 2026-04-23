@@ -970,3 +970,132 @@ export async function renderWorkLog() {
     }).join('')}
   `
 }
+
+// ── Review Queue ──────────────────────────────────────────────────────────────
+
+export async function renderReview() {
+  const page = document.getElementById('page')
+  page.innerHTML = '<div class="section-title">Review Queue <span class="count">loading...</span></div>'
+
+  let data
+  try {
+    data = await api.get('/api/review/pending')
+  } catch {
+    page.innerHTML = '<p style="color:var(--red);padding:16px">Failed to load review queue.</p>'
+    return
+  }
+
+  const total = (data.memories?.length || 0) + (data.skills?.length || 0) +
+    (data.components?.length || 0) + (data.proposals?.length || 0) + (data.dsScans?.length || 0)
+
+  // Update badge
+  const badge = document.getElementById('review-badge')
+  if (badge) {
+    badge.textContent = total
+    badge.style.display = total > 0 ? 'inline' : 'none'
+  }
+
+  if (total === 0) {
+    page.innerHTML = `
+      <div class="section-title">Review Queue <span class="count">0 pending</span></div>
+      <div class="card" style="text-align:center;padding:32px;color:var(--text-muted)">
+        <div style="font-size:32px;margin-bottom:12px">✓</div>
+        <div>All caught up — nothing to review.</div>
+      </div>`
+    return
+  }
+
+  page.innerHTML = `
+    <div class="section-title">Review Queue <span class="count">${total} pending</span></div>
+    <div id="review-memories"></div>
+    <div id="review-skills"></div>
+    <div id="review-components"></div>
+    <div id="review-proposals"></div>
+  `
+
+  renderReviewSection('review-memories', 'Memories', data.memories || [], (item) => ({
+    id: item.id,
+    title: `<span style="opacity:.6;font-size:11px">${item.type}</span> ${escHtml(item.context?.slice(0, 100) || '')}`,
+    body: escHtml(item.solution?.slice(0, 200) || ''),
+    meta: item.skill ? `skill: ${item.skill}` : '',
+    approveUrl: `/api/review/memory/${item.id}/approve`,
+    rejectUrl:  `/api/review/memory/${item.id}/reject`,
+    rejectLabel: 'Reject',
+  }))
+
+  renderReviewSection('review-skills', 'Skills', data.skills || [], (item) => ({
+    id: item.name,
+    title: `<span style="opacity:.6;font-size:11px">${item.type}</span> ${escHtml(item.name)}`,
+    body: escHtml(item.description || ''),
+    meta: item.category || '',
+    approveUrl: `/api/review/skill/${encodeURIComponent(item.name)}/approve`,
+    rejectUrl:  `/api/review/skill/${encodeURIComponent(item.name)}/reject`,
+    rejectLabel: 'Delete draft',
+  }))
+
+  renderReviewSection('review-components', 'Components', data.components || [], (item) => ({
+    id: item.id,
+    title: `<span style="opacity:.6;font-size:11px">${item.section_type}</span> ${escHtml(item.name)}`,
+    body: escHtml(item.description || ''),
+    meta: item.project || '',
+    approveUrl: `/api/review/component/${item.id}/approve`,
+    rejectUrl:  `/api/review/component/${item.id}/reject`,
+    rejectLabel: 'Delete draft',
+  }))
+
+  renderProposalSection('review-proposals', data.proposals || [])
+}
+
+function renderReviewSection(containerId, label, items, mapper) {
+  const el = document.getElementById(containerId)
+  if (!el || !items.length) return
+
+  el.innerHTML = `
+    <div class="card-title" style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">${label} <span class="count">(${items.length})</span></div>
+    ${items.map(item => {
+      const { title, body, meta, approveUrl, rejectUrl, rejectLabel } = mapper(item)
+      return `
+        <div class="card" style="margin-bottom:8px">
+          <div style="font-weight:600;margin-bottom:4px">${title}</div>
+          ${meta ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">${escHtml(meta)}</div>` : ''}
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5">${body}</div>
+          <div style="display:flex;gap:8px">
+            <button onclick="reviewAction('${approveUrl}', this)" style="padding:4px 14px;border-radius:6px;background:rgba(74,222,128,.12);border:1px solid var(--green);color:var(--green);font-size:12px;cursor:pointer;font-weight:600">✓ Approve</button>
+            <button onclick="reviewAction('${rejectUrl}', this)" style="padding:4px 14px;border-radius:6px;background:rgba(248,113,113,.1);border:1px solid var(--red);color:var(--red);font-size:12px;cursor:pointer">${rejectLabel}</button>
+          </div>
+        </div>`
+    }).join('')}`
+}
+
+function renderProposalSection(containerId, proposals) {
+  const el = document.getElementById(containerId)
+  if (!el || !proposals.length) return
+
+  el.innerHTML = `
+    <div class="card-title" style="margin:20px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">Skill Update Suggestions <span class="count">(${proposals.length})</span></div>
+    ${proposals.map(p => {
+      const memIds = JSON.parse(p.memory_ids || '[]')
+      const hasContent = !!p.proposed_content
+      return `
+        <div class="card" style="margin-bottom:8px" id="proposal-${p.id}">
+          <div style="font-weight:600;margin-bottom:4px">💡 ${escHtml(p.skill_name)}</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
+            ${memIds.length} memor${memIds.length === 1 ? 'y' : 'ies'} accumulated — skill may need updating
+          </div>
+          ${hasContent ? `
+          <details style="margin-bottom:12px">
+            <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;margin-bottom:6px">Preview generated content</summary>
+            <pre style="font-size:11px;background:var(--bg-surface,#111);border:1px solid var(--border);border-radius:6px;padding:10px;overflow:auto;max-height:200px;white-space:pre-wrap;color:var(--text-secondary)">${escHtml(p.proposed_content.slice(0, 1500))}${p.proposed_content.length > 1500 ? '\n...' : ''}</pre>
+          </details>` : ''}
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${!hasContent ? `
+            <button onclick="generateSkillUpdate('${p.id}', this)" style="padding:4px 14px;border-radius:6px;background:rgba(251,191,36,.12);border:1px solid var(--yellow,#f59e0b);color:var(--yellow,#f59e0b);font-size:12px;cursor:pointer;font-weight:600">⚡ Generate Update</button>
+            ` : `
+            <button onclick="applySkillUpdate('${p.id}', this)" style="padding:4px 14px;border-radius:6px;background:rgba(74,222,128,.12);border:1px solid var(--green);color:var(--green);font-size:12px;cursor:pointer;font-weight:600">✓ Apply to Skill</button>
+            <button onclick="generateSkillUpdate('${p.id}', this)" style="padding:4px 14px;border-radius:6px;background:rgba(251,191,36,.08);border:1px solid var(--border);color:var(--text-muted);font-size:12px;cursor:pointer">Regenerate</button>
+            `}
+            <button onclick="reviewAction('/api/review/proposal/${p.id}/dismiss', this)" style="padding:4px 14px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:12px;cursor:pointer">Dismiss</button>
+          </div>
+        </div>`
+    }).join('')}`
+}

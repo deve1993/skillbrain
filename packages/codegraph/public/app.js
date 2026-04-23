@@ -16,6 +16,7 @@ import {
   renderProjectTab, loadEnvVars, searchGlobal, renderWorkLog,
   renderComponents, openComponentDetail,
   renderDesignSystems, openDesignSystemDetail, renderScanReview,
+  renderReview,
   escHtml,
 } from './js/render.js'
 
@@ -48,6 +49,7 @@ function route() {
     case 'components': renderComponents(); break
     case 'design-systems': renderDesignSystems(); break
     case 'team': renderTeam(); break
+    case 'review': renderReview(); break
     default: renderHome()
   }
 }
@@ -224,6 +226,55 @@ window.dismissScan = async (scanId) => {
   if (!confirm('Dismiss this scan? The tokens won\'t be saved.')) return
   await fetch(`/api/design-systems/scans/${scanId}`, { method: 'DELETE' })
   renderDesignSystems()
+}
+
+// ── Review Queue ──
+window.reviewAction = async (url, btn) => {
+  if (btn) btn.disabled = true
+  try {
+    await api.post(url, {})
+    renderReview()
+  } catch {
+    if (btn) btn.disabled = false
+    alert('Action failed — check console.')
+  }
+}
+
+window.generateSkillUpdate = async (proposalId, btn) => {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating...' }
+  try {
+    await api.post(`/api/review/proposal/${proposalId}/generate`, {})
+    renderReview()
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ Generate Update' }
+    alert('Generation failed. Check that ANTHROPIC_API_KEY is set.')
+  }
+}
+
+window.applySkillUpdate = async (proposalId, btn) => {
+  if (!confirm('Apply this generated content to the live skill?')) return
+  if (btn) btn.disabled = true
+  try {
+    const result = await api.post(`/api/review/proposal/${proposalId}/apply`, {})
+    alert(`Skill "${result.skillName}" updated successfully.`)
+    renderReview()
+  } catch {
+    if (btn) btn.disabled = false
+    alert('Apply failed — check console.')
+  }
+}
+
+async function updateReviewBadge() {
+  try {
+    const data = await api.get('/api/review/pending')
+    const total = (data.memories?.length || 0) + (data.skills?.length || 0) +
+      (data.components?.length || 0) + (data.proposals?.length || 0) + (data.dsScans?.length || 0)
+    const badge = document.getElementById('review-badge')
+    if (badge) {
+      badge.textContent = total
+      badge.style.display = total > 0 ? 'inline' : 'none'
+    }
+  } catch { /* non-blocking */ }
 }
 
 // ── Team page ──
@@ -412,3 +463,4 @@ document.getElementById('btn-save-cp')?.addEventListener('click', async () => {
 
 // ── Init ──
 route()
+updateReviewBadge()
