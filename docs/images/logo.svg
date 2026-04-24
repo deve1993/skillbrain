@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 200" role="img" aria-label="SkillBrain logo">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="50%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="860" height="200" fill="#0b1020"/>
+
+  <!-- Brain/graph icon: nodes + edges, stylised hemisphere -->
+  <g transform="translate(40,40)" filter="url(#glow)">
+    <!-- edges -->
+    <g stroke="url(#g1)" stroke-width="2" fill="none" opacity="0.8">
+      <line x1="60" y1="20" x2="100" y2="55"/>
+      <line x1="20" y1="60" x2="60" y2="20"/>
+      <line x1="20" y1="60" x2="60" y2="100"/>
+      <line x1="60" y1="100" x2="100" y2="55"/>
+      <line x1="60" y1="100" x2="100" y2="95"/>
+      <line x1="100" y1="55" x2="100" y2="95"/>
+      <line x1="60" y1="20" x2="105" y2="30"/>
+      <line x1="105" y1="30" x2="100" y2="55"/>
+      <line x1="20" y1="60" x2="55" y2="60"/>
+      <line x1="55" y1="60" x2="100" y2="55"/>
+    </g>
+    <!-- nodes -->
+    <g>
+      <circle cx="60" cy="20" r="6" fill="#8b5cf6"/>
+      <circle cx="20" cy="60" r="6" fill="#06b6d4"/>
+      <circle cx="55" cy="60" r="4" fill="#f8fafc"/>
+      <circle cx="105" cy="30" r="5" fill="#34d399"/>
+      <circle cx="100" cy="55" r="7" fill="#f59e0b"/>
+      <circle cx="60" cy="100" r="6" fill="#ec4899"/>
+      <circle cx="100" cy="95" r="5" fill="#34d399"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="200" y="115" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
+        font-weight="800" font-size="84" letter-spacing="-3"
+        fill="url(#g2)">Skill<tspan fill="url(#g1)">Brain</tspan></text>
+
+  <!-- Tagline -->
+  <text x="202" y="155" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
+        font-size="20" letter-spacing="1" fill="#94a3b8">
+    Self-hosted AI memory platform · for teams
+  </text>
+</svg>
