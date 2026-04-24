@@ -55,9 +55,13 @@
       Review
       <span id="review-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:4px">0</span>
     </a>
+    <a href="#/profile" class="nav-item" data-page="profile">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
+      Profile
+    </a>
     <div class="nav-footer">
       <span id="server-status">connecting...</span>
-      <button id="btn-change-password" class="btn-ghost" style="font-size:11px;padding:4px 10px;margin-top:8px;width:100%">Change Password</button>
+      <button id="btn-logout" class="btn-ghost" style="font-size:11px;padding:4px 10px;margin-top:8px;width:100%">Logout</button>
     </div>
   </nav>
 
@@ -154,6 +158,19 @@
       <summary>How to connect</summary>
       <pre id="connection-snippet"></pre>
     </details>
+  </dialog>
+
+  <!-- Profile page modals -->
+  <dialog id="modal-generate-key">
+    <h2>Generate API Key</h2>
+    <div class="form-field">
+      <label for="generate-key-label">Label <span style="opacity:.5">(e.g. claude-code-laptop)</span></label>
+      <input id="generate-key-label" type="text" placeholder="claude-code-myname">
+    </div>
+    <div class="modal-actions">
+      <button id="btn-cancel-generate-key" class="btn-ghost">Cancel</button>
+      <button id="btn-confirm-generate-key" class="btn-primary">Generate</button>
+    </div>
   </dialog>
 
   <script type="module" src="/app.js"></script>

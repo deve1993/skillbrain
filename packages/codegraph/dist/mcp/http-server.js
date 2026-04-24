@@ -192,52 +192,52 @@ export async function startHttpServer(port, authToken) {
             return 'legacy-admin';
         return parseSessionToken(token);
     }
-    // Admin bootstrap: create admin user on first run if ADMIN_EMAIL + DASHBOARD_PASSWORD are set
-    if (ADMIN_EMAIL && DASHBOARD_PASSWORD) {
+    // Admin bootstrap: create admin user if users table is empty and credentials are available
+    {
         const db = openDb(SKILLBRAIN_ROOT);
-        const exists = db.prepare('SELECT id FROM users WHERE email = ?').get(ADMIN_EMAIL);
-        if (!exists) {
-            const { hash, salt } = await hashPassword(DASHBOARD_PASSWORD);
-            const adminId = randomUUID().replace(/-/g, '').slice(0, 12);
-            db.prepare(`INSERT INTO users (id, name, email, role, password_hash, password_salt) VALUES (?, 'Admin', ?, 'admin', ?, ?)`)
-                .run(adminId, ADMIN_EMAIL, hash, salt);
-            console.log(`[auth] Admin user created for ${ADMIN_EMAIL}`);
+        try {
+            const count = db.prepare('SELECT COUNT(*) as n FROM users').get().n;
+            if (count === 0) {
+                if (ADMIN_EMAIL && DASHBOARD_PASSWORD) {
+                    const { hash, salt } = await hashPassword(DASHBOARD_PASSWORD);
+                    const adminId = randomUUID().replace(/-/g, '').slice(0, 12);
+                    db.prepare(`INSERT INTO users (id, name, email, role, password_hash, password_salt) VALUES (?, 'Admin', ?, 'admin', ?, ?)`)
+                        .run(adminId, ADMIN_EMAIL, hash, salt);
+                    console.log(`[auth] Bootstrap: admin user created for ${ADMIN_EMAIL}`);
+                    console.warn(`[auth] DEPRECATED: DASHBOARD_PASSWORD was used for bootstrap. Remove it from env once you have logged in and changed your password.`);
+                }
+                else {
+                    console.warn(`[auth] WARNING: users table is empty. Set ADMIN_EMAIL + DASHBOARD_PASSWORD for first-run bootstrap, or create a user via POST /api/admin/team/users.`);
+                }
+            }
+            else if (DASHBOARD_PASSWORD) {
+                console.warn(`[auth] DEPRECATED: DASHBOARD_PASSWORD env var is set but no longer used for login. Remove it from your Coolify env vars.`);
+            }
         }
+        catch { /* users table might not exist yet */ }
         closeDb(db);
     }
-    // Login endpoint
+    // Login endpoint — per-user email+password only
     app.post('/auth/login', express.json(), async (req, res) => {
         const { email, password } = req.body || {};
-        // New per-user auth (when ADMIN_EMAIL is configured)
-        if (ADMIN_EMAIL) {
-            if (!email || !password) {
-                res.status(400).json({ ok: false, error: 'email and password required' });
-                return;
-            }
-            const db = openDb(SKILLBRAIN_ROOT);
-            const user = db.prepare('SELECT id, password_hash, password_salt FROM users WHERE email = ?').get(email);
-            closeDb(db);
-            if (!user?.password_hash || !await verifyPassword(password, user.password_hash, user.password_salt)) {
-                res.status(401).json({ ok: false, error: 'Wrong email or password' });
-                return;
-            }
-            const token = createSessionToken(user.id);
-            res.json({ ok: true, token });
+        if (!email || !password) {
+            res.status(400).json({ ok: false, error: 'email and password required' });
             return;
         }
-        // Legacy: single shared password
-        if (!DASHBOARD_PASSWORD || password === DASHBOARD_PASSWORD) {
-            const token = createSessionToken('legacy-admin');
-            res.json({ ok: true, token });
+        const db = openDb(SKILLBRAIN_ROOT);
+        const user = db.prepare('SELECT id, password_hash, password_salt FROM users WHERE email = ?').get(email);
+        closeDb(db);
+        if (!user?.password_hash || !await verifyPassword(password, user.password_hash, user.password_salt)) {
+            res.status(401).json({ ok: false, error: 'Wrong email or password' });
+            return;
         }
-        else {
-            res.status(401).json({ ok: false, error: 'Wrong password' });
-        }
+        const token = createSessionToken(user.id);
+        res.json({ ok: true, token });
     });
     // Change password endpoint (authenticated)
     app.put('/api/auth/password', express.json(), async (req, res) => {
         const userId = req.userId;
-        if (!userId || userId === 'legacy-admin') {
+        if (!userId) {
             res.status(401).json({ error: 'Unauthorized' });
             return;
         }
@@ -259,7 +259,7 @@ export async function startHttpServer(port, authToken) {
         res.json({ ok: true });
     });
     // Auth check for dashboard routes (not /mcp, not /auth)
-    const authEnabled = !!(DASHBOARD_PASSWORD || ADMIN_EMAIL);
+    const authEnabled = !!ADMIN_EMAIL;
     if (authEnabled) {
         app.use((req, res, next) => {
             // Skip auth for MCP protocol and login
@@ -1091,6 +1091,89 @@ export async function startHttpServer(port, authToken) {
                 res.status(404).json({ error: 'User not found' });
                 return;
             }
+            res.json({ ok: true });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    // ── API: Self-service profile + API keys ──
+    app.get('/api/me', (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const user = db.prepare('SELECT id, name, email, role, created_at FROM users WHERE id = ?').get(userId);
+            closeDb(db);
+            if (!user) {
+                res.status(404).json({ error: 'User not found' });
+                return;
+            }
+            res.json({ user });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    app.get('/api/me/api-keys', (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const keys = db.prepare(`SELECT id, label, created_at, last_used_at, CASE WHEN revoked_at IS NOT NULL THEN 1 ELSE 0 END as revoked
+         FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`).all(userId);
+            closeDb(db);
+            res.json({ keys });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    app.post('/api/me/api-keys', express.json(), (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        const { label } = req.body || {};
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const keyId = randomUUID().replace(/-/g, '').slice(0, 12);
+            const plainKey = 'sk-codegraph-' + crypto.randomBytes(12).toString('hex');
+            const keyHash = crypto.createHash('sha256').update(plainKey).digest('hex');
+            db.prepare(`INSERT INTO api_keys (id, user_id, key_hash, label) VALUES (?, ?, ?, ?)`)
+                .run(keyId, userId, keyHash, label || 'My key');
+            closeDb(db);
+            // Plain key returned ONCE — never stored
+            res.json({ id: keyId, key: plainKey, label: label || 'My key' });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    app.delete('/api/me/api-keys/:id', (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            // Ensure the key belongs to this user before revoking
+            const key = db.prepare('SELECT id FROM api_keys WHERE id = ? AND user_id = ?').get(req.params.id, userId);
+            if (!key) {
+                closeDb(db);
+                res.status(404).json({ error: 'Key not found' });
+                return;
+            }
+            db.prepare('UPDATE api_keys SET revoked_at = ? WHERE id = ?').run(new Date().toISOString(), req.params.id);
+            closeDb(db);
             res.json({ ok: true });
         }
         catch {

@@ -50,6 +50,7 @@ function route() {
     case 'design-systems': renderDesignSystems(); break
     case 'team': renderTeam(); break
     case 'review': renderReview(); break
+    case 'profile': renderProfile(); break
     default: renderHome()
   }
 }
@@ -493,6 +494,115 @@ window.rollbackSkill = async (name, versionId) => {
 }
 
 window.filterMemoriesScope = (scope) => renderMemories('', scope)
+
+// ── Profile page ──
+async function renderProfile() {
+  const page = $('#page')
+  page.innerHTML = `
+    <div class="section-title">Profile &amp; API Keys</div>
+    <div id="profile-info" style="margin-bottom:24px"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div style="font-weight:600;font-size:14px">API Keys</div>
+      <button id="btn-new-key" class="btn-primary" style="font-size:12px;padding:4px 12px">+ Generate Key</button>
+    </div>
+    <div id="profile-keys-list"></div>
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+      <div style="font-weight:600;font-size:14px;margin-bottom:8px">Password</div>
+      <button id="btn-profile-change-password" class="btn-ghost" style="font-size:12px;padding:4px 12px">Change Password</button>
+    </div>`
+
+  document.getElementById('btn-profile-change-password')?.addEventListener('click', () => {
+    document.getElementById('cp-current').value = ''
+    document.getElementById('cp-new').value = ''
+    document.getElementById('cp-confirm').value = ''
+    document.getElementById('cp-error').style.display = 'none'
+    document.getElementById('modal-change-password').showModal()
+  })
+
+  document.getElementById('btn-new-key')?.addEventListener('click', () => {
+    document.getElementById('generate-key-label').value = ''
+    document.getElementById('modal-generate-key').showModal()
+  })
+
+  await loadProfileInfo()
+  await loadProfileKeys()
+}
+
+async function loadProfileInfo() {
+  try {
+    const { user } = await api.get('/api/me')
+    const el = document.getElementById('profile-info')
+    if (!el || !user) return
+    const initials = (user.name || 'U').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    el.innerHTML = `
+      <div class="card" style="display:flex;align-items:center;gap:14px;padding:14px 16px">
+        <div class="member-avatar">${escHtml(initials)}</div>
+        <div>
+          <div style="font-weight:600">${escHtml(user.name || '')}</div>
+          ${user.email ? `<div style="font-size:12px;color:var(--text-muted)">${escHtml(user.email)}</div>` : ''}
+          <span class="badge ${user.role === 'admin' ? 'badge-decision' : 'badge-pattern'}" style="margin-top:4px">${user.role}</span>
+        </div>
+      </div>`
+  } catch { /* ignore */ }
+}
+
+async function loadProfileKeys() {
+  try {
+    const { keys } = await api.get('/api/me/api-keys')
+    const el = document.getElementById('profile-keys-list')
+    if (!el) return
+    if (!keys || keys.length === 0) {
+      el.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No API keys yet. Generate one to connect Claude Code.</p>'
+      return
+    }
+    el.innerHTML = keys.map(k => `
+      <div class="card key-row${k.revoked ? ' revoked' : ''}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:8px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.4;flex-shrink:0"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <span class="key-label" style="flex:1">${escHtml(k.label)}</span>
+        <span class="key-meta" style="font-size:11px;color:var(--text-muted)">
+          ${k.revoked ? '<span style="color:#f87171">revoked</span>' : `last used: ${k.last_used_at ? k.last_used_at.slice(0, 10) : 'never'}`}
+        </span>
+        <span class="key-meta" style="font-size:11px;color:var(--text-muted)">created ${k.created_at?.slice(0, 10)}</span>
+        ${!k.revoked
+          ? `<button class="btn-danger" style="font-size:11px;padding:2px 8px" onclick="revokeMyKey('${k.id}')">Revoke</button>`
+          : ''}
+      </div>`).join('')
+  } catch { /* ignore */ }
+}
+
+window.revokeMyKey = async (id) => {
+  if (!confirm('Revoke this key? It will stop working immediately.')) return
+  const res = await fetch(`/api/me/api-keys/${id}`, { method: 'DELETE' })
+  if (res.ok) await loadProfileKeys()
+  else alert('Revoke failed')
+}
+
+document.getElementById('btn-cancel-generate-key')?.addEventListener('click', () => {
+  document.getElementById('modal-generate-key').close()
+})
+
+document.getElementById('btn-confirm-generate-key')?.addEventListener('click', async () => {
+  const label = document.getElementById('generate-key-label').value.trim()
+  const res = await fetch('/api/me/api-keys', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: label || undefined }),
+  })
+  if (!res.ok) { alert('Failed to generate key'); return }
+  const { key } = await res.json()
+  document.getElementById('modal-generate-key').close()
+  document.getElementById('new-key-value').textContent = key
+  document.getElementById('connection-snippet').textContent =
+    `SKILLBRAIN_MCP_URL=https://memory.fl1.it/mcp\nCODEGRAPH_AUTH_TOKEN=${key}`
+  document.getElementById('modal-show-key').showModal()
+  await loadProfileKeys()
+})
+
+// ── Logout ──
+document.getElementById('btn-logout')?.addEventListener('click', () => {
+  document.cookie = 'sb_session=; path=/; max-age=0'
+  location.href = '/'
+})
 
 // ── Init ──
 route()
