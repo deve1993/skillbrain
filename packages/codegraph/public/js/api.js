@@ -13,7 +13,22 @@ async function req(path, options = {}) {
     window.location.href = '/login.html'
     throw new Error('unauthorized')
   }
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  if (!res.ok) {
+    // Try to surface the server's actual error message (most of our endpoints
+    // respond with `{ "error": "...", "code": "..." }` on failure) instead of
+    // hiding it behind the generic status text.
+    let detail = ''
+    try {
+      const body = await res.text()
+      if (body) {
+        try {
+          const j = JSON.parse(body)
+          detail = j.error || j.message || body
+        } catch { detail = body }
+      }
+    } catch { /* network already broken; status text is the best we have */ }
+    throw new Error(detail ? `${res.status} ${res.statusText} — ${detail}` : `${res.status} ${res.statusText}`)
+  }
   return res.headers.get('content-type')?.includes('application/json') ? res.json() : res.text()
 }
 
