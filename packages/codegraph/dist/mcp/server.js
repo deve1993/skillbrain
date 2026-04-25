@@ -30,13 +30,13 @@ function extractRepoName(uri) {
     const match = uri.match(/codegraph:\/\/repo\/([^/]+)/);
     return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
-export function createMcpServer() {
+export function createMcpServer(opts = {}) {
     const server = new McpServer({
         name: 'codegraph',
         version: '0.1.0',
     });
     // Register all domain tool modules
-    registerAllTools(server, {});
+    registerAllTools(server, { userId: opts.userId });
     // --- Resources ---
     server.resource('codegraph://repos', 'codegraph://repos', async () => {
         const entries = loadRegistry();

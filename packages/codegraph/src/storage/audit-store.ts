@@ -1,9 +1,9 @@
 import type Database from 'better-sqlite3'
 
 export interface AuditEntry {
-  entityType: 'memory' | 'skill' | 'component' | 'proposal' | 'design_scan'
+  entityType: 'memory' | 'skill' | 'component' | 'proposal' | 'design_scan' | 'user_env'
   entityId: string
-  action: 'approve' | 'reject' | 'generate' | 'apply' | 'dismiss' | 'rollback'
+  action: 'approve' | 'reject' | 'generate' | 'apply' | 'dismiss' | 'rollback' | 'reveal' | 'create' | 'update' | 'delete' | 'import' | 'export'
   reviewedBy: string
   notes?: string
   metadata?: Record<string, unknown>

@@ -31,14 +31,22 @@ function extractRepoName(uri: string): string | undefined {
   return match?.[1] ? decodeURIComponent(match[1]) : undefined
 }
 
-export function createMcpServer(): McpServer {
+export interface CreateMcpServerOptions {
+  /**
+   * The authenticated user this MCP session is bound to.
+   * Required for user-scoped tools (e.g. user_env_*).
+   */
+  userId?: string
+}
+
+export function createMcpServer(opts: CreateMcpServerOptions = {}): McpServer {
   const server = new McpServer({
     name: 'codegraph',
     version: '0.1.0',
   })
 
   // Register all domain tool modules
-  registerAllTools(server, {})
+  registerAllTools(server, { userId: opts.userId })
 
   // --- Resources ---
   server.resource('codegraph://repos', 'codegraph://repos', async () => {

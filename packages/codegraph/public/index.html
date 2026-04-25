@@ -55,6 +55,10 @@
       Review
       <span id="review-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:4px">0</span>
     </a>
+    <a href="#/my-env" class="nav-item" data-page="my-env">
+      <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+      My master.env
+    </a>
     <a href="#/profile" class="nav-item" data-page="profile">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
       Profile
@@ -170,6 +174,72 @@
     <div class="modal-actions">
       <button id="btn-cancel-generate-key" class="btn-ghost">Cancel</button>
       <button id="btn-confirm-generate-key" class="btn-primary">Generate</button>
+    </div>
+  </dialog>
+
+  <!-- My master.env modals -->
+  <dialog id="modal-add-env">
+    <h2 id="modal-add-env-title">Add credential</h2>
+    <div class="form-field">
+      <label>Template <span style="opacity:.5">(optional — pre-fills the fields)</span></label>
+      <select id="env-template-select">
+        <option value="">— Custom (no template) —</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Variable name</label>
+      <input id="env-var-name" type="text" placeholder="ANTHROPIC_API_KEY" autocomplete="off">
+    </div>
+    <div class="form-field">
+      <label>Value</label>
+      <input id="env-var-value" type="password" placeholder="sk-ant-..." autocomplete="off">
+    </div>
+    <div class="form-field" style="display:flex;gap:8px">
+      <div style="flex:1">
+        <label>Category</label>
+        <select id="env-var-category">
+          <option value="api_key">api_key</option>
+          <option value="mcp_config">mcp_config</option>
+          <option value="integration">integration</option>
+          <option value="preference">preference</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Service <span style="opacity:.5">(optional)</span></label>
+        <input id="env-var-service" type="text" placeholder="anthropic" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Description <span style="opacity:.5">(optional)</span></label>
+      <input id="env-var-description" type="text" placeholder="Personal Anthropic key for direct SDK calls" autocomplete="off">
+    </div>
+    <div id="env-template-hint" style="font-size:11px;color:var(--text-muted);margin-top:-4px;display:none"></div>
+    <div id="env-error" style="color:#f87171;font-size:12px;display:none"></div>
+    <div class="modal-actions">
+      <button id="btn-cancel-add-env" class="btn-ghost">Cancel</button>
+      <button id="btn-save-add-env" class="btn-primary">Save</button>
+    </div>
+  </dialog>
+
+  <dialog id="modal-import-env">
+    <h2>Import .env</h2>
+    <p style="font-size:12px;color:var(--text-muted)">Paste raw .env content. Lines starting with <code>#</code> and blank lines are ignored. Existing vars with the same name are overwritten.</p>
+    <div class="form-field">
+      <label>Apply category to all imported vars</label>
+      <select id="env-import-category">
+        <option value="api_key">api_key</option>
+        <option value="mcp_config">mcp_config</option>
+        <option value="integration">integration</option>
+        <option value="preference">preference</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Content</label>
+      <textarea id="env-import-content" rows="10" style="width:100%;font-family:monospace;font-size:12px;background:#0f0f18;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px" placeholder="ANTHROPIC_API_KEY=sk-ant-...&#10;GITHUB_TOKEN=ghp_..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-cancel-import-env" class="btn-ghost">Cancel</button>
+      <button id="btn-confirm-import-env" class="btn-primary">Import</button>
     </div>
   </dialog>
 

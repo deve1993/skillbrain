@@ -51,6 +51,7 @@ function route() {
     case 'team': renderTeam(); break
     case 'review': renderReview(); break
     case 'profile': renderProfile(); break
+    case 'my-env': renderMyEnv(); break
     default: renderHome()
   }
 }
@@ -597,6 +598,222 @@ document.getElementById('btn-confirm-generate-key')?.addEventListener('click', a
   document.getElementById('modal-show-key').showModal()
   await loadProfileKeys()
 })
+
+// ── My master.env page ──
+let envTemplatesCache = null
+
+async function renderMyEnv() {
+  const page = $('#page')
+  page.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div class="section-title" style="margin:0">My master.env</div>
+      <div style="flex:1"></div>
+      <button id="btn-add-env" class="btn-primary">+ Add credential</button>
+      <button id="btn-import-env" class="btn-ghost">Import .env</button>
+      <button id="btn-export-env" class="btn-ghost">Export</button>
+    </div>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px;max-width:680px">
+      Personal credentials, MCP configs, integrations and preferences. Encrypted at rest, only you can see them.
+      Claude Code reads this profile via <code>session_resume</code> + <code>user_env_get</code> so it knows what
+      tools you have available.
+    </p>
+    <div id="my-env-summary" style="margin-bottom:16px"></div>
+    <div id="my-env-list">Loading…</div>`
+
+  document.getElementById('btn-add-env').addEventListener('click', () => openAddEnvModal())
+  document.getElementById('btn-import-env').addEventListener('click', () => openImportEnvModal())
+  document.getElementById('btn-export-env').addEventListener('click', () => exportMyEnv())
+
+  await loadEnvTemplates()
+  await loadMyEnv()
+}
+
+async function loadEnvTemplates() {
+  if (envTemplatesCache) return envTemplatesCache
+  try {
+    const { templates } = await api.get('/api/me/env/templates')
+    envTemplatesCache = templates
+    return templates
+  } catch { envTemplatesCache = []; return [] }
+}
+
+async function loadMyEnv() {
+  try {
+    const { vars, capability } = await api.get('/api/me/env')
+
+    const summary = document.getElementById('my-env-summary')
+    if (summary) {
+      const cats = capability.categories
+      summary.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${capability.totalVars === 0
+            ? '<span style="color:var(--text-muted);font-size:12px">No credentials saved yet — start with a template.</span>'
+            : `<span class="badge badge-pattern">${capability.totalVars} total</span>
+               <span class="badge">${cats.api_key} api_key</span>
+               <span class="badge">${cats.mcp_config} mcp_config</span>
+               <span class="badge">${cats.integration} integration</span>
+               <span class="badge">${cats.preference} preference</span>
+               ${capability.services.length ? `<span class="badge badge-fact">services: ${capability.services.map(escHtml).join(', ')}</span>` : ''}`}
+        </div>`
+    }
+
+    const el = document.getElementById('my-env-list')
+    if (!el) return
+    if (!vars || vars.length === 0) {
+      el.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No credentials yet. Click "+ Add credential" to start, or "Import .env" to bulk-paste.</p>'
+      return
+    }
+
+    // Group by service first, then by category
+    const groups = {}
+    for (const v of vars) {
+      const key = v.service || `(${v.category})`
+      if (!groups[key]) groups[key] = []
+      groups[key].push(v)
+    }
+
+    el.innerHTML = Object.entries(groups).map(([groupKey, items]) => `
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">${escHtml(groupKey)} <span class="count">${items.length}</span></div>
+        ${items.map(v => `
+          <div class="row">
+            <span class="row-label">
+              <code style="color:${v.isSecret ? 'var(--yellow)' : 'var(--green)'}">${escHtml(v.varName)}</code>
+              <span class="badge" style="margin-left:6px;font-size:10px">${v.category}</span>
+              ${v.lastUsedAt ? `<span style="font-size:10px;color:var(--text-muted);margin-left:6px">used ${v.lastUsedAt.slice(0,10)}</span>` : ''}
+              ${v.description ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escHtml(v.description)}</div>` : ''}
+            </span>
+            <span>
+              <button onclick="revealMyEnv('${escHtml(v.varName)}')" style="padding:2px 8px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text-muted);font-size:11px;cursor:pointer;margin-right:4px">Reveal</button>
+              <button onclick="editMyEnv('${escHtml(v.varName)}','${escHtml(v.category)}','${escHtml(v.service||'')}','${escHtml(v.description||'')}')" style="padding:2px 8px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text-muted);font-size:11px;cursor:pointer;margin-right:4px">Edit</button>
+              <button onclick="deleteMyEnv('${escHtml(v.varName)}')" style="padding:2px 8px;border-radius:4px;background:none;border:1px solid rgba(248,113,113,.3);color:var(--red);font-size:11px;cursor:pointer">Delete</button>
+            </span>
+          </div>`).join('')}
+      </div>`).join('')
+  } catch (e) {
+    document.getElementById('my-env-list').innerHTML = '<p style="color:var(--red)">Error loading your master.env</p>'
+  }
+}
+
+async function openAddEnvModal(prefill) {
+  const templates = await loadEnvTemplates()
+  const sel = document.getElementById('env-template-select')
+  sel.innerHTML = '<option value="">— Custom (no template) —</option>' +
+    templates.map((t, i) => `<option value="${i}">${escHtml(t.label)} — ${escHtml(t.varName)}</option>`).join('')
+
+  document.getElementById('modal-add-env-title').textContent = prefill ? `Edit ${prefill.varName}` : 'Add credential'
+  document.getElementById('env-var-name').value = prefill?.varName || ''
+  document.getElementById('env-var-name').readOnly = !!prefill
+  document.getElementById('env-var-value').value = ''
+  document.getElementById('env-var-value').placeholder = prefill ? '(leave blank to keep current value — not yet supported, paste new value to update)' : 'sk-ant-...'
+  document.getElementById('env-var-category').value = prefill?.category || 'api_key'
+  document.getElementById('env-var-service').value = prefill?.service || ''
+  document.getElementById('env-var-description').value = prefill?.description || ''
+  document.getElementById('env-template-hint').style.display = 'none'
+  document.getElementById('env-error').style.display = 'none'
+
+  sel.onchange = () => {
+    const t = templates[parseInt(sel.value, 10)]
+    if (!t) { document.getElementById('env-template-hint').style.display = 'none'; return }
+    document.getElementById('env-var-name').value = t.varName
+    document.getElementById('env-var-category').value = t.category
+    document.getElementById('env-var-service').value = t.service
+    document.getElementById('env-var-description').value = t.description
+    const hint = document.getElementById('env-template-hint')
+    hint.innerHTML = t.helpUrl ? `Get your key at <a href="${t.helpUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${escHtml(t.helpUrl)}</a>` : ''
+    hint.style.display = t.helpUrl ? 'block' : 'none'
+  }
+
+  document.getElementById('modal-add-env').showModal()
+}
+
+function openImportEnvModal() {
+  document.getElementById('env-import-content').value = ''
+  document.getElementById('env-import-category').value = 'api_key'
+  document.getElementById('modal-import-env').showModal()
+}
+
+async function exportMyEnv() {
+  try {
+    const { content, count } = await api.post('/api/me/env/export', {})
+    if (count === 0) { alert('Nothing to export — your master.env is empty.'); return }
+    try {
+      await navigator.clipboard.writeText(content)
+      alert(`Copied ${count} env vars to clipboard`)
+    } catch {
+      prompt(`.env content (${count} vars):`, content)
+    }
+  } catch (err) { alert(`Export failed: ${err.message}`) }
+}
+
+async function revealMyEnv(varName) {
+  try {
+    const { value } = await api.post('/api/me/env/reveal', { varName })
+    prompt(`${varName} (copy below):`, value)
+  } catch (err) { alert(`Reveal failed: ${err.message}`) }
+}
+
+function editMyEnv(varName, category, service, description) {
+  openAddEnvModal({ varName, category, service, description })
+}
+
+async function deleteMyEnv(varName) {
+  if (!confirm(`Delete ${varName} from your master.env?`)) return
+  try {
+    await api.del(`/api/me/env/${encodeURIComponent(varName)}`)
+    await loadMyEnv()
+  } catch (err) { alert(`Delete failed: ${err.message}`) }
+}
+
+document.getElementById('btn-cancel-add-env')?.addEventListener('click', () => {
+  document.getElementById('modal-add-env').close()
+})
+
+document.getElementById('btn-save-add-env')?.addEventListener('click', async () => {
+  const varName = document.getElementById('env-var-name').value.trim()
+  const value = document.getElementById('env-var-value').value
+  const category = document.getElementById('env-var-category').value
+  const service = document.getElementById('env-var-service').value.trim()
+  const description = document.getElementById('env-var-description').value.trim()
+  const errEl = document.getElementById('env-error')
+  errEl.style.display = 'none'
+
+  if (!varName) { errEl.textContent = 'Variable name is required'; errEl.style.display = 'block'; return }
+  if (!value) { errEl.textContent = 'Value is required'; errEl.style.display = 'block'; return }
+
+  try {
+    await api.put(`/api/me/env/${encodeURIComponent(varName)}`, {
+      value, category, service: service || undefined, description: description || undefined,
+    })
+    document.getElementById('modal-add-env').close()
+    await loadMyEnv()
+  } catch (err) {
+    errEl.textContent = err.message || 'Save failed'
+    errEl.style.display = 'block'
+  }
+})
+
+document.getElementById('btn-cancel-import-env')?.addEventListener('click', () => {
+  document.getElementById('modal-import-env').close()
+})
+
+document.getElementById('btn-confirm-import-env')?.addEventListener('click', async () => {
+  const envContent = document.getElementById('env-import-content').value.trim()
+  const category = document.getElementById('env-import-category').value
+  if (!envContent) { alert('Paste some .env content first.'); return }
+  try {
+    const { saved, errors } = await api.post('/api/me/env/import', { envContent, category })
+    document.getElementById('modal-import-env').close()
+    let msg = `Imported ${saved} variables.`
+    if (errors && errors.length) msg += `\n${errors.length} skipped:\n${errors.slice(0, 5).join('\n')}`
+    alert(msg)
+    await loadMyEnv()
+  } catch (err) { alert(`Import failed: ${err.message}`) }
+})
+
+window.revealMyEnv = revealMyEnv
+window.editMyEnv = editMyEnv
+window.deleteMyEnv = deleteMyEnv
 
 // ── Logout ──
 document.getElementById('btn-logout')?.addEventListener('click', () => {

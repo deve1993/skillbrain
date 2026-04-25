@@ -10,6 +10,7 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -18,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import nodemailer from 'nodemailer';
 import Anthropic from '@anthropic-ai/sdk';
 import { createMcpServer } from './server.js';
+import { createOAuthRouter, verifyOAuthBearer } from './oauth-router.js';
 import { loadRegistry } from '../storage/registry.js';
 import { openDb, closeDb } from '../storage/db.js';
 import { MemoryStore } from '../storage/memory-store.js';
@@ -25,12 +27,31 @@ import { SkillsStore } from '../storage/skills-store.js';
 import { ProjectsStore } from '../storage/projects-store.js';
 import { ComponentsStore } from '../storage/components-store.js';
 import { AuditStore } from '../storage/audit-store.js';
+import { OAuthStore } from '../storage/oauth-store.js';
+import { UsersEnvStore } from '../storage/users-env-store.js';
 import { assertEncryptionUsable, decrypt } from '../storage/crypto.js';
+// Curated catalog for the hub's "Add credential" flow. Adding to this list
+// surfaces a one-click template; everything else is still addable via the
+// generic form. Order matters — most-common services first.
+const ENV_TEMPLATES = [
+    { service: 'anthropic', varName: 'ANTHROPIC_API_KEY', category: 'api_key', label: 'Anthropic (Claude)', helpUrl: 'https://console.anthropic.com/settings/keys', description: 'Personal Claude API key for direct SDK calls' },
+    { service: 'openai', varName: 'OPENAI_API_KEY', category: 'api_key', label: 'OpenAI', helpUrl: 'https://platform.openai.com/api-keys', description: 'OpenAI API key' },
+    { service: 'github', varName: 'GITHUB_TOKEN', category: 'api_key', label: 'GitHub PAT', helpUrl: 'https://github.com/settings/tokens', description: 'Personal access token (repo scope)' },
+    { service: 'supabase', varName: 'SUPABASE_ACCESS_TOKEN', category: 'api_key', label: 'Supabase', helpUrl: 'https://supabase.com/dashboard/account/tokens', description: 'Personal access token for the Supabase CLI' },
+    { service: 'vercel', varName: 'VERCEL_TOKEN', category: 'api_key', label: 'Vercel', helpUrl: 'https://vercel.com/account/tokens', description: 'API token for vercel CLI / API' },
+    { service: 'resend', varName: 'RESEND_API_KEY', category: 'api_key', label: 'Resend', helpUrl: 'https://resend.com/api-keys', description: 'Transactional email API key' },
+    { service: 'stripe', varName: 'STRIPE_SECRET_KEY', category: 'api_key', label: 'Stripe', helpUrl: 'https://dashboard.stripe.com/apikeys', description: 'Secret key for the Stripe SDK' },
+    { service: 'figma', varName: 'FIGMA_TOKEN', category: 'api_key', label: 'Figma', helpUrl: 'https://www.figma.com/settings', description: 'Personal access token for the Figma API' },
+    { service: 'cloudflare', varName: 'CLOUDFLARE_API_TOKEN', category: 'api_key', label: 'Cloudflare', helpUrl: 'https://dash.cloudflare.com/profile/api-tokens', description: 'API token (workers/pages/dns scopes)' },
+    { service: 'coolify', varName: 'COOLIFY_API_TOKEN', category: 'api_key', label: 'Coolify', helpUrl: 'https://coolify.io', description: 'API token for the self-hosted Coolify instance' },
+    { service: 'odoo', varName: 'ODOO_API_KEY', category: 'api_key', label: 'Odoo CRM', helpUrl: 'https://fl1.cz/odoo', description: 'API key for fl1.cz/odoo CRM' },
+];
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session';
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || '';
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
+const PUBLIC_ISSUER = process.env.OAUTH_ISSUER || process.env.PUBLIC_URL || 'https://memory.fl1.it';
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
 const SMTP_USER = process.env.SMTP_USER || '';
@@ -126,39 +147,60 @@ export async function startHttpServer(port, authToken) {
     app.use(express.json());
     // Session map for MCP transports
     const transports = new Map();
-    // ── Auth middleware for /mcp routes (Bearer token) ──
-    app.use('/mcp', (req, res, next) => {
-        if (!authToken) {
-            next();
-            return;
-        }
+    // SSE transport sessions (legacy MCP transport, e.g. for ChatGPT)
+    const sseTransports = new Map();
+    // ── Auth middleware for /mcp + /sse routes (Bearer token) ──
+    // On success, sets (req as any).mcpUserId when the token is bound to a user
+    // (personal API key or OAuth bearer). The legacy shared token is unauthenticated
+    // and leaves mcpUserId undefined — user-scoped tools (user_env_*) will refuse to run.
+    const bearerAuth = (req, res, next) => {
         const token = req.headers.authorization?.replace('Bearer ', '');
         if (!token) {
+            res.setHeader('WWW-Authenticate', `Bearer realm="mcp", resource_metadata="${PUBLIC_ISSUER}/.well-known/oauth-protected-resource"`);
             res.status(401).json({ error: 'Unauthorized' });
             return;
         }
-        // Legacy: CODEGRAPH_AUTH_TOKEN env var (backward compat)
-        if (token === authToken) {
+        // 1. Legacy env-var token (backward compat — skip DB check, no user binding)
+        if (authToken && token === authToken) {
             next();
             return;
         }
-        // DB: check api_keys table
+        // 2. Personal API keys table
         try {
             const db = openDb(SKILLBRAIN_ROOT);
             const hash = crypto.createHash('sha256').update(token).digest('hex');
-            const key = db.prepare(`SELECT id FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL`).get(hash);
+            const key = db.prepare(`SELECT id, user_id FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL`).get(hash);
             if (key) {
                 db.prepare(`UPDATE api_keys SET last_used_at = ? WHERE id = ?`)
                     .run(new Date().toISOString(), key.id);
                 closeDb(db);
+                req.mcpUserId = key.user_id;
                 next();
                 return;
             }
             closeDb(db);
         }
         catch { /* api_keys table not yet migrated */ }
+        // 3. OAuth access token
+        const oauth = verifyOAuthBearer(SKILLBRAIN_ROOT, token);
+        if (oauth) {
+            ;
+            req.oauthUserId = oauth.userId;
+            req.oauthClientId = oauth.clientId;
+            req.mcpUserId = oauth.userId;
+            next();
+            return;
+        }
+        res.setHeader('WWW-Authenticate', `Bearer realm="mcp", resource_metadata="${PUBLIC_ISSUER}/.well-known/oauth-protected-resource"`);
         res.status(401).json({ error: 'Unauthorized' });
-    });
+    };
+    // Skip bearer auth entirely when running without a token (local dev only).
+    // Production deploys set CODEGRAPH_AUTH_TOKEN which enables auth on /mcp + /sse.
+    const mcpAuthMiddleware = authToken
+        ? bearerAuth
+        : (_req, _res, next) => next();
+    app.use('/mcp', mcpAuthMiddleware);
+    app.use('/sse', mcpAuthMiddleware);
     // ── Dashboard auth (per-user email+password) ──
     function createSessionToken(userId) {
         const payload = `${userId}:${Date.now()}`;
@@ -191,6 +233,13 @@ export async function startHttpServer(port, authToken) {
         if (/^[a-f0-9]{64}$/.test(token) && !ADMIN_EMAIL)
             return 'legacy-admin';
         return parseSessionToken(token);
+    }
+    function getUserIdFromRequest(req) {
+        const cookieToken = req.headers.cookie?.split(';')
+            .map(c => c.trim().split('='))
+            .find(([k]) => k === 'sb_session')?.[1];
+        const headerToken = req.headers['x-dashboard-token'];
+        return getUserIdFromSession(cookieToken) ?? getUserIdFromSession(headerToken);
     }
     // Admin bootstrap: create admin user if users table is empty and credentials are available
     {
@@ -258,21 +307,22 @@ export async function startHttpServer(port, authToken) {
         closeDb(db);
         res.json({ ok: true });
     });
-    // Auth check for dashboard routes (not /mcp, not /auth)
+    // Auth check for dashboard routes (not /mcp, not /sse, not /auth, not /oauth, not /.well-known)
     const authEnabled = !!ADMIN_EMAIL;
+    const isPublicPath = (p) => p.startsWith('/mcp') ||
+        p.startsWith('/sse') ||
+        p.startsWith('/auth/') ||
+        p === '/oauth/register' ||
+        p === '/oauth/token' ||
+        p === '/oauth/revoke' ||
+        p.startsWith('/.well-known/');
     if (authEnabled) {
         app.use((req, res, next) => {
-            // Skip auth for MCP protocol and login
-            if (req.path.startsWith('/mcp') || req.path.startsWith('/auth/')) {
+            if (isPublicPath(req.path)) {
                 next();
                 return;
             }
-            // Check cookie or Authorization header
-            const cookieToken = req.headers.cookie?.split(';')
-                .map(c => c.trim().split('='))
-                .find(([k]) => k === 'sb_session')?.[1];
-            const headerToken = req.headers['x-dashboard-token'];
-            const userId = getUserIdFromSession(cookieToken) ?? getUserIdFromSession(headerToken);
+            const userId = getUserIdFromRequest(req);
             if (userId) {
                 ;
                 req.userId = userId;
@@ -282,8 +332,9 @@ export async function startHttpServer(port, authToken) {
                 res.status(401).json({ error: 'Authentication required' });
             }
             else {
-                // Serve login page for HTML requests
-                res.type('html').send(getLoginPage());
+                // Serve login page for HTML requests — preserve return_to
+                const returnTo = req.query?.return_to;
+                res.type('html').send(getLoginPage(returnTo));
             }
         });
     }
@@ -331,7 +382,8 @@ export async function startHttpServer(port, authToken) {
                     if (sid)
                         transports.delete(sid);
                 };
-                const server = createMcpServer();
+                const mcpUserId = req.mcpUserId;
+                const server = createMcpServer({ userId: mcpUserId });
                 await server.connect(transport);
             }
             else {
@@ -370,6 +422,37 @@ export async function startHttpServer(port, authToken) {
         await transport.handleRequest(req, res);
         transports.delete(sessionId);
     });
+    // ── Legacy SSE transport (for ChatGPT + older MCP clients) ──
+    // Client opens GET /sse to start the event stream, then POSTs JSON-RPC to /sse/messages?sessionId=...
+    app.get('/sse', async (req, res) => {
+        const transport = new SSEServerTransport('/sse/messages', res);
+        sseTransports.set(transport.sessionId, transport);
+        transport.onclose = () => { sseTransports.delete(transport.sessionId); };
+        const mcpUserId = req.mcpUserId;
+        const server = createMcpServer({ userId: mcpUserId });
+        await server.connect(transport);
+        // start() is invoked by connect(); nothing more to do here — the response stays open
+    });
+    app.post('/sse/messages', async (req, res) => {
+        const sessionId = req.query.sessionId;
+        if (!sessionId) {
+            res.status(400).json({ error: 'Missing sessionId query param' });
+            return;
+        }
+        const transport = sseTransports.get(sessionId);
+        if (!transport) {
+            res.status(404).json({ error: 'SSE session not found' });
+            return;
+        }
+        // Body is already parsed by express.json() earlier in the chain
+        await transport.handlePostMessage(req, res, req.body);
+    });
+    // ── OAuth 2.1 authorization server (for ChatGPT, Claude Desktop, etc.) ──
+    app.use(createOAuthRouter({
+        skillbrainRoot: SKILLBRAIN_ROOT,
+        issuer: PUBLIC_ISSUER,
+        getUserIdFromRequest,
+    }));
     // ── Dashboard: Health ──
     app.get('/api/health', (_req, res) => {
         const mg = getMemoryGraphStats();
@@ -1097,6 +1180,41 @@ export async function startHttpServer(port, authToken) {
             res.status(500).json({ error: 'Internal error' });
         }
     });
+    // ── API: Admin OAuth clients ──
+    app.get('/api/admin/oauth/clients', requireAdmin, (_req, res) => {
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new OAuthStore(db);
+            const clients = store.listClients().map((c) => ({
+                client_id: c.client_id,
+                client_name: c.client_name,
+                client_uri: c.client_uri,
+                redirect_uris: JSON.parse(c.redirect_uris || '[]'),
+                grant_types: JSON.parse(c.grant_types || '[]'),
+                token_endpoint_auth_method: c.token_endpoint_auth_method,
+                created_at: c.created_at,
+                has_secret: !!c.client_secret_hash,
+            }));
+            closeDb(db);
+            res.json({ clients });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
+    app.delete('/api/admin/oauth/clients/:id', requireAdmin, (req, res) => {
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new OAuthStore(db);
+            store.revokeClientTokens(req.params.id);
+            store.deleteClient(req.params.id);
+            closeDb(db);
+            res.json({ ok: true });
+        }
+        catch {
+            res.status(500).json({ error: 'Internal error' });
+        }
+    });
     // ── API: Self-service profile + API keys ──
     app.get('/api/me', (req, res) => {
         const userId = req.userId;
@@ -1179,6 +1297,185 @@ export async function startHttpServer(port, authToken) {
         catch {
             res.status(500).json({ error: 'Internal error' });
         }
+    });
+    // ── API: My master.env ──
+    // All routes are scoped to the logged-in user via req.userId. Values are
+    // never returned in list endpoints — only on explicit reveal/export, which
+    // are written to the audit log so the user can see when they were touched.
+    app.get('/api/me/env', (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        try {
+            const { category, service } = req.query;
+            const db = openDb(SKILLBRAIN_ROOT);
+            const vars = new UsersEnvStore(db).listEnv(userId, {
+                category: category,
+                service,
+            });
+            const cap = new UsersEnvStore(db).capability(userId);
+            closeDb(db);
+            res.json({ vars, capability: cap });
+        }
+        catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    app.post('/api/me/env/reveal', express.json(), (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        const { varName } = req.body || {};
+        if (!varName) {
+            res.status(400).json({ error: 'varName required' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const value = new UsersEnvStore(db).getEnv(userId, varName);
+            if (value === undefined) {
+                closeDb(db);
+                res.status(404).json({ error: 'Not found' });
+                return;
+            }
+            new AuditStore(db).log({
+                entityType: 'user_env',
+                entityId: varName,
+                action: 'reveal',
+                reviewedBy: userId,
+            });
+            closeDb(db);
+            res.json({ varName, value });
+        }
+        catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    app.put('/api/me/env/:varName', express.json(), (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        const { value, category, service, description, isSecret } = req.body || {};
+        if (typeof value !== 'string' || value.length === 0) {
+            res.status(400).json({ error: 'value (string) required' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new UsersEnvStore(db);
+            const existed = store.hasEnv(userId, req.params.varName);
+            const saved = store.setEnv(userId, req.params.varName, value, {
+                category, service, description, isSecret,
+            });
+            new AuditStore(db).log({
+                entityType: 'user_env',
+                entityId: req.params.varName,
+                action: existed ? 'update' : 'create',
+                reviewedBy: userId,
+                metadata: { category: saved.category, service: saved.service },
+            });
+            closeDb(db);
+            res.json({ ok: true, var: saved });
+        }
+        catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    app.delete('/api/me/env/:varName', (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const removed = new UsersEnvStore(db).deleteEnv(userId, req.params.varName);
+            if (!removed) {
+                closeDb(db);
+                res.status(404).json({ error: 'Not found' });
+                return;
+            }
+            new AuditStore(db).log({
+                entityType: 'user_env',
+                entityId: req.params.varName,
+                action: 'delete',
+                reviewedBy: userId,
+            });
+            closeDb(db);
+            res.json({ ok: true });
+        }
+        catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    app.post('/api/me/env/import', express.json(), (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        const { envContent, category, service } = req.body || {};
+        if (typeof envContent !== 'string' || envContent.length === 0) {
+            res.status(400).json({ error: 'envContent (string) required' });
+            return;
+        }
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const result = new UsersEnvStore(db).importEnv(userId, envContent, { category, service });
+            new AuditStore(db).log({
+                entityType: 'user_env',
+                entityId: '__bulk__',
+                action: 'import',
+                reviewedBy: userId,
+                metadata: { saved: result.saved, errorCount: result.errors.length },
+            });
+            closeDb(db);
+            res.json({ ok: true, ...result });
+        }
+        catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    app.post('/api/me/env/export', express.json(), (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        const { category, service } = req.body || {};
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const vars = new UsersEnvStore(db).getAllEnv(userId, { category, service });
+            new AuditStore(db).log({
+                entityType: 'user_env',
+                entityId: '__bulk__',
+                action: 'export',
+                reviewedBy: userId,
+                metadata: { count: Object.keys(vars).length },
+            });
+            closeDb(db);
+            const content = Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n');
+            res.json({ content, count: Object.keys(vars).length });
+        }
+        catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    // Curated templates so the hub can offer a guided "Add credential" flow with
+    // sensible defaults (service, var name, where to get the key).
+    app.get('/api/me/env/templates', (req, res) => {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        res.json({ templates: ENV_TEMPLATES });
     });
     // ── API: Audit Log ──
     app.get('/api/audit/:entityType/:entityId', (req, res) => {
@@ -1437,13 +1734,18 @@ Generate an improved SKILL.md for skill "${proposal.skill_name}" that incorporat
   SkillBrain Hub (HTTP mode)
   ──────────────────────────
   Dashboard:  http://localhost:${port}
-  MCP:        http://localhost:${port}/mcp
+  MCP:        http://localhost:${port}/mcp               (Streamable HTTP)
+  SSE:        http://localhost:${port}/sse               (legacy, for ChatGPT)
+  OAuth:      ${PUBLIC_ISSUER}/.well-known/oauth-authorization-server
   API:        http://localhost:${port}/api/health
-  Auth:       ${authToken ? 'Bearer token required for /mcp' : 'disabled'}
+  Auth:       ${authToken ? 'Bearer token required for /mcp + /sse' : 'disabled'}
 `);
     });
 }
-function getLoginPage() {
+function getLoginPage(returnTo) {
+    // Only allow same-origin return_to paths (must start with /) to prevent open redirects
+    const safeReturn = returnTo && /^\/[^/]/.test(returnTo) ? returnTo : '';
+    const returnJson = JSON.stringify(safeReturn);
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SkillBrain — Login</title>
 <style>
@@ -1469,6 +1771,7 @@ button:hover{opacity:.9}
 <div class="err" id="err">Wrong email or password</div>
 </div>
 <script>
+const RETURN_TO=${returnJson};
 async function doLogin(e){
   e.preventDefault();
   const em=document.getElementById('em').value;
@@ -1477,7 +1780,7 @@ async function doLogin(e){
   const d=await r.json();
   if(d.ok){
     document.cookie='sb_session='+d.token+';path=/;max-age=604800;SameSite=Lax';
-    location.reload();
+    if(RETURN_TO){location.href=RETURN_TO;}else{location.reload();}
   } else {
     document.getElementById('err').style.display='block';
   }

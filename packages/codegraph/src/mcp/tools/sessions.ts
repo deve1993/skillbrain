@@ -3,6 +3,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
 import { MemoryStore } from '../../storage/memory-store.js'
 import { ComponentsStore } from '../../storage/components-store.js'
+import { ProjectsStore } from '../../storage/projects-store.js'
+import { UsersEnvStore } from '../../storage/users-env-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
 import {
   detectDesignFiles, parseTailwindConfig, parseCSSVariables,
@@ -36,7 +38,7 @@ function withMemoryStore<T>(repoPath: string, fn: (store: MemoryStore) => T): T 
   }
 }
 
-export function registerSessionTools(server: McpServer, _ctx: ToolContext): void {
+export function registerSessionTools(server: McpServer, ctx: ToolContext): void {
   // --- Tool: session_start ---
   server.tool(
     'session_start',
@@ -214,6 +216,26 @@ export function registerSessionTools(server: McpServer, _ctx: ToolContext): void
       // Get recent memories related to this project
       const searchResults = memStore.search(project, 5)
 
+      // Capability profile from THIS user's master.env (when MCP session is bound to a user).
+      // Includes which env var names overlap with the project's env so Claude Code knows
+      // up-front to ask which to use rather than silently picking one.
+      let capability: {
+        userEnv: { services: string[]; totalVars: number; categories: Record<string, number> } | null
+        conflictsWithProject: string[]
+      } = { userEnv: null, conflictsWithProject: [] }
+      if (ctx.userId) {
+        try {
+          const usersEnv = new UsersEnvStore(db)
+          const projectVarNames = new ProjectsStore(db)
+            .listEnvNames(project, 'production')
+            .map((v) => v.varName)
+          capability = {
+            userEnv: usersEnv.capability(ctx.userId),
+            conflictsWithProject: usersEnv.conflictsWith(ctx.userId, projectVarNames),
+          }
+        } catch { /* user_env_vars table may not be migrated yet on legacy DBs */ }
+      }
+
       closeDb(db)
 
       if (sessions.length === 0 && memories.length === 0) {
@@ -271,6 +293,23 @@ export function registerSessionTools(server: McpServer, _ctx: ToolContext): void
           if (!memories.find((m) => m.id === r.memory.id)) {
             lines.push(`- [${r.memory.type} conf:${r.memory.confidence}] ${r.memory.context.slice(0, 100)}`)
           }
+        }
+        lines.push('')
+      }
+
+      if (capability.userEnv) {
+        const cap = capability.userEnv
+        lines.push(`### Your Capability Profile (master.env)`)
+        if (cap.totalVars === 0) {
+          lines.push(`- No personal credentials saved yet. Add them at /#/my-env in the hub.`)
+        } else {
+          lines.push(`- **Services available**: ${cap.services.length ? cap.services.join(', ') : '(none tagged)'}`)
+          lines.push(`- **Vars**: ${cap.totalVars} total — api_key:${cap.categories.api_key} mcp_config:${cap.categories.mcp_config} integration:${cap.categories.integration} preference:${cap.categories.preference}`)
+          if (capability.conflictsWithProject.length) {
+            lines.push(`- ⚠️ **Conflicts with project ${project}**: ${capability.conflictsWithProject.join(', ')}`)
+            lines.push(`  → ASK the user which to use for each task. Do NOT pick silently.`)
+          }
+          lines.push(`- Use \`user_env_get\` to fetch a value, \`user_env_available\` to check before using a tool.`)
         }
       }
 
