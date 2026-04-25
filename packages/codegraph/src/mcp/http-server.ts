@@ -1247,7 +1247,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       closeDb(db)
       res.json({ vars, capability: cap })
     } catch (err: any) {
-      res.status(500).json({ error: err.message })
+      console.error('[user_env GET]', err)
+      res.status(500).json({ error: err.message, code: err.code })
     }
   })
 
@@ -1271,7 +1272,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       closeDb(db)
       res.json({ varName, value })
     } catch (err: any) {
-      res.status(500).json({ error: err.message })
+      console.error('[user_env reveal]', err)
+      res.status(500).json({ error: err.message, code: err.code })
     }
   })
 
@@ -1299,7 +1301,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       closeDb(db)
       res.json({ ok: true, var: saved })
     } catch (err: any) {
-      res.status(500).json({ error: err.message })
+      console.error('[user_env PUT]', req.params.varName, err)
+      res.status(500).json({ error: err.message, code: err.code })
     }
   })
 
@@ -1319,7 +1322,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       closeDb(db)
       res.json({ ok: true })
     } catch (err: any) {
-      res.status(500).json({ error: err.message })
+      console.error('[user_env DELETE]', req.params.varName, err)
+      res.status(500).json({ error: err.message, code: err.code })
     }
   })
 
@@ -1343,7 +1347,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       closeDb(db)
       res.json({ ok: true, ...result })
     } catch (err: any) {
-      res.status(500).json({ error: err.message })
+      console.error('[user_env import]', err)
+      res.status(500).json({ error: err.message, code: err.code })
     }
   })
 
@@ -1365,7 +1370,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       const content = Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n')
       res.json({ content, count: Object.keys(vars).length })
     } catch (err: any) {
-      res.status(500).json({ error: err.message })
+      console.error('[user_env export]', err)
+      res.status(500).json({ error: err.message, code: err.code })
     }
   })
 

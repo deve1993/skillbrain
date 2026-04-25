@@ -1320,7 +1320,8 @@ export async function startHttpServer(port, authToken) {
             res.json({ vars, capability: cap });
         }
         catch (err) {
-            res.status(500).json({ error: err.message });
+            console.error('[user_env GET]', err);
+            res.status(500).json({ error: err.message, code: err.code });
         }
     });
     app.post('/api/me/env/reveal', express.json(), (req, res) => {
@@ -1352,7 +1353,8 @@ export async function startHttpServer(port, authToken) {
             res.json({ varName, value });
         }
         catch (err) {
-            res.status(500).json({ error: err.message });
+            console.error('[user_env reveal]', err);
+            res.status(500).json({ error: err.message, code: err.code });
         }
     });
     app.put('/api/me/env/:varName', express.json(), (req, res) => {
@@ -1384,7 +1386,8 @@ export async function startHttpServer(port, authToken) {
             res.json({ ok: true, var: saved });
         }
         catch (err) {
-            res.status(500).json({ error: err.message });
+            console.error('[user_env PUT]', req.params.varName, err);
+            res.status(500).json({ error: err.message, code: err.code });
         }
     });
     app.delete('/api/me/env/:varName', (req, res) => {
@@ -1411,7 +1414,8 @@ export async function startHttpServer(port, authToken) {
             res.json({ ok: true });
         }
         catch (err) {
-            res.status(500).json({ error: err.message });
+            console.error('[user_env DELETE]', req.params.varName, err);
+            res.status(500).json({ error: err.message, code: err.code });
         }
     });
     app.post('/api/me/env/import', express.json(), (req, res) => {
@@ -1439,7 +1443,8 @@ export async function startHttpServer(port, authToken) {
             res.json({ ok: true, ...result });
         }
         catch (err) {
-            res.status(500).json({ error: err.message });
+            console.error('[user_env import]', err);
+            res.status(500).json({ error: err.message, code: err.code });
         }
     });
     app.post('/api/me/env/export', express.json(), (req, res) => {
@@ -1464,7 +1469,8 @@ export async function startHttpServer(port, authToken) {
             res.json({ content, count: Object.keys(vars).length });
         }
         catch (err) {
-            res.status(500).json({ error: err.message });
+            console.error('[user_env export]', err);
+            res.status(500).json({ error: err.message, code: err.code });
         }
     });
     // Curated templates so the hub can offer a guided "Add credential" flow with
