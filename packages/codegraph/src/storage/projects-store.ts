@@ -162,7 +162,9 @@ export class ProjectsStore {
    * Throws if the primary project does not exist.
    */
   merge(primary: string, aliases: string[]): { movedSessions: number; movedMemories: number; movedEnvVars: number } {
-    // primary may only exist in session_log/memories (no metadata scan yet) — that is fine
+    if (!this.get(primary)) {
+      throw new Error(`Cannot merge into non-existent project "${primary}"`)
+    }
 
     let movedSessions = 0
     let movedMemories = 0

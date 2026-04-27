@@ -312,7 +312,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     p === '/oauth/register' ||
     p === '/oauth/token' ||
     p === '/oauth/revoke' ||
-    p.startsWith('/.well-known/')
+    p.startsWith('/.well-known/') ||
+    p.startsWith('/telemetry/')
 
   if (authEnabled) {
     app.use((req, res, next) => {
@@ -543,6 +544,42 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       res.json({ skill })
     } catch (err: any) {
       res.status(400).json({ error: err.message })
+    }
+  })
+
+  // ── Telemetry: client-side Skill tool usage ──
+  // The Claude Code `Skill` tool runs locally and never reaches the MCP server,
+  // so a PostToolUse hook fires this endpoint to persist skill_usage rows.
+  // Localhost-only: refuse external traffic since there is no auth on this path.
+  const isLocalhost = (req: Request): boolean => {
+    const ip = req.socket.remoteAddress ?? ''
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.startsWith('::ffff:127.')
+  }
+
+  app.post('/telemetry/skill-usage', express.json({ limit: '8kb' }), (req, res) => {
+    if (!isLocalhost(req)) { res.status(403).json({ error: 'localhost only' }); return }
+    const { skill, action, sessionId, project, task, tool } = (req.body || {}) as {
+      skill?: string
+      action?: string
+      sessionId?: string
+      project?: string
+      task?: string
+      tool?: string
+    }
+    if (!skill || typeof skill !== 'string') { res.status(400).json({ error: 'skill required' }); return }
+    const validAction = action === 'routed' || action === 'loaded' || action === 'applied' ? action : 'applied'
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const store = new SkillsStore(db)
+      store.recordUsage(skill, validAction, {
+        sessionId: typeof sessionId === 'string' ? sessionId : undefined,
+        project: typeof project === 'string' ? project : undefined,
+        task: typeof task === 'string' ? task : (typeof tool === 'string' ? `tool:${tool}` : undefined),
+      })
+      closeDb(db)
+      res.json({ ok: true })
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message ?? 'internal' })
     }
   })
 

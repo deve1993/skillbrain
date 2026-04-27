@@ -8,6 +8,7 @@ import { openDb, closeDb } from '../storage/db.js'
 import { GraphStore } from '../storage/graph-store.js'
 import { MemoryStore } from '../storage/memory-store.js'
 import { ComponentsStore } from '../storage/components-store.js'
+import { SkillsStore } from '../storage/skills-store.js'
 
 const PORT = parseInt(process.env.PORT || '3737', 10)
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session'
@@ -164,6 +165,24 @@ function getDesignSystemsCatalog() {
     return { total: designSystems.length, designSystems }
   } catch {
     return { total: 0, designSystems: [] }
+  }
+}
+
+function getSkillsUsage() {
+  try {
+    const db = openDb(SKILLBRAIN_ROOT)
+    const store = new SkillsStore(db)
+    const topRouted = store.topRouted(24, 10)
+    const topLoaded = store.topLoaded(24, 10)
+    const topApplied = store.topApplied(24, 10)
+    const deadSkills = store.deadSkills(30, 10)
+    const totalLast24h = store.totalUsageSince(24)
+    const confidenceStats = store.confidenceStats()
+    const topCooccurrences = store.topCooccurrences(20)
+    closeDb(db)
+    return { topRouted, topLoaded, topApplied, deadSkills, totalLast24h, confidenceStats, topCooccurrences }
+  } catch {
+    return { topRouted: [], topLoaded: [], topApplied: [], deadSkills: [], totalLast24h: 0, confidenceStats: { growing: [], declining: [], usefulRate: [] }, topCooccurrences: [] }
   }
 }
 
@@ -432,6 +451,55 @@ function render(d){
   d.skills.commands.forEach(c=>{h+='<span class="tag">/'+c+'</span>'})
   h+='</div></div></div>'
 
+  // === SKILLS USAGE 24H ===
+  const su=d.skillsUsage||{topRouted:[],topLoaded:[],topApplied:[],deadSkills:[],totalLast24h:0}
+  h+='<div class="section"><div class="section-title"><span class="icon">&#128202;</span> Skills Usage 24h <span style="font-size:12px;color:#555;font-weight:400">('+su.totalLast24h+' events)</span></div><div class="g3">'
+  // Top routed
+  h+='<div class="card"><h3>Top Routed<span class="cnt">'+su.topRouted.length+'</span></h3>'
+  if(su.topRouted.length){const mx=Math.max(...su.topRouted.map(r=>r.count));su.topRouted.forEach(r=>{h+=bar(r.skill_name,r.count,mx,'#6366f1')})}
+  else{h+='<div style="color:#444;font-size:12px">No data yet</div>'}
+  h+='</div>'
+  // Top loaded
+  h+='<div class="card"><h3>Top Loaded<span class="cnt">'+su.topLoaded.length+'</span></h3>'
+  if(su.topLoaded.length){const mx=Math.max(...su.topLoaded.map(r=>r.count));su.topLoaded.forEach(r=>{h+=bar(r.skill_name,r.count,mx,'#8b5cf6')})}
+  else{h+='<div style="color:#444;font-size:12px">No data yet</div>'}
+  h+='</div>'
+  // Dead skills (not used in N days)
+  h+='<div class="card"><h3>Unused (30d)<span class="cnt">'+su.deadSkills.length+'</span></h3>'
+  if(su.deadSkills.length){h+='<div class="tags">';su.deadSkills.forEach(s=>{h+='<span class="tag" style="color:#f87171">'+s.skill_name+'</span>'});h+='</div>'}
+  else{h+='<div style="color:#34d399;font-size:12px">All skills used recently</div>'}
+  h+='</div>'
+  h+='</div></div>'
+
+  // === SKILL REINFORCEMENT ===
+  const cs=su.confidenceStats||{growing:[],declining:[],usefulRate:[]}
+  const cooc=su.topCooccurrences||[]
+  if(cs.growing.length||cs.declining.length||cs.usefulRate.length||cooc.length){
+    h+='<div class="section"><div class="section-title"><span class="icon">&#127941;</span> Skill Reinforcement</div><div class="g3">'
+    // Growing
+    h+='<div class="card"><h3>Growing (conf ≥7)<span class="cnt">'+cs.growing.length+'</span></h3>'
+    if(cs.growing.length){cs.growing.forEach(s=>{h+=bar(s.name,s.confidence,10,'#34d399')})}
+    else{h+='<div style="color:#444;font-size:12px">None yet</div>'}
+    h+='</div>'
+    // Declining / suggested deprecations
+    h+='<div class="card"><h3>Declining (conf ≤3)<span class="cnt">'+cs.declining.length+'</span></h3>'
+    if(cs.declining.length){cs.declining.forEach(s=>{h+=bar(s.name+' ('+s.sessionsStale+'s)',s.confidence,10,'#f87171')})}
+    else{h+='<div style="color:#34d399;font-size:12px">No skills declining</div>'}
+    h+='</div>'
+    // Useful rate
+    h+='<div class="card"><h3>Useful Rate<span class="cnt">'+cs.usefulRate.length+'</span></h3>'
+    if(cs.usefulRate.length){const mx=1;cs.usefulRate.forEach(s=>{h+=bar(s.name,Math.round(s.rate*100),100,'#a78bfa')})}
+    else{h+='<div style="color:#444;font-size:12px">No feedback yet</div>'}
+    h+='</div>'
+    // Co-occurrence top pairs
+    if(cooc.length){
+      h+='<div class="card" style="grid-column:1/-1"><h3>Co-occurrence Top Pairs<span class="cnt">'+cooc.length+'</span></h3><div class="tags">'
+      cooc.forEach(c=>{h+='<span class="tag" title="count:'+c.count+'">'+c.skillA+' + '+c.skillB+'<span style="color:#666;margin-left:4px">×'+c.count+'</span></span>'})
+      h+='</div></div>'
+    }
+    h+='</div></div>'
+  }
+
   // === AUTOMATION ===
   h+='<div class="section"><div class="section-title"><span class="icon">&#9881;</span> Automation</div><div class="g2">'
   // Bot
@@ -468,9 +536,14 @@ const server = http.createServer((req, res) => {
     }))
     return
   }
+  if (req.url === '/api/skills-usage') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+    res.end(JSON.stringify(getSkillsUsage()))
+    return
+  }
   if (req.url === '/api/data') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-    res.end(JSON.stringify({ repos: getRepoDetails(), skills: getSkillsGrouped(), learnings: getLearnings(), memoryGraph: getMemoryGraph(), automation: getAutomation(), components: getComponentCatalog(), designSystems: getDesignSystemsCatalog(), ts: new Date().toISOString() }))
+    res.end(JSON.stringify({ repos: getRepoDetails(), skills: getSkillsGrouped(), learnings: getLearnings(), memoryGraph: getMemoryGraph(), automation: getAutomation(), components: getComponentCatalog(), designSystems: getDesignSystemsCatalog(), skillsUsage: getSkillsUsage(), ts: new Date().toISOString() }))
   } else {
     res.writeHead(200, { 'Content-Type': 'text/html' })
     res.end(HTML)
