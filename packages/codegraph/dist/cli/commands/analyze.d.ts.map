@@ -1,1 +1,0 @@
-{"version":3,"file":"analyze.d.ts","sourceRoot":"","sources":["../../../src/cli/commands/analyze.ts"],"names":[],"mappings":"AAaA,MAAM,WAAW,cAAc;IAC7B,KAAK,CAAC,EAAE,OAAO,CAAA;IACf,OAAO,CAAC,EAAE,OAAO,CAAA;IACjB,UAAU,CAAC,EAAE,OAAO,CAAA;CACrB;AAED,wBAAsB,cAAc,CAAC,UAAU,EAAE,MAAM,EAAE,OAAO,EAAE,cAAc,GAAG,OAAO,CAAC,IAAI,CAAC,CAwF/F"}

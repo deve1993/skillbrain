@@ -1,1 +1,0 @@
-{"version":3,"file":"symbol-extractor.d.ts","sourceRoot":"","sources":["../../../src/core/parser/symbol-extractor.ts"],"names":[],"mappings":"AAAA,OAAO,EACL,KAAK,UAAU,EAMhB,MAAM,UAAU,CAAA;AACjB,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,mBAAmB,CAAA;AAGlD,wBAAgB,cAAc,CAAC,UAAU,EAAE,UAAU,EAAE,YAAY,EAAE,MAAM,GAAG,SAAS,EAAE,CA2FxF"}

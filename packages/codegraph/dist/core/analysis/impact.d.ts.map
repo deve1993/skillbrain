@@ -1,1 +1,0 @@
-{"version":3,"file":"impact.d.ts","sourceRoot":"","sources":["../../../src/core/analysis/impact.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAa,YAAY,EAAc,MAAM,mBAAmB,CAAA;AAC5E,OAAO,EAAE,UAAU,EAAE,MAAM,8BAA8B,CAAA;AAEzD,wBAAgB,aAAa,CAC3B,KAAK,EAAE,UAAU,EACjB,UAAU,EAAE,MAAM,EAClB,SAAS,GAAE,UAAU,GAAG,YAAY,GAAG,MAAmB,EAC1D,QAAQ,SAAI,EACZ,aAAa,SAAM,GAClB,YAAY,GAAG,IAAI,CAqCrB"}
