@@ -32,7 +32,7 @@ function withSkillsStore(repoPath, fn) {
     }
 }
 const skillTypes = ['domain', 'lifecycle', 'process', 'agent', 'command'];
-export function registerSkillTools(server, _ctx) {
+export function registerSkillTools(server, ctx) {
     // --- Tool: skill_list ---
     server.tool('skill_list', 'List all available skills, optionally filtered by type or category', {
         type: z.enum(skillTypes).optional().describe('Filter: domain, lifecycle, process, agent, command'),
@@ -52,12 +52,20 @@ export function registerSkillTools(server, _ctx) {
     // --- Tool: skill_read ---
     server.tool('skill_read', 'Read the full content of a skill, agent, or command by name', {
         name: z.string().describe('Skill name (e.g., "nextjs", "agent:builder", "command:frontend")'),
+        project: z.string().optional().describe('Current project (for telemetry)'),
+        sessionId: z.string().optional().describe('SkillBrain session id (for telemetry, if known)'),
+        task: z.string().optional().describe('Task this skill is being loaded for (for telemetry)'),
         repo: z.string().optional(),
-    }, async ({ name, repo }) => {
+    }, async ({ name, project, sessionId, task, repo }) => {
         const resolved = resolveMemoryRepo(repo);
         if (!resolved)
             return { content: [{ type: 'text', text: 'Repository not found.' }] };
-        const skill = withSkillsStore(resolved.path, (store) => store.get(name));
+        const skill = withSkillsStore(resolved.path, (store) => {
+            const s = store.get(name);
+            if (s)
+                store.recordUsage(s.name, 'loaded', { sessionId, project, task, userId: ctx.userId });
+            return s;
+        });
         if (!skill)
             return { content: [{ type: 'text', text: `Skill "${name}" not found. Use skill_list to see available skills.` }] };
         return {
@@ -147,12 +155,20 @@ export function registerSkillTools(server, _ctx) {
     server.tool('skill_route', 'Given a task description, find the best skills to load (semantic search)', {
         task: z.string().describe('What you want to do (e.g., "add stripe payments", "fix auth bug")'),
         limit: z.number().optional().default(5),
+        project: z.string().optional().describe('Current project (for telemetry)'),
+        sessionId: z.string().optional().describe('SkillBrain session id (for telemetry, if known)'),
         repo: z.string().optional(),
-    }, async ({ task, limit, repo }) => {
+    }, async ({ task, limit, project, sessionId, repo }) => {
         const resolved = resolveMemoryRepo(repo);
         if (!resolved)
             return { content: [{ type: 'text', text: 'Repository not found.' }] };
-        const skills = withSkillsStore(resolved.path, (store) => store.route(task, limit));
+        const skills = withSkillsStore(resolved.path, (store) => {
+            const results = store.route(task, limit);
+            for (const s of results) {
+                store.recordUsage(s.name, 'routed', { sessionId, project, task, userId: ctx.userId });
+            }
+            return results;
+        });
         const formatted = skills.map((s) => ({
             name: s.name, category: s.category, type: s.type,
             description: s.description.slice(0, 150), lines: s.lines,
@@ -222,8 +238,9 @@ export function registerSkillTools(server, _ctx) {
     server.tool('cortex_briefing', 'Generate a 5-layer working memory briefing for the current session context', {
         project: z.string().optional().describe('Current project name'),
         task: z.string().optional().describe('What you are about to work on'),
+        sessionId: z.string().optional().describe('SkillBrain session id (for telemetry, if known)'),
         repo: z.string().optional(),
-    }, async ({ project, task, repo }) => {
+    }, async ({ project, task, sessionId, repo }) => {
         const resolved = resolveMemoryRepo(repo);
         if (!resolved)
             return { content: [{ type: 'text', text: 'Repository not found.' }] };
@@ -237,27 +254,52 @@ export function registerSkillTools(server, _ctx) {
         // Layer 3: Memory stats
         const memStats = memStore.stats();
         const contradictions = memStore.getContradictions();
-        // Layer 4: Top memories for task
-        let topMemories = [];
+        const contextPack = [];
+        // Collect skill-tagged memories for cross-pollination boosts (skill:X tags → +0.3 to skill X)
+        const skillTagBoosts = new Map();
         if (task) {
-            topMemories = memStore.search(task, 10).map((r) => ({
-                id: r.memory.id, type: r.memory.type, confidence: r.memory.confidence,
-                context: r.memory.context, solution: r.memory.solution.slice(0, 200),
-            }));
+            const memResults = memStore.search(task, 15);
+            const maxMemRank = memResults.length > 0 ? Math.max(...memResults.map((r) => r.rank)) : 1;
+            for (const r of memResults) {
+                const normBm25 = r.rank / (maxMemRank || 1);
+                const score = r.memory.confidence * 0.5 + normBm25 * 0.5;
+                contextPack.push({
+                    kind: 'memory', score,
+                    line: `[memory:${r.memory.type} conf:${r.memory.confidence}] ${r.memory.context.slice(0, 120)}`,
+                });
+                // Extract skill:X tags for cross-pollination
+                for (const tag of (r.memory.tags ?? [])) {
+                    if (tag.startsWith('skill:')) {
+                        const skillName = tag.slice(6);
+                        skillTagBoosts.set(skillName, (skillTagBoosts.get(skillName) ?? 0) + 0.3);
+                    }
+                }
+            }
+            const routed = skillStore.route(task, 15);
+            for (const s of routed) {
+                skillStore.recordUsage(s.name, 'routed', { sessionId, project, task, userId: ctx.userId });
+            }
+            for (const s of routed) {
+                const tagBoost = Math.min(skillTagBoosts.get(s.name) ?? 0, 0.3);
+                contextPack.push({
+                    kind: 'skill', score: 0.5 + tagBoost,
+                    line: `[skill:${s.category}] **${s.name}**: ${s.description.slice(0, 100)}`,
+                });
+            }
         }
         else {
-            topMemories = memStore.scored(project, undefined, 10).map((r) => ({
-                id: r.memory.id, type: r.memory.type, confidence: r.memory.confidence,
-                context: r.memory.context, solution: r.memory.solution.slice(0, 200),
-            }));
+            const memResults = memStore.scored(project, undefined, 10);
+            const maxRank = memResults.length > 0 ? Math.max(...memResults.map((r) => r.rank)) : 1;
+            for (const r of memResults) {
+                const score = r.rank / (maxRank || 1);
+                contextPack.push({
+                    kind: 'memory', score,
+                    line: `[memory:${r.memory.type} conf:${r.memory.confidence}] ${r.memory.context.slice(0, 120)}`,
+                });
+            }
         }
-        // Layer 5: Relevant skills for task
-        let relevantSkills = [];
-        if (task) {
-            relevantSkills = skillStore.route(task, 5).map((s) => ({
-                name: s.name, category: s.category, description: s.description.slice(0, 100),
-            }));
-        }
+        contextPack.sort((a, b) => b.score - a.score);
+        const top10 = contextPack.slice(0, 10);
         closeDb(db);
         const briefing = [
             `## Cortex Briefing`,
@@ -276,11 +318,8 @@ export function registerSkillTools(server, _ctx) {
             `- Project: ${project || 'not specified'}`,
             `- Task: ${task || 'not specified'}`,
             ``,
-            `### Layer 4: Relevant Memories (${topMemories.length})`,
-            topMemories.map((m) => `- [${m.type} conf:${m.confidence}] ${m.context}`).join('\n') || '- No memories found',
-            ``,
-            `### Layer 5: Recommended Skills (${relevantSkills.length})`,
-            relevantSkills.map((s) => `- **${s.name}** (${s.category}): ${s.description}`).join('\n') || '- Use skill_route for task-specific recommendations',
+            `### Layer 4: Context Pack (${top10.length} items, memories + skills unified)`,
+            top10.map((item) => `- ${item.line}`).join('\n') || '- Specify a task for context-aware results',
         ].join('\n');
         return { content: [{ type: 'text', text: briefing }] };
     });
@@ -291,6 +330,22 @@ export function registerSkillTools(server, _ctx) {
             return { content: [{ type: 'text', text: 'Repository not found.' }] };
         const stats = withSkillsStore(resolved.path, (store) => store.stats());
         return { content: [{ type: 'text', text: JSON.stringify(stats, null, 2) }] };
+    });
+    // --- Tool: skill_decay ---
+    server.tool('skill_decay', 'Apply confidence decay to skills. Pass usefulSkills to reinforce them (+1 confidence). Decays skills not validated in 10+ sessions, deprecates skills with confidence < 3 after 30 sessions.', {
+        usefulSkills: z.array(z.string()).optional().describe('Skill names confirmed useful this session — get confidence +1'),
+        repo: z.string().optional(),
+    }, async ({ usefulSkills, repo }) => {
+        const resolved = resolveMemoryRepo(repo);
+        if (!resolved)
+            return { content: [{ type: 'text', text: 'Repository not found.' }] };
+        const result = withSkillsStore(resolved.path, (store) => store.applyDecay(usefulSkills ?? []));
+        return {
+            content: [{
+                    type: 'text',
+                    text: `Skill decay applied:\n- Reinforced: ${result.reinforced}\n- Decayed: ${result.decayed}\n- Deprecated: ${result.deprecated}`,
+                }],
+        };
     });
 }
 //# sourceMappingURL=skills.js.map

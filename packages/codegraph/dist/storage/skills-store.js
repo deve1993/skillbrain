@@ -5,9 +5,16 @@ export class ConcurrencyError extends Error {
         this.name = 'ConcurrencyError';
     }
 }
+// Per-instance guard against duplicate inserts within a 1s window —
+// e.g. cortex_briefing internally invokes skill_route on the same store
+// which would otherwise log the same (name, action, session) twice.
+// Cross-instance dedup would need DB-side logic; this best-effort guard
+// covers the realistic case (single store opened per request).
+const DEDUP_WINDOW_MS = 1000;
 export class SkillsStore {
     db;
     stmts;
+    recentInserts = new Map();
     constructor(db) {
         this.db = db;
         this.stmts = this.prepareStatements();
@@ -35,6 +42,92 @@ export class SkillsStore {
             countByCategory: this.db.prepare('SELECT category, COUNT(*) as count FROM skills GROUP BY category ORDER BY count DESC'),
             total: this.db.prepare('SELECT COUNT(*) as count FROM skills'),
             deleteAll: this.db.prepare('DELETE FROM skills'),
+            insertUsage: this.db.prepare(`
+        INSERT INTO skill_usage (skill_name, session_id, project, task_description, action, user_id)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `),
+            topRouted: this.db.prepare(`
+        SELECT skill_name as skillName, COUNT(*) as count
+        FROM skill_usage
+        WHERE action = 'routed' AND ts >= datetime('now', ?)
+        GROUP BY skill_name ORDER BY count DESC LIMIT ?
+      `),
+            topLoaded: this.db.prepare(`
+        SELECT skill_name as skillName, COUNT(*) as count
+        FROM skill_usage
+        WHERE action = 'loaded' AND ts >= datetime('now', ?)
+        GROUP BY skill_name ORDER BY count DESC LIMIT ?
+      `),
+            topApplied: this.db.prepare(`
+        SELECT skill_name as skillName, COUNT(*) as count
+        FROM skill_usage
+        WHERE action = 'applied' AND ts >= datetime('now', ?)
+        GROUP BY skill_name ORDER BY count DESC LIMIT ?
+      `),
+            // Skills that were routed many times in the window but never loaded — likely noise
+            deadSkills: this.db.prepare(`
+        SELECT s.name as skillName, COUNT(u.id) as count
+        FROM skills s
+        LEFT JOIN skill_usage u ON u.skill_name = s.name AND u.ts >= datetime('now', ?)
+        WHERE s.status = 'active'
+        GROUP BY s.name
+        HAVING SUM(CASE WHEN u.action = 'loaded' THEN 1 ELSE 0 END) = 0
+        ORDER BY count DESC LIMIT ?
+      `),
+            lastUsed: this.db.prepare(`
+        SELECT skill_name as skillName, MAX(ts) as ts
+        FROM skill_usage WHERE action IN ('loaded','applied')
+        GROUP BY skill_name
+      `),
+            countUsageSince: this.db.prepare(`
+        SELECT COUNT(*) as count FROM skill_usage WHERE ts >= datetime('now', ?)
+      `),
+            // Confidence / decay (require migration 016)
+            markUseful: this.db.prepare(`
+        UPDATE skill_usage SET useful = 1
+        WHERE skill_name = ? AND session_id = ? AND action IN ('loaded','applied')
+      `),
+            reinforceSkill: this.db.prepare(`
+        UPDATE skills SET
+          confidence = MIN(COALESCE(confidence, 5) + 1, 10),
+          last_validated = ?,
+          sessions_since_validation = 0,
+          useful_count = COALESCE(useful_count, 0) + 1,
+          updated_at = ?
+        WHERE name = ?
+      `),
+            incrementSkillSessionCount: this.db.prepare(`
+        UPDATE skills SET
+          sessions_since_validation = COALESCE(sessions_since_validation, 0) + 1
+        WHERE status = 'active'
+      `),
+            applySkillDecay: this.db.prepare(`
+        UPDATE skills SET
+          confidence = MAX(COALESCE(confidence, 5) - 1, 1),
+          updated_at = ?
+        WHERE sessions_since_validation >= 10 AND COALESCE(confidence, 5) > 1 AND status = 'active'
+      `),
+            deprecateSkills: this.db.prepare(`
+        UPDATE skills SET status = 'deprecated', updated_at = ?
+        WHERE sessions_since_validation >= 30 AND COALESCE(confidence, 5) < 3 AND status = 'active'
+      `),
+            // Recent load count for a skill in the last N hours (for usage boost in route())
+            recentLoadCount: this.db.prepare(`
+        SELECT COUNT(*) as count FROM skill_usage
+        WHERE skill_name = ? AND action IN ('loaded','applied') AND ts >= datetime('now', ?)
+      `),
+            // Upsert co-occurrence pair
+            upsertCooccurrence: this.db.prepare(`
+        INSERT INTO skill_cooccurrence (skill_a, skill_b, count, last_ts)
+        VALUES (?, ?, 1, datetime('now'))
+        ON CONFLICT(skill_a, skill_b) DO UPDATE SET
+          count = count + 1,
+          last_ts = datetime('now')
+      `),
+            // Get co-occurrence count for a pair
+            getCooccurrence: this.db.prepare(`
+        SELECT count FROM skill_cooccurrence WHERE skill_a = ? AND skill_b = ?
+      `),
         };
     }
     upsert(skill, options = {}) {
@@ -147,9 +240,39 @@ export class SkillsStore {
             return [];
         }
     }
-    route(taskDescription, limit = 5) {
-        const results = this.search(taskDescription, limit);
-        return results.map((r) => r.skill);
+    route(taskDescription, limit = 5, activeSkills = []) {
+        const results = this.search(taskDescription, limit * 3);
+        if (results.length === 0)
+            return [];
+        const maxBm25 = Math.abs(Math.min(...results.map((r) => r.rank)));
+        const scored = results.map((r) => {
+            const bm25Norm = maxBm25 > 0 ? 1 - Math.abs(r.rank) / maxBm25 : 0.5;
+            const confidence = (() => {
+                try {
+                    const row = this.db.prepare(`SELECT COALESCE(confidence, 5) as c FROM skills WHERE name = ?`).get(r.skill.name);
+                    return (row?.c ?? 5) / 10;
+                }
+                catch {
+                    return 0.5;
+                }
+            })();
+            const recentCount = (() => {
+                try {
+                    const row = this.stmts.recentLoadCount.get(r.skill.name, '-24 hours');
+                    return Math.log1p(row?.count ?? 0);
+                }
+                catch {
+                    return 0;
+                }
+            })();
+            const recencyBoost = recentCount / (Math.log1p(100));
+            const coocCount = this.getCooccurrenceCount(r.skill.name, activeSkills);
+            const coocBoost = Math.min(coocCount / 100, 1.0);
+            const score = 0.50 * bm25Norm + 0.20 * confidence + 0.15 * recencyBoost + 0.15 * coocBoost;
+            return { skill: r.skill, score };
+        });
+        scored.sort((a, b) => b.score - a.score);
+        return scored.slice(0, limit).map((r) => r.skill);
     }
     stats() {
         const total = this.stmts.total.get().count;
@@ -158,6 +281,194 @@ export class SkillsStore {
         const byCategory = this.stmts.countByCategory.all()
             .reduce((acc, r) => ({ ...acc, [r.category]: r.count }), {});
         return { total, byType, byCategory };
+    }
+    recordUsage(name, action, ctx = {}) {
+        if (!name)
+            return;
+        const dedupKey = `${name}|${action}|${ctx.sessionId ?? ''}`;
+        const now = Date.now();
+        const last = this.recentInserts.get(dedupKey);
+        if (last && now - last < DEDUP_WINDOW_MS)
+            return;
+        this.recentInserts.set(dedupKey, now);
+        // Bound the in-memory map size: drop entries older than 5 minutes
+        if (this.recentInserts.size > 1000) {
+            const cutoff = now - 5 * 60 * 1000;
+            for (const [k, ts] of this.recentInserts)
+                if (ts < cutoff)
+                    this.recentInserts.delete(k);
+        }
+        try {
+            this.stmts.insertUsage.run(name, ctx.sessionId ?? null, ctx.project ?? null, ctx.task ?? null, action, ctx.userId ?? null);
+        }
+        catch { /* skill_usage table may not exist on legacy DB until migrations run */ }
+    }
+    topRouted(sinceHours = 24, limit = 20) {
+        try {
+            return this.stmts.topRouted.all(`-${sinceHours} hours`, limit);
+        }
+        catch {
+            return [];
+        }
+    }
+    topLoaded(sinceHours = 24, limit = 20) {
+        try {
+            return this.stmts.topLoaded.all(`-${sinceHours} hours`, limit);
+        }
+        catch {
+            return [];
+        }
+    }
+    topApplied(sinceHours = 24, limit = 20) {
+        try {
+            return this.stmts.topApplied.all(`-${sinceHours} hours`, limit);
+        }
+        catch {
+            return [];
+        }
+    }
+    deadSkills(sinceDays = 30, limit = 20) {
+        try {
+            return this.stmts.deadSkills.all(`-${sinceDays} days`, limit);
+        }
+        catch {
+            return [];
+        }
+    }
+    totalUsageSince(sinceHours = 24) {
+        try {
+            return (this.stmts.countUsageSince.get(`-${sinceHours} hours`)?.count ?? 0);
+        }
+        catch {
+            return 0;
+        }
+    }
+    lastUsedMap() {
+        try {
+            const rows = this.stmts.lastUsed.all();
+            return new Map(rows.map((r) => [r.skillName, r.ts]));
+        }
+        catch {
+            return new Map();
+        }
+    }
+    markUseful(skillName, sessionId) {
+        try {
+            this.stmts.markUseful.run(skillName, sessionId);
+        }
+        catch { /* migration 016 may not be applied yet */ }
+    }
+    applyDecay(usefulSkills = []) {
+        const now = new Date().toISOString();
+        let reinforced = 0;
+        for (const name of usefulSkills) {
+            try {
+                this.stmts.reinforceSkill.run(now, now, name);
+                reinforced++;
+            }
+            catch { /* ok */ }
+        }
+        try {
+            this.stmts.incrementSkillSessionCount.run();
+            this.stmts.applySkillDecay.run(now);
+            const deprecated = this.db.prepare(`SELECT COUNT(*) as c FROM skills WHERE sessions_since_validation >= 30 AND COALESCE(confidence, 5) < 3 AND status = 'active'`).get()?.c ?? 0;
+            this.stmts.deprecateSkills.run(now);
+            const decayed = this.db.prepare(`SELECT COUNT(*) as c FROM skills WHERE sessions_since_validation >= 10 AND COALESCE(confidence, 5) > 1 AND status = 'active'`).get()?.c ?? 0;
+            return { reinforced, decayed, deprecated };
+        }
+        catch {
+            return { reinforced, decayed: 0, deprecated: 0 };
+        }
+    }
+    recordCooccurrence(skillA, skillB) {
+        if (!skillA || !skillB || skillA === skillB)
+            return;
+        const [a, b] = [skillA, skillB].sort();
+        try {
+            this.stmts.upsertCooccurrence.run(a, b);
+        }
+        catch { /* migration 016 not applied yet */ }
+    }
+    buildCooccurrences() {
+        // Find all pairs of skills loaded in the same session within a 30-minute window
+        try {
+            const pairs = this.db.prepare(`
+        SELECT a.skill_name as skill_a, b.skill_name as skill_b
+        FROM skill_usage a
+        JOIN skill_usage b ON a.session_id = b.session_id
+          AND a.skill_name < b.skill_name
+          AND b.action IN ('loaded','applied')
+          AND ABS(JULIANDAY(a.ts) - JULIANDAY(b.ts)) * 1440 <= 30
+        WHERE a.action IN ('loaded','applied')
+          AND a.session_id IS NOT NULL
+        GROUP BY a.skill_name, b.skill_name
+      `).all();
+            const tx = this.db.transaction(() => {
+                for (const { skill_a, skill_b } of pairs) {
+                    this.stmts.upsertCooccurrence.run(skill_a, skill_b);
+                }
+            });
+            tx();
+            return pairs.length;
+        }
+        catch {
+            return 0;
+        }
+    }
+    topCooccurrences(limit = 20) {
+        try {
+            return this.db.prepare(`
+        SELECT skill_a as skillA, skill_b as skillB, count
+        FROM skill_cooccurrence ORDER BY count DESC LIMIT ?
+      `).all(limit).map((r) => ({ skillA: r.skillA, skillB: r.skillB, count: r.count }));
+        }
+        catch {
+            return [];
+        }
+    }
+    confidenceStats() {
+        try {
+            const growing = this.db.prepare(`
+        SELECT name, COALESCE(confidence, 5) as confidence
+        FROM skills WHERE COALESCE(confidence, 5) >= 7 AND status = 'active'
+        ORDER BY confidence DESC LIMIT 10
+      `).all().map((r) => ({ name: r.name, confidence: r.confidence }));
+            const declining = this.db.prepare(`
+        SELECT name, COALESCE(confidence, 5) as confidence,
+               COALESCE(sessions_since_validation, 0) as sessionsStale
+        FROM skills WHERE COALESCE(confidence, 5) <= 3 AND status = 'active'
+        ORDER BY confidence ASC, sessions_since_validation DESC LIMIT 10
+      `).all().map((r) => ({ name: r.name, confidence: r.confidence, sessionsStale: r.sessionsStale }));
+            const usefulRate = this.db.prepare(`
+        SELECT name,
+               COALESCE(useful_count, 0) as usefulCount,
+               COALESCE(usage_count, 0) as usageCount,
+               CASE WHEN COALESCE(usage_count, 0) > 0
+                    THEN CAST(COALESCE(useful_count, 0) AS REAL) / COALESCE(usage_count, 0)
+                    ELSE 0 END as rate
+        FROM skills WHERE status = 'active' AND COALESCE(usage_count, 0) > 0
+        ORDER BY rate DESC LIMIT 10
+      `).all().map((r) => ({ name: r.name, usefulCount: r.usefulCount, usageCount: r.usageCount, rate: r.rate }));
+            return { growing, declining, usefulRate };
+        }
+        catch {
+            return { growing: [], declining: [], usefulRate: [] };
+        }
+    }
+    getCooccurrenceCount(skillA, activeSkills) {
+        if (!activeSkills.length)
+            return 0;
+        let max = 0;
+        for (const active of activeSkills) {
+            const [a, b] = [skillA, active].sort();
+            try {
+                const row = this.stmts.getCooccurrence.get(a, b);
+                if (row && row.count > max)
+                    max = row.count;
+            }
+            catch { /* ok */ }
+        }
+        return max;
     }
     rowToSkill(row) {
         return {
