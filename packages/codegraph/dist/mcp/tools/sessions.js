@@ -5,6 +5,7 @@ import { ComponentsStore } from '../../storage/components-store.js';
 import { ProjectsStore } from '../../storage/projects-store.js';
 import { UsersEnvStore } from '../../storage/users-env-store.js';
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js';
+import { SkillsStore } from '../../storage/skills-store.js';
 import { detectDesignFiles, parseTailwindConfig, parseCSSVariables, parseTokensJson, mergeTokenSources, } from '../../storage/design-token-parser.js';
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain';
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '';
@@ -198,6 +199,10 @@ export function registerSessionTools(server, ctx) {
             }
             catch { /* user_env_vars table may not be migrated yet on legacy DBs */ }
         }
+        // Recommend skills based on last task or project name
+        const skillStore = new SkillsStore(db);
+        const taskHint = sessions[0]?.taskDescription || project;
+        const recommendedSkills = taskHint ? skillStore.route(taskHint, 5) : [];
         closeDb(db);
         if (sessions.length === 0 && memories.length === 0) {
             return { content: [{ type: 'text', text: `No history found for project "${project}". This is a fresh start.` }] };
@@ -254,6 +259,13 @@ export function registerSessionTools(server, ctx) {
                 if (!memories.find((m) => m.id === r.memory.id)) {
                     lines.push(`- [${r.memory.type} conf:${r.memory.confidence}] ${r.memory.context.slice(0, 100)}`);
                 }
+            }
+            lines.push('');
+        }
+        if (recommendedSkills.length > 0) {
+            lines.push(`### Recommended Skills for this Task`);
+            for (const s of recommendedSkills) {
+                lines.push(`- **${s.name}** (${s.category}): ${s.description.slice(0, 100)}`);
             }
             lines.push('');
         }

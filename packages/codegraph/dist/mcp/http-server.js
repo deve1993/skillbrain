@@ -59,6 +59,7 @@ const SMTP_PASS = process.env.SMTP_PASS || '';
 const SMTP_FROM = process.env.SMTP_FROM || 'SkillBrain <noreply@memory.fl1.it>';
 const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const LEGACY_TOKEN_USER_EMAIL = process.env.LEGACY_TOKEN_USER_EMAIL || '';
 // ── Password helpers ──
 const scryptAsync = promisify(crypto.scrypt);
 async function hashPassword(plain) {
@@ -151,8 +152,7 @@ export async function startHttpServer(port, authToken) {
     const sseTransports = new Map();
     // ── Auth middleware for /mcp + /sse routes (Bearer token) ──
     // On success, sets (req as any).mcpUserId when the token is bound to a user
-    // (personal API key or OAuth bearer). The legacy shared token is unauthenticated
-    // and leaves mcpUserId undefined — user-scoped tools (user_env_*) will refuse to run.
+    // (personal API key, OAuth bearer, or legacy token with LEGACY_TOKEN_USER_EMAIL set).
     const bearerAuth = (req, res, next) => {
         const token = req.headers.authorization?.replace('Bearer ', '');
         if (!token) {
@@ -160,8 +160,27 @@ export async function startHttpServer(port, authToken) {
             res.status(401).json({ error: 'Unauthorized' });
             return;
         }
-        // 1. Legacy env-var token (backward compat — skip DB check, no user binding)
+        // 1. Legacy env-var token (backward compat)
+        // If LEGACY_TOKEN_USER_EMAIL is set, resolve it to a real userId so user-scoped
+        // tools (user_env_*) work without requiring a personal API key.
         if (authToken && token === authToken) {
+            if (LEGACY_TOKEN_USER_EMAIL) {
+                try {
+                    const db = openDb(SKILLBRAIN_ROOT);
+                    let user = db.prepare(`SELECT id FROM users WHERE email = ?`).get(LEGACY_TOKEN_USER_EMAIL);
+                    if (!user) {
+                        // Auto-bootstrap: create the owner user on first use
+                        const newId = randomUUID().replace(/-/g, '').slice(0, 12);
+                        db.prepare(`INSERT INTO users (id, name, email, role) VALUES (?, 'Admin', ?, 'admin')`)
+                            .run(newId, LEGACY_TOKEN_USER_EMAIL);
+                        user = { id: newId };
+                        console.log(`[auth] Auto-created owner user for ${LEGACY_TOKEN_USER_EMAIL} (id=${newId})`);
+                    }
+                    closeDb(db);
+                    req.mcpUserId = user.id;
+                }
+                catch { /* users table not yet migrated — proceed without userId */ }
+            }
             next();
             return;
         }
@@ -315,7 +334,8 @@ export async function startHttpServer(port, authToken) {
         p === '/oauth/register' ||
         p === '/oauth/token' ||
         p === '/oauth/revoke' ||
-        p.startsWith('/.well-known/');
+        p.startsWith('/.well-known/') ||
+        p.startsWith('/telemetry/');
     if (authEnabled) {
         app.use((req, res, next) => {
             if (isPublicPath(req.path)) {
@@ -554,6 +574,40 @@ export async function startHttpServer(port, authToken) {
         }
         catch (err) {
             res.status(400).json({ error: err.message });
+        }
+    });
+    // ── Telemetry: client-side Skill tool usage ──
+    // The Claude Code `Skill` tool runs locally and never reaches the MCP server,
+    // so a PostToolUse hook fires this endpoint to persist skill_usage rows.
+    // Localhost-only: refuse external traffic since there is no auth on this path.
+    const isLocalhost = (req) => {
+        const ip = req.socket.remoteAddress ?? '';
+        return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.startsWith('::ffff:127.');
+    };
+    app.post('/telemetry/skill-usage', express.json({ limit: '8kb' }), (req, res) => {
+        if (!isLocalhost(req)) {
+            res.status(403).json({ error: 'localhost only' });
+            return;
+        }
+        const { skill, action, sessionId, project, task, tool } = (req.body || {});
+        if (!skill || typeof skill !== 'string') {
+            res.status(400).json({ error: 'skill required' });
+            return;
+        }
+        const validAction = action === 'routed' || action === 'loaded' || action === 'applied' ? action : 'applied';
+        try {
+            const db = openDb(SKILLBRAIN_ROOT);
+            const store = new SkillsStore(db);
+            store.recordUsage(skill, validAction, {
+                sessionId: typeof sessionId === 'string' ? sessionId : undefined,
+                project: typeof project === 'string' ? project : undefined,
+                task: typeof task === 'string' ? task : (typeof tool === 'string' ? `tool:${tool}` : undefined),
+            });
+            closeDb(db);
+            res.json({ ok: true });
+        }
+        catch (err) {
+            res.status(500).json({ error: err?.message ?? 'internal' });
         }
     });
     // ── API: Memories ──

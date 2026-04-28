@@ -37,9 +37,21 @@ export interface SkillSearchResult {
     skill: Skill;
     rank: number;
 }
+export type SkillUsageAction = 'routed' | 'loaded' | 'applied';
+export interface SkillUsageContext {
+    sessionId?: string;
+    project?: string;
+    task?: string;
+    userId?: string;
+}
+export interface SkillUsageRow {
+    skillName: string;
+    count: number;
+}
 export declare class SkillsStore {
     private db;
     private stmts;
+    private recentInserts;
     constructor(db: Database.Database);
     private prepareStatements;
     upsert(skill: Skill, options?: SkillUpsertOptions): void;
@@ -51,12 +63,50 @@ export declare class SkillsStore {
     get(name: string): Skill | undefined;
     list(type?: SkillType, category?: string): Skill[];
     search(query: string, limit?: number): SkillSearchResult[];
-    route(taskDescription: string, limit?: number): Skill[];
+    route(taskDescription: string, limit?: number, activeSkills?: string[]): Skill[];
     stats(): {
         total: any;
         byType: any;
         byCategory: any;
     };
+    recordUsage(name: string, action: SkillUsageAction, ctx?: SkillUsageContext): void;
+    topRouted(sinceHours?: number, limit?: number): SkillUsageRow[];
+    topLoaded(sinceHours?: number, limit?: number): SkillUsageRow[];
+    topApplied(sinceHours?: number, limit?: number): SkillUsageRow[];
+    deadSkills(sinceDays?: number, limit?: number): SkillUsageRow[];
+    totalUsageSince(sinceHours?: number): number;
+    lastUsedMap(): Map<string, string>;
+    markUseful(skillName: string, sessionId: string): void;
+    applyDecay(usefulSkills?: string[]): {
+        reinforced: number;
+        decayed: number;
+        deprecated: number;
+    };
+    recordCooccurrence(skillA: string, skillB: string): void;
+    buildCooccurrences(): number;
+    topCooccurrences(limit?: number): {
+        skillA: string;
+        skillB: string;
+        count: number;
+    }[];
+    confidenceStats(): {
+        growing: {
+            name: string;
+            confidence: number;
+        }[];
+        declining: {
+            name: string;
+            confidence: number;
+            sessionsStale: number;
+        }[];
+        usefulRate: {
+            name: string;
+            usefulCount: number;
+            usageCount: number;
+            rate: number;
+        }[];
+    };
+    private getCooccurrenceCount;
     private rowToSkill;
     private rowToVersion;
 }

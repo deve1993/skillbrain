@@ -47,10 +47,10 @@ export function runMigrations(db: Database.Database, dir = MIGRATIONS_DIR): void
 
     const sql = fs.readFileSync(path.join(dir, file), 'utf-8')
 
-    // Legacy DB support: if bootstrap core table already exists
-    // (DB created before versioning existed), skip re-running CREATEs
-    // but record the row so later migrations run normally.
-    // Only session_log is checked — projects may not exist on very old DBs.
+    // Legacy DB support: if a pre-versioning DB already has session_log,
+    // skip 000_bootstrap (which would fail on CREATE INDEX over columns the
+    // legacy table lacks) and let 001z_legacy_backfill create the still-missing
+    // tables and columns.
     if (
       name === '000_bootstrap' &&
       tableExists(db, 'session_log')

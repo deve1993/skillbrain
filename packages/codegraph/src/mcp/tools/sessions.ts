@@ -6,6 +6,7 @@ import { ComponentsStore } from '../../storage/components-store.js'
 import { ProjectsStore } from '../../storage/projects-store.js'
 import { UsersEnvStore } from '../../storage/users-env-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import { SkillsStore } from '../../storage/skills-store.js'
 import {
   detectDesignFiles, parseTailwindConfig, parseCSSVariables,
   parseTokensJson, mergeTokenSources, type TokenSource,
@@ -236,6 +237,11 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
         } catch { /* user_env_vars table may not be migrated yet on legacy DBs */ }
       }
 
+      // Recommend skills based on last task or project name
+      const skillStore = new SkillsStore(db)
+      const taskHint = sessions[0]?.taskDescription || project
+      const recommendedSkills = taskHint ? skillStore.route(taskHint, 5) : []
+
       closeDb(db)
 
       if (sessions.length === 0 && memories.length === 0) {
@@ -293,6 +299,14 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
           if (!memories.find((m) => m.id === r.memory.id)) {
             lines.push(`- [${r.memory.type} conf:${r.memory.confidence}] ${r.memory.context.slice(0, 100)}`)
           }
+        }
+        lines.push('')
+      }
+
+      if (recommendedSkills.length > 0) {
+        lines.push(`### Recommended Skills for this Task`)
+        for (const s of recommendedSkills) {
+          lines.push(`- **${s.name}** (${s.category}): ${s.description.slice(0, 100)}`)
         }
         lines.push('')
       }
