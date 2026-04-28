@@ -21,6 +21,9 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 
+# ─── Build artifacts ──────────────────────────────────────────────────────────
+packages/codegraph/dist/
+
 # ─── Node (nei progetti dentro Progetti/) ─────────────────────────────────────
 Progetti/*/node_modules/
 Progetti/*/.next/
