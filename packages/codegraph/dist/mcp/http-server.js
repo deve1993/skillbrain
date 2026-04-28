@@ -167,11 +167,17 @@ export async function startHttpServer(port, authToken) {
             if (LEGACY_TOKEN_USER_EMAIL) {
                 try {
                     const db = openDb(SKILLBRAIN_ROOT);
-                    const user = db.prepare(`SELECT id FROM users WHERE email = ?`).get(LEGACY_TOKEN_USER_EMAIL);
-                    closeDb(db);
-                    if (user) {
-                        req.mcpUserId = user.id;
+                    let user = db.prepare(`SELECT id FROM users WHERE email = ?`).get(LEGACY_TOKEN_USER_EMAIL);
+                    if (!user) {
+                        // Auto-bootstrap: create the owner user on first use
+                        const newId = randomUUID().replace(/-/g, '').slice(0, 12);
+                        db.prepare(`INSERT INTO users (id, name, email, role) VALUES (?, 'Admin', ?, 'admin')`)
+                            .run(newId, LEGACY_TOKEN_USER_EMAIL);
+                        user = { id: newId };
+                        console.log(`[auth] Auto-created owner user for ${LEGACY_TOKEN_USER_EMAIL} (id=${newId})`);
                     }
+                    closeDb(db);
+                    req.mcpUserId = user.id;
                 }
                 catch { /* users table not yet migrated — proceed without userId */ }
             }
