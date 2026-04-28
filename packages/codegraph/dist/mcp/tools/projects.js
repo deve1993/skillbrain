@@ -164,15 +164,17 @@ export function registerProjectTools(server, _ctx) {
         value: z.string().describe('Actual value to encrypt and save'),
         environment: z.enum(['production', 'staging', 'development']).optional().default('production'),
         isSecret: z.boolean().optional().default(true),
-        notes: z.string().optional(),
+        category: z.enum(['api_key', 'mcp_config', 'integration', 'preference']).optional().default('api_key').describe('Type of env var'),
+        service: z.string().optional().describe('External service name (e.g., supabase, stripe, openai)'),
+        description: z.string().optional().describe('Human-readable description of what this var is used for'),
         repo: z.string().optional(),
-    }, async ({ project, varName, value, environment, isSecret, notes, repo }) => {
+    }, async ({ project, varName, value, environment, isSecret, category, service, description, repo }) => {
         const resolved = resolveMemoryRepo(repo);
         if (!resolved)
             return { content: [{ type: 'text', text: 'Repository not found.' }] };
         try {
             withProjectsStore(resolved.path, (store) => {
-                store.setEnv(project, varName, value, environment, 'manual', isSecret, notes);
+                store.setEnv(project, varName, value, environment, 'manual', isSecret, description, category, service);
             });
             return { content: [{ type: 'text', text: `✅ Saved ${varName} (encrypted) for ${project}/${environment}` }] };
         }
@@ -185,8 +187,10 @@ export function registerProjectTools(server, _ctx) {
         project: z.string(),
         envContent: z.string().describe('Raw .env file content (KEY=value lines)'),
         environment: z.enum(['production', 'staging', 'development']).optional().default('production'),
+        category: z.enum(['api_key', 'mcp_config', 'integration', 'preference']).optional().default('api_key').describe('Category applied to all vars in this batch'),
+        service: z.string().optional().describe('External service name applied to all vars in this batch (e.g., supabase)'),
         repo: z.string().optional(),
-    }, async ({ project, envContent, environment, repo }) => {
+    }, async ({ project, envContent, environment, category, service, repo }) => {
         const resolved = resolveMemoryRepo(repo);
         if (!resolved)
             return { content: [{ type: 'text', text: 'Repository not found.' }] };
@@ -212,7 +216,7 @@ export function registerProjectTools(server, _ctx) {
                         continue;
                     try {
                         const isSecret = !name.startsWith('NEXT_PUBLIC_') && !name.startsWith('PUBLIC_');
-                        store.setEnv(project, name, value, environment, '.env', isSecret);
+                        store.setEnv(project, name, value, environment, '.env', isSecret, undefined, category, service);
                         saved++;
                     }
                     catch (e) {
