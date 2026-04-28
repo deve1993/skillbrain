@@ -128,7 +128,7 @@ export class ProjectsStore {
         return { movedSessions, movedMemories, movedEnvVars };
     }
     // ── Env Vars (encrypted) ──
-    setEnv(projectName, varName, value, environment = 'production', source = 'manual', isSecret = true, notes) {
+    setEnv(projectName, varName, value, environment = 'production', source = 'manual', isSecret = true, description, category = 'api_key', service) {
         if (!isEncryptionAvailable()) {
             throw new Error('ENCRYPTION_KEY not configured — env storage unavailable');
         }
@@ -140,9 +140,9 @@ export class ProjectsStore {
         this.db.prepare(`
       INSERT OR REPLACE INTO project_env_vars
         (id, project_name, var_name, encrypted_value, iv, auth_tag,
-         environment, source, is_secret, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, projectName, varName, enc.ciphertext, enc.iv, enc.authTag, environment, source, isSecret ? 1 : 0, notes ?? null, createdAt ?? (existing ? this.db.prepare('SELECT created_at FROM project_env_vars WHERE id = ?').get(id)?.created_at : now), now);
+         environment, source, is_secret, description, category, service, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, projectName, varName, enc.ciphertext, enc.iv, enc.authTag, environment, source, isSecret ? 1 : 0, description ?? null, category, service ?? null, createdAt ?? (existing ? this.db.prepare('SELECT created_at FROM project_env_vars WHERE id = ?').get(id)?.created_at : now), now);
     }
     getEnv(projectName, varName, environment = 'production') {
         const row = this.db.prepare('SELECT encrypted_value, iv, auth_tag FROM project_env_vars WHERE project_name = ? AND var_name = ? AND environment = ?').get(projectName, varName, environment);
@@ -162,15 +162,17 @@ export class ProjectsStore {
         return result;
     }
     listEnvNames(projectName, environment = 'production') {
-        const rows = this.db.prepare('SELECT id, project_name, var_name, environment, source, is_secret, notes, created_at, updated_at FROM project_env_vars WHERE project_name = ? AND environment = ? ORDER BY var_name').all(projectName, environment);
+        const rows = this.db.prepare('SELECT id, project_name, var_name, environment, source, is_secret, description, category, service, created_at, updated_at FROM project_env_vars WHERE project_name = ? AND environment = ? ORDER BY var_name').all(projectName, environment);
         return rows.map((r) => ({
             id: r.id,
             projectName: r.project_name,
             varName: r.var_name,
+            category: (r.category ?? 'api_key'),
+            service: r.service ?? undefined,
             environment: r.environment,
             source: r.source ?? undefined,
             isSecret: !!r.is_secret,
-            notes: r.notes ?? undefined,
+            description: r.description ?? undefined,
             createdAt: r.created_at,
             updatedAt: r.updated_at,
         }));
@@ -187,8 +189,8 @@ export class ProjectsStore {
             '',
         ];
         for (const v of vars) {
-            if (v.notes)
-                lines.push(`# ${v.notes}`);
+            if (v.description)
+                lines.push(`# ${v.description}`);
             lines.push(`${v.varName}=`);
         }
         return lines.join('\n');

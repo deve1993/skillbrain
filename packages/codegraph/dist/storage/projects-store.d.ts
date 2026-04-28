@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import type { EnvCategory } from './users-env-store.js';
 export interface TeamMember {
     name: string;
     role?: string;
@@ -47,10 +48,12 @@ export interface EnvVar {
     id: string;
     projectName: string;
     varName: string;
+    category: EnvCategory;
+    service?: string;
     environment: string;
     source?: string;
     isSecret: boolean;
-    notes?: string;
+    description?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -73,7 +76,7 @@ export declare class ProjectsStore {
         movedMemories: number;
         movedEnvVars: number;
     };
-    setEnv(projectName: string, varName: string, value: string, environment?: string, source?: string, isSecret?: boolean, notes?: string): void;
+    setEnv(projectName: string, varName: string, value: string, environment?: string, source?: string, isSecret?: boolean, description?: string, category?: EnvCategory, service?: string): void;
     getEnv(projectName: string, varName: string, environment?: string): string | undefined;
     getAllEnv(projectName: string, environment?: string): Record<string, string>;
     listEnvNames(projectName: string, environment?: string): EnvVar[];
