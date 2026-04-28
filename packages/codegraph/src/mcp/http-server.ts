@@ -63,6 +63,7 @@ const SMTP_PASS      = process.env.SMTP_PASS || ''
 const SMTP_FROM      = process.env.SMTP_FROM || 'SkillBrain <noreply@memory.fl1.it>'
 const SMTP_SECURE      = process.env.SMTP_SECURE === 'true'
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
+const LEGACY_TOKEN_USER_EMAIL = process.env.LEGACY_TOKEN_USER_EMAIL || ''
 
 // ── Password helpers ──
 const scryptAsync = promisify(crypto.scrypt)
@@ -161,8 +162,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
 
   // ── Auth middleware for /mcp + /sse routes (Bearer token) ──
   // On success, sets (req as any).mcpUserId when the token is bound to a user
-  // (personal API key or OAuth bearer). The legacy shared token is unauthenticated
-  // and leaves mcpUserId undefined — user-scoped tools (user_env_*) will refuse to run.
+  // (personal API key, OAuth bearer, or legacy token with LEGACY_TOKEN_USER_EMAIL set).
   const bearerAuth: express.RequestHandler = (req, res, next) => {
     const token = req.headers.authorization?.replace('Bearer ', '')
     if (!token) {
@@ -171,8 +171,20 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
-    // 1. Legacy env-var token (backward compat — skip DB check, no user binding)
-    if (authToken && token === authToken) { next(); return }
+    // 1. Legacy env-var token (backward compat)
+    // If LEGACY_TOKEN_USER_EMAIL is set, resolve it to a real userId so user-scoped
+    // tools (user_env_*) work without requiring a personal API key.
+    if (authToken && token === authToken) {
+      if (LEGACY_TOKEN_USER_EMAIL) {
+        try {
+          const db = openDb(SKILLBRAIN_ROOT)
+          const user = db.prepare(`SELECT id FROM users WHERE email = ?`).get(LEGACY_TOKEN_USER_EMAIL) as { id: string } | undefined
+          closeDb(db)
+          if (user) { (req as any).mcpUserId = user.id }
+        } catch { /* users table not yet migrated — proceed without userId */ }
+      }
+      next(); return
+    }
     // 2. Personal API keys table
     try {
       const db = openDb(SKILLBRAIN_ROOT)
