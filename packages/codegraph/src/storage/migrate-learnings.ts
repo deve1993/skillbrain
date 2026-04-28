@@ -1,3 +1,13 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 /**
  * Migration script: learnings.md → Memory Graph SQLite
  *

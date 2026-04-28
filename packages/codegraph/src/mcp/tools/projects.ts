@@ -1,3 +1,13 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'

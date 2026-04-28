@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -11,7 +21,7 @@ import { ComponentsStore } from '../storage/components-store.js'
 import { SkillsStore } from '../storage/skills-store.js'
 
 const PORT = parseInt(process.env.PORT || '3737', 10)
-const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session'
+const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || process.cwd()
 
 // --- Skill categories for granular display ---
 const SKILL_CATEGORIES: Record<string, string[]> = {

@@ -1,8 +1,19 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
 import { MemoryStore } from '../../storage/memory-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import { dashboardUrl } from '../../constants.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -71,7 +82,7 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       })
 
       let text = draft
-        ? `⏳ Memory queued for review: ${memory.mem.id} (${memory.mem.type}) — approve at memory.fl1.it/#/review`
+        ? `⏳ Memory queued for review: ${memory.mem.id} (${memory.mem.type}) — approve at ${dashboardUrl()}/#/review`
         : `✅ Memory added: ${memory.mem.id} (${memory.mem.type}, confidence: ${memory.mem.confidence})`
       if (memory.contradictionWarnings.length > 0) {
         text += '\n\n' + memory.contradictionWarnings.join('\n')

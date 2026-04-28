@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 
 import { Command } from 'commander'
 import { analyzeCommand } from './cli/commands/analyze.js'

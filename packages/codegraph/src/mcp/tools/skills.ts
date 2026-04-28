@@ -1,9 +1,20 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
 import { MemoryStore } from '../../storage/memory-store.js'
 import { SkillsStore, ConcurrencyError } from '../../storage/skills-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import { dashboardUrl } from '../../constants.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -127,7 +138,7 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
           content: [{
             type: 'text',
             text: draft
-              ? `⏳ Skill "${name}" queued for review — approve at memory.fl1.it/#/review${reason ? `. Reason: ${reason}` : ''}`
+              ? `⏳ Skill "${name}" queued for review — approve at ${dashboardUrl()}/#/review${reason ? `. Reason: ${reason}` : ''}`
               : `Skill "${name}" updated successfully.${reason ? ` Reason: ${reason}` : ''}`,
           }],
         }
@@ -171,7 +182,7 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
         content: [{
           type: 'text',
           text: draft
-            ? `⏳ Skill "${name}" created as draft — approve at memory.fl1.it/#/review`
+            ? `⏳ Skill "${name}" created as draft — approve at ${dashboardUrl()}/#/review`
             : `✅ Skill "${name}" created and active.`,
         }],
       }

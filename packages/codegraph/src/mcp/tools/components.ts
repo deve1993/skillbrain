@@ -1,3 +1,13 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
@@ -11,6 +21,7 @@ import {
   mergeTokenSources, type TokenSource,
 } from '../../storage/design-token-parser.js'
 import { parseComponentFile, extractUsedTokens } from '../../storage/component-parser.js'
+import { dashboardUrl } from '../../constants.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -329,7 +340,7 @@ export function registerComponentTools(server: McpServer, _ctx: ToolContext): vo
   // ── design_system_scan ──────────────────────────────
   server.tool(
     'design_system_scan',
-    'Scan project design tokens and auto-populate the design system. Pass file contents directly via cssContent/tailwindContent/tokensContent (recommended — avoids server filesystem access), or provide workspacePath for local server setups. If no conflicts, saves immediately. If conflicts exist, saves as pending for dashboard review at memory.fl1.it/#/design-systems.',
+    `Scan project design tokens and auto-populate the design system. Pass file contents directly via cssContent/tailwindContent/tokensContent (recommended — avoids server filesystem access), or provide workspacePath for local server setups. If no conflicts, saves immediately. If conflicts exist, saves as pending for dashboard review at ${dashboardUrl()}/#/design-systems.`,
     {
       project: z.string().describe('Project name (e.g., "quickfy", "terrae-mare")'),
       workspacePath: z.string().optional().describe('Absolute path to the project root (used only if *Content params are not provided)'),
@@ -376,7 +387,7 @@ export function registerComponentTools(server: McpServer, _ctx: ToolContext): vo
         }
 
         const scan = withStore(store => store.addDesignSystemScan({ project, sources, merged, conflicts }))
-        return { content: [{ type: 'text', text: `⚠️ Design system scan for "${project}" saved as pending (${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}).\n  Colors: ${colorCount} | Fonts: ${fontCount}\n  Review and apply at memory.fl1.it/#/design-systems\n  Scan ID: ${scan.id}` }] }
+        return { content: [{ type: 'text', text: `⚠️ Design system scan for "${project}" saved as pending (${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}).\n  Colors: ${colorCount} | Fonts: ${fontCount}\n  Review and apply at ${dashboardUrl()}/#/design-systems\n  Scan ID: ${scan.id}` }] }
       } catch (err) {
         return { content: [{ type: 'text', text: `❌ Scan error: ${(err as Error).message}` }] }
       }

@@ -1,3 +1,13 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 /**
  * Central constants for timing, thresholds, and configuration
  *
@@ -21,3 +31,9 @@ export const MEMORY_STALE_VALIDATION_DAYS = 90
 
 // ── Dashboard & Server ──
 export const DEFAULT_DASHBOARD_PORT = 3333
+
+// ── Public URL ──
+/** Base URL for dashboard links in MCP tool responses and emails. */
+export function dashboardUrl(): string {
+  return (process.env.PUBLIC_URL || process.env.OAUTH_ISSUER || 'https://memory.fl1.it').replace(/\/+$/, '')
+}

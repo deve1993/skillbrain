@@ -1,3 +1,13 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
@@ -11,6 +21,7 @@ import {
   detectDesignFiles, parseTailwindConfig, parseCSSVariables,
   parseTokensJson, mergeTokenSources, type TokenSource,
 } from '../../storage/design-token-parser.js'
+import { dashboardUrl } from '../../constants.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -96,7 +107,7 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
                 resumeContext += `\n\n🎨 Design system auto-updated (${colorCount} colors, ${Object.keys(merged.fonts ?? {}).length} fonts)`
               } else {
                 const scan = store.addDesignSystemScan({ project, sources, merged, conflicts })
-                resumeContext += `\n\n⚠️  Design system scan pending review (${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}) — memory.fl1.it/#/design-systems [${scan.id}]`
+                resumeContext += `\n\n⚠️  Design system scan pending review (${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''}) — ${dashboardUrl()}/#/design-systems [${scan.id}]`
               }
             } finally {
               closeDb(db)
@@ -169,7 +180,7 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
 
       let text = `Session ${sessionId} ended (${status}).${deliverables ? `\nDelivered: ${deliverables}` : ''}${nextSteps ? `\nNext steps: ${nextSteps}` : ''}`
       if (skillProposals.length > 0) {
-        text += `\n\n💡 Skill update proposals created for: ${skillProposals.join(', ')} — review at memory.fl1.it/#/review`
+        text += `\n\n💡 Skill update proposals created for: ${skillProposals.join(', ')} — review at ${dashboardUrl()}/#/review`
       }
       return { content: [{ type: 'text', text }] }
     },

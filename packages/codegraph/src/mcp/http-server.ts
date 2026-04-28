@@ -1,3 +1,13 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 /**
  * MCP HTTP Server — Dual mode entry point
  *
@@ -31,6 +41,7 @@ import { AuditStore } from '../storage/audit-store.js'
 import { OAuthStore } from '../storage/oauth-store.js'
 import { UsersEnvStore } from '../storage/users-env-store.js'
 import { assertEncryptionUsable, decrypt } from '../storage/crypto.js'
+import { dashboardUrl } from '../constants.js'
 
 // Curated catalog for the hub's "Add credential" flow. Adding to this list
 // surfaces a one-click template; everything else is still addable via the
@@ -51,11 +62,11 @@ const ENV_TEMPLATES = [
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || '/Users/dan/Desktop/progetti-web/MASTER_Fullstack session'
+const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || process.cwd()
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || ''
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || ''
-const PUBLIC_ISSUER  = process.env.OAUTH_ISSUER || process.env.PUBLIC_URL || 'https://memory.fl1.it'
+const PUBLIC_ISSUER  = process.env.OAUTH_ISSUER || process.env.PUBLIC_URL || dashboardUrl()
 const SMTP_HOST      = process.env.SMTP_HOST || ''
 const SMTP_PORT      = parseInt(process.env.SMTP_PORT || '587', 10)
 const SMTP_USER      = process.env.SMTP_USER || ''
@@ -99,12 +110,12 @@ async function sendInviteEmail(to: string, name: string, password: string, apiKe
       '',
       'Sei stato aggiunto al team SkillBrain.',
       '',
-      'Dashboard: https://memory.fl1.it/',
+      `Dashboard: ${dashboardUrl()}/`,
       `Email:     ${to}`,
       `Password:  ${password}`,
       '',
       'API key per Claude Code:',
-      '  SKILLBRAIN_MCP_URL=https://memory.fl1.it/mcp',
+      `  SKILLBRAIN_MCP_URL=${dashboardUrl()}/mcp`,
       `  CODEGRAPH_AUTH_TOKEN=${apiKey}`,
       '',
       'Cambia la password dopo il primo accesso dal menu in alto a destra.',

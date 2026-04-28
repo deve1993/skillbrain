@@ -1,3 +1,13 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
 /**
  * MCP stdio→HTTP Proxy with Auto-Session
  *
@@ -25,6 +35,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { HEARTBEAT_INTERVAL_MS, SESSION_REUSE_WINDOW_MS } from '../constants.js'
 
+// Default points to the author's public instance. Override via SKILLBRAIN_MCP_URL for your own deployment.
 const REMOTE_URL = process.env.SKILLBRAIN_MCP_URL || 'https://memory.fl1.it/mcp'
 const AUTH_TOKEN = process.env.CODEGRAPH_AUTH_TOKEN || ''
 
