@@ -25,7 +25,7 @@ Your AI assistant forgets everything when you close the session. For your whole 
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-blueviolet)
 ![Claude Desktop](https://img.shields.io/badge/Claude%20Desktop-compatible-blueviolet)
 ![Self Hosted](https://img.shields.io/badge/self--hosted-Coolify%20%2F%20Docker-ff6b35)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![License](https://img.shields.io/badge/license-AGPL--3.0%20%2B%20Commercial-brightgreen)
 
 **Built by [Daniel De Vecchi](https://www.linkedin.com/in/danieldevecchi/) · [GitHub](https://github.com/deve1993)**
 
@@ -543,7 +543,14 @@ Contributions welcome:
 
 ## License
 
-MIT — use freely, attribute if you build on it.
+SkillBrain is dual-licensed:
+
+- **AGPL-3.0** — Free for open source use. If you run a modified version over a network (including SaaS), you must share your source code under AGPL-3.0.
+- **Commercial License** — For proprietary/closed-source deployments. Removes all AGPL obligations.
+
+The complete AGPL-3.0 text is in the [LICENSE](LICENSE) file.
+
+**Need a commercial license?** Contact [daniel@pixarts.eu](mailto:daniel@pixarts.eu).
 
 ---
 
