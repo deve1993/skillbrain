@@ -165,7 +165,11 @@ function getMemoryGraphStats() {
 
 export async function startHttpServer(port: number, authToken?: string): Promise<void> {
   const app = express()
-  app.use(express.json())
+  // Skip global json parser for /api/codegraph/upload — it has its own with a higher limit
+  app.use((req, res, next) => {
+    if (req.path === '/api/codegraph/upload') return next()
+    express.json()(req, res, next)
+  })
 
   // Session map for MCP transports
   const transports = new Map<string, StreamableHTTPServerTransport>()
