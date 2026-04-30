@@ -13,9 +13,9 @@
 
 Your AI assistant forgets everything when you close the session. For your whole team, that's a productivity tax you pay every single day. SkillBrain fixes it — **permanently, collectively, with audit trails.**
 
-**49 MCP tools, 258 skills, multi-user authentication, 11-page dashboard, team-safe knowledge graph — served from a single self-hosted server.** Claude Code, Claude Desktop, or any MCP client connects and gets the full system.
+**50 MCP tools, 258 skills, multi-user authentication, 11-page dashboard, team-safe knowledge graph — served from a single self-hosted server.** Claude Code, Claude Desktop, or any MCP client connects and gets the full system.
 
-![MCP Tools](https://img.shields.io/badge/MCP%20tools-49-34d399)
+![MCP Tools](https://img.shields.io/badge/MCP%20tools-50-34d399)
 ![Skills](https://img.shields.io/badge/skills-258-blue)
 ![Multi-User](https://img.shields.io/badge/multi--user-teams%20%2B%20API%20keys-f97316)
 ![Memory Graph](https://img.shields.io/badge/Memory%20Graph-typed%20SQLite-8b5cf6)
@@ -46,7 +46,7 @@ Add this to your Claude Code config (`~/.claude.json` → `mcpServers`):
 }
 ```
 
-Restart Claude Code. You now have 49 tools, 258 skills, and shared team memory.
+Restart Claude Code. You now have 50 tools, 258 skills, and shared team memory.
 
 > **First login** creates the admin user automatically. Additional team members are invited from the dashboard (**Team** page) and each gets their own API key for MCP access.
 
@@ -121,6 +121,10 @@ The last wave of releases turned SkillBrain from a single-user tool into a team 
 - **Design system auto-populate** — scan Tailwind v4 configs, CSS variables and `tokens.json` files. Cross-referenced against the component catalog.
 - **Component catalog + token linking** — bulk import component snippets, auto-detect `var(--color-*)` references, link to design systems.
 - **Project merge & dedup** — `POST /api/projects-meta/merge` absorbs duplicate projects (sessions, memories, env vars, design systems merge with conflict resolution).
+- **MemPalace retrieval** — BM25 re-ranking on FTS5 trigram candidates (partial/prefix match: "serv" → "server"), closet boost for project-context results, verbatim session chunk indexing with `session_search`.
+- **Memory persistence fix** — CodeGraph uploads (`codegraph_analyze`) now merge only the index tables; memories, sessions, skills and env vars are never overwritten.
+- **ENCRYPTION_KEY rotation** — `POST /api/admin/rotate-key` re-encrypts all secrets atomically; safe to run before changing the key in Coolify.
+- **CodeGraph auto-upload** — proxy auto-uploads the local analysis on connect if the server is stale or missing; Bearer auth fixed for `/api/*` routes.
 
 ---
 
@@ -157,7 +161,7 @@ skill_update(name)   → update a skill, history kept in skill_versions
 ```
 
 ### 🧠 2. Memory Graph
-Typed knowledge graph with 8 memory types, 5 relationship types, and 3 scopes, stored in SQLite with FTS5 full-text search.
+Typed knowledge graph with 8 memory types, 5 relationship types, and 3 scopes, stored in SQLite. Retrieval uses **BM25 re-ranking** over FTS5 trigram candidates (partial/prefix match), plus **closet boost** for project-context relevance.
 
 **Memory types:** Fact, Preference, Decision, Pattern, AntiPattern, BugFix, Goal, Todo
 **Edge types:** RelatedTo, Updates, Contradicts, CausedBy, PartOf
@@ -256,7 +260,7 @@ The proxy auto-detects your project (from `package.json` or folder name), git br
 
 ---
 
-## 49 MCP Tools
+## 50 MCP Tools
 
 ### Memory (8)
 | Tool | Purpose |
@@ -285,7 +289,7 @@ The proxy auto-detects your project (from `package.json` or folder name), git br
 | `command_read` | Read command content |
 | `cortex_briefing` | 5-layer working memory briefing |
 
-### Sessions (5)
+### Sessions (6)
 | Tool | Purpose |
 |------|---------|
 | `session_start` | Log session with project + task |
@@ -293,6 +297,7 @@ The proxy auto-detects your project (from `package.json` or folder name), git br
 | `session_end` | Close with deliverables + next steps |
 | `session_resume` | Full context to continue a project |
 | `session_history` | Recent sessions, filter by project or author |
+| `session_search` | Full-text search across verbatim past session content |
 
 ### Projects (10)
 | Tool | Purpose |
@@ -347,7 +352,7 @@ flowchart TB
 
     subgraph Server["your-server.com · Coolify / Docker"]
         Auth["🔐 Auth layer<br/>email+password · API keys · roles"]
-        Tools["🛠 49 MCP tools<br/>memory · skills · sessions · projects · codegraph · components"]
+        Tools["🛠 50 MCP tools<br/>memory · skills · sessions · projects · codegraph · components"]
         Review["📝 Review / approval queue"]
         Hub["📊 Hub Dashboard · 11 pages"]
     end
@@ -358,7 +363,7 @@ flowchart TB
         Projects["📁 Projects + Work Log + Merge"]
         Components["🧩 Components + Design Systems"]
         Audit["🧾 Audit log<br/><sub>review_audit · skill_versions</sub>"]
-        Migrations["⚙️ 13 migrations · 000 → 012"]
+        Migrations["⚙️ 19 migrations · 000 → 018"]
     end
 
     CC -- stdio --> Proxy
@@ -462,6 +467,7 @@ Each team member gets their own API key from the dashboard and configures:
 | Feature | CLAUDE.md | Mem0 / Zep | Spacebot | **SkillBrain** |
 |---------|-----------|------------|----------|----------------|
 | Memory | Manual text | Vector DB | Typed graph (Rust) | **Typed graph (SQLite + MCP)** |
+| Retrieval | None | Cosine similarity | Keyword | **BM25 + trigram FTS5 + closet boost** |
 | Cross-session | No | API calls | Chat channels | **Shared SQLite via proxy** |
 | Memory types | None | Key-value | 8 types | **8 types + 5 edge types + 3 scopes** |
 | Contradiction detection | No | No | No | **Auto on save** |
