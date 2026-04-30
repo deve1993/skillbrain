@@ -514,12 +514,24 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     if (typeof graphDb !== 'string' || graphDb.length === 0) {
       res.status(400).json({ error: 'graphDb (base64 string) required' }); return
     }
-    const repoPath = path.join(process.cwd(), 'repos', repoName)
+    // Sanitize repoName: only alphanumeric, hyphens, underscores, dots — no slashes or traversal
+    if (!/^[\w.-]+$/.test(repoName) || repoName.includes('..')) {
+      res.status(400).json({ error: 'Invalid repoName' }); return
+    }
+    const MAX_DB_BYTES = 200 * 1024 * 1024 // 200 MB
+    const binary = Buffer.from(graphDb, 'base64')
+    if (binary.length > MAX_DB_BYTES) {
+      res.status(413).json({ error: 'graphDb exceeds 200 MB limit' }); return
+    }
+    const reposRoot = path.resolve(SKILLBRAIN_ROOT, 'repos')
+    const repoPath = path.resolve(reposRoot, repoName)
+    if (!repoPath.startsWith(reposRoot + path.sep)) {
+      res.status(400).json({ error: 'Invalid repoName' }); return
+    }
     const dbDir = path.join(repoPath, '.codegraph')
     const dbPath = path.join(dbDir, 'graph.db')
     try {
       fs.mkdirSync(dbDir, { recursive: true })
-      const binary = Buffer.from(graphDb, 'base64')
       fs.writeFileSync(dbPath, binary)
     } catch (err: any) {
       console.error('[codegraph/upload] fs error', err)
