@@ -63,6 +63,98 @@ export function decrypt(encrypted: EncryptedValue): string {
   return decrypted.toString('utf8')
 }
 
+// ── Key-explicit variants (used for key rotation) ────────────────────────────
+
+function encryptWithKey(plaintext: string, keyHex: string): EncryptedValue {
+  const key = Buffer.from(keyHex, 'hex')
+  const iv = crypto.randomBytes(IV_LENGTH)
+  const cipher = crypto.createCipheriv(ALGO, key, iv)
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+  const authTag = cipher.getAuthTag()
+  return {
+    ciphertext: encrypted.toString('base64'),
+    iv: iv.toString('base64'),
+    authTag: authTag.toString('base64'),
+  }
+}
+
+function decryptWithKey(encrypted: EncryptedValue, keyHex: string): string {
+  const key = Buffer.from(keyHex, 'hex')
+  const iv = Buffer.from(encrypted.iv, 'base64')
+  const authTag = Buffer.from(encrypted.authTag, 'base64')
+  const ciphertext = Buffer.from(encrypted.ciphertext, 'base64')
+  const decipher = crypto.createDecipheriv(ALGO, key, iv)
+  decipher.setAuthTag(authTag)
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+}
+
+/**
+ * Rotate the master encryption key.
+ * Decrypts all rows in project_env_vars and user_env_vars with the current
+ * ENCRYPTION_KEY, re-encrypts with newKeyHex, and commits atomically.
+ *
+ * After this completes, update ENCRYPTION_KEY in Coolify to newKeyHex.
+ *
+ * @returns number of rows re-encrypted
+ */
+export function rotateKey(db: import('better-sqlite3').Database, newKeyHex: string): number {
+  if (!newKeyHex || newKeyHex.length !== 64 || !/^[0-9a-f]+$/i.test(newKeyHex)) {
+    throw new Error('newKey must be 64 hex chars (32 bytes). Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
+  }
+
+  const oldKeyHex = process.env.ENCRYPTION_KEY
+  if (!oldKeyHex) throw new Error('ENCRYPTION_KEY not set — cannot rotate from unknown key')
+  if (oldKeyHex === newKeyHex) throw new Error('New key is identical to current key')
+
+  // Dry-run: verify old key can decrypt at least one existing row
+  const sample = db.prepare(
+    `SELECT encrypted_value, iv, auth_tag FROM project_env_vars LIMIT 1`
+  ).get() as { encrypted_value: string; iv: string; auth_tag: string } | undefined
+
+  if (sample) {
+    // Will throw if the current ENCRYPTION_KEY doesn't match stored rows
+    decryptWithKey({ ciphertext: sample.encrypted_value, iv: sample.iv, authTag: sample.auth_tag }, oldKeyHex)
+  }
+
+  let rotated = 0
+
+  ;(db.transaction(() => {
+    // ── project_env_vars ─────────────────────────────────────────────────────
+    const projectRows = db.prepare(
+      `SELECT id, encrypted_value, iv, auth_tag FROM project_env_vars`
+    ).all() as Array<{ id: string; encrypted_value: string; iv: string; auth_tag: string }>
+
+    const updateProject = db.prepare(
+      `UPDATE project_env_vars SET encrypted_value = ?, iv = ?, auth_tag = ? WHERE id = ?`
+    )
+
+    for (const row of projectRows) {
+      const plaintext = decryptWithKey({ ciphertext: row.encrypted_value, iv: row.iv, authTag: row.auth_tag }, oldKeyHex)
+      const re = encryptWithKey(plaintext, newKeyHex)
+      updateProject.run(re.ciphertext, re.iv, re.authTag, row.id)
+      rotated++
+    }
+
+    // ── user_env_vars ─────────────────────────────────────────────────────────
+    const userRows = db.prepare(
+      `SELECT id, encrypted_value, iv, auth_tag FROM user_env_vars`
+    ).all() as Array<{ id: string; encrypted_value: string; iv: string; auth_tag: string }>
+
+    const updateUser = db.prepare(
+      `UPDATE user_env_vars SET encrypted_value = ?, iv = ?, auth_tag = ? WHERE id = ?`
+    )
+
+    for (const row of userRows) {
+      const plaintext = decryptWithKey({ ciphertext: row.encrypted_value, iv: row.iv, authTag: row.auth_tag }, oldKeyHex)
+      const re = encryptWithKey(plaintext, newKeyHex)
+      updateUser.run(re.ciphertext, re.iv, re.authTag, row.id)
+      rotated++
+    }
+  }))()
+
+  return rotated
+}
+
 export function isEncryptionAvailable(): boolean {
   try {
     getMasterKey()

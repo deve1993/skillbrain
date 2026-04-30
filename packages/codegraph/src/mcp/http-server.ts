@@ -41,7 +41,7 @@ import { ComponentsStore } from '../storage/components-store.js'
 import { AuditStore } from '../storage/audit-store.js'
 import { OAuthStore } from '../storage/oauth-store.js'
 import { UsersEnvStore } from '../storage/users-env-store.js'
-import { assertEncryptionUsable, decrypt } from '../storage/crypto.js'
+import { assertEncryptionUsable, decrypt, rotateKey } from '../storage/crypto.js'
 import { dashboardUrl } from '../constants.js'
 
 // Curated catalog for the hub's "Add credential" flow. Adding to this list
@@ -1215,6 +1215,29 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       res.json({ userId, keyId, key: plainKey })
     } catch {
       res.status(500).json({ error: 'Internal error' })
+    }
+  })
+
+  // ── Admin: Key Rotation ───────────────────────────────────────────────────
+  // POST /api/admin/rotate-key  { newKey: "<64 hex chars>" }
+  // Re-encrypts all stored secrets with the new key (atomic transaction).
+  // After success: update ENCRYPTION_KEY in Coolify to newKey and redeploy.
+  app.post('/api/admin/rotate-key', requireAdmin, express.json(), (req, res) => {
+    const { newKey } = req.body || {}
+    if (!newKey || typeof newKey !== 'string') {
+      res.status(400).json({ error: 'newKey (string) required' }); return
+    }
+    try {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const rotated = rotateKey(db, newKey)
+      closeDb(db)
+      res.json({
+        ok: true,
+        rotated,
+        message: `${rotated} secret(s) re-encrypted. NOW update ENCRYPTION_KEY=${newKey} in Coolify and redeploy.`,
+      })
+    } catch (err: any) {
+      res.status(400).json({ error: err.message })
     }
   })
 
