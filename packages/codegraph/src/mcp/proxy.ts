@@ -58,10 +58,12 @@ async function localAnalyzeAndUpload(repoPath: string, remoteUrl: string, authTo
 
   // 3. Load local meta for stats + lastCommit
   const meta = loadMeta(repoPath)
-  if (!meta) return
+  if (!meta) throw new Error('meta.json not found after analysis — index may have failed')
 
   // 4. POST to server upload endpoint
-  const uploadUrl = remoteUrl.replace('/mcp', '/api/codegraph/upload')
+  const base = new URL(remoteUrl)
+  base.pathname = '/api/codegraph/upload'
+  const uploadUrl = base.toString()
   const response = await fetch(uploadUrl, {
     method: 'POST',
     headers: {
