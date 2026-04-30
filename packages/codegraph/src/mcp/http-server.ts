@@ -543,7 +543,55 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     const dbPath = path.join(dbDir, 'graph.db')
     try {
       fs.mkdirSync(dbDir, { recursive: true })
-      fs.writeFileSync(dbPath, binary)
+
+      if (fs.existsSync(dbPath)) {
+        // Merge: preserve memories/sessions/skills/env — only replace CodeGraph index tables.
+        // Write incoming DB to a sibling temp repo path so openDb() can open it normally.
+        const tmpRepoPath = repoPath + '__upload_tmp'
+        const tmpDbDir = path.join(tmpRepoPath, '.codegraph')
+        try {
+          fs.mkdirSync(tmpDbDir, { recursive: true })
+          fs.writeFileSync(path.join(tmpDbDir, 'graph.db'), binary)
+
+          const existingDb = openDb(repoPath)   // server DB — has memories, sessions, etc.
+          const incomingDb = openDb(tmpRepoPath) // fresh client analysis DB
+
+          try {
+            existingDb.transaction(() => {
+              existingDb.prepare('DELETE FROM nodes').run()
+              existingDb.prepare('DELETE FROM edges').run()
+              existingDb.prepare('DELETE FROM files').run()
+
+              for (const row of incomingDb.prepare('SELECT * FROM nodes').all() as any[]) {
+                existingDb.prepare(
+                  'INSERT OR IGNORE INTO nodes (id,label,name,file_path,start_line,end_line,is_exported,properties) VALUES (@id,@label,@name,@file_path,@start_line,@end_line,@is_exported,@properties)'
+                ).run(row)
+              }
+              for (const row of incomingDb.prepare('SELECT * FROM edges').all() as any[]) {
+                existingDb.prepare(
+                  'INSERT OR IGNORE INTO edges (id,source_id,target_id,type,confidence,reason,step) VALUES (@id,@source_id,@target_id,@type,@confidence,@reason,@step)'
+                ).run(row)
+              }
+              for (const row of incomingDb.prepare('SELECT * FROM files').all() as any[]) {
+                existingDb.prepare(
+                  'INSERT OR REPLACE INTO files (path,content_hash,indexed_at,symbol_count) VALUES (@path,@content_hash,@indexed_at,@symbol_count)'
+                ).run(row)
+              }
+
+              // Rebuild nodes FTS from updated content table
+              existingDb.prepare("INSERT INTO nodes_fts(nodes_fts) VALUES('rebuild')").run()
+            })()
+          } finally {
+            closeDb(incomingDb)
+            closeDb(existingDb)
+          }
+        } finally {
+          fs.rmSync(tmpRepoPath, { recursive: true, force: true })
+        }
+      } else {
+        // First upload — write directly (no existing data to preserve)
+        fs.writeFileSync(dbPath, binary)
+      }
     } catch (err: any) {
       console.error('[codegraph/upload] fs error', err)
       res.status(500).json({ error: `Failed to write graph.db: ${err.message}` }); return
