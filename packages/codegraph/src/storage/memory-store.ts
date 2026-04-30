@@ -658,6 +658,36 @@ export class MemoryStore {
     return union === 0 ? 0 : intersection / union
   }
 
+  // ── Suggest Personalization ────────────────────────
+
+  logSuggestOutcome(type: string, accepted: boolean, project?: string): void {
+    try {
+      this.db.prepare(
+        'INSERT INTO suggest_log (suggested_type, accepted, project) VALUES (?, ?, ?)'
+      ).run(type, accepted ? 1 : 0, project ?? null)
+    } catch { /* table may not exist */ }
+  }
+
+  suggestPreferences(): Record<string, { accepted: number; total: number; rate: number }> {
+    try {
+      const rows = this.db.prepare(`
+        SELECT suggested_type, SUM(accepted) as accepted, COUNT(*) as total
+        FROM suggest_log GROUP BY suggested_type
+      `).all() as any[]
+
+      return rows.reduce((acc, r) => {
+        acc[r.suggested_type] = {
+          accepted: r.accepted,
+          total: r.total,
+          rate: r.total > 0 ? r.accepted / r.total : 0,
+        }
+        return acc
+      }, {} as Record<string, { accepted: number; total: number; rate: number }>)
+    } catch {
+      return {}
+    }
+  }
+
   // ── Stats ─────────────────────────────────────────
 
   stats() {

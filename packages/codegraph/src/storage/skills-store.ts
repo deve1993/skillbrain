@@ -193,6 +193,11 @@ export class SkillsStore {
         SELECT COUNT(*) as count FROM skill_usage
         WHERE skill_name = ? AND action = 'dismissed' AND ts >= datetime('now', '-7 days')
       `),
+      lastLoadedInSession: this.db.prepare(`
+        SELECT skill_name FROM skill_usage
+        WHERE session_id = ? AND action IN ('loaded', 'applied')
+        ORDER BY ts DESC LIMIT 1
+      `),
       // Upsert co-occurrence pair
       upsertCooccurrence: this.db.prepare(`
         INSERT INTO skill_cooccurrence (skill_a, skill_b, count, last_ts)
@@ -456,6 +461,13 @@ export class SkillsStore {
       const rows = this.stmts.lastUsed.all() as { skillName: string; ts: string }[]
       return new Map(rows.map((r) => [r.skillName, r.ts]))
     } catch { return new Map() }
+  }
+
+  lastLoadedSkill(sessionId: string): string | null {
+    try {
+      const row = this.stmts.lastLoadedInSession.get(sessionId) as { skill_name: string } | undefined
+      return row?.skill_name ?? null
+    } catch { return null }
   }
 
   markUseful(skillName: string, sessionId: string): void {

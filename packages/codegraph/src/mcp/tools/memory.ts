@@ -12,6 +12,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDb, closeDb } from '../../storage/db.js'
 import { MemoryStore } from '../../storage/memory-store.js'
+import { SkillsStore } from '../../storage/skills-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
 import { dashboardUrl } from '../../constants.js'
 import type { ToolContext } from './index.js'
@@ -42,6 +43,16 @@ function withMemoryStore<T>(repoPath: string, fn: (store: MemoryStore) => T): T 
   }
 }
 
+function withSkillsStore<T>(repoPath: string, fn: (store: SkillsStore) => T): T {
+  const db = openDb(repoPath)
+  const store = new SkillsStore(db)
+  try {
+    return fn(store)
+  } finally {
+    closeDb(db)
+  }
+}
+
 const memoryTypes = ['Fact', 'Preference', 'Decision', 'Pattern', 'AntiPattern', 'BugFix', 'Goal', 'Todo'] as const
 const memoryEdgeTypes = ['RelatedTo', 'Updates', 'Contradicts', 'CausedBy', 'PartOf'] as const
 
@@ -63,11 +74,20 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       project: z.string().optional().describe('Project name (if scope is project or project-specific)'),
       skill: z.string().optional().describe('Associated skill name'),
       draft: z.boolean().optional().default(false).describe('If true, stores as pending-review for dashboard approval instead of going live immediately'),
+      sessionId: z.string().optional().describe('Current session ID for auto-linking skill'),
       repo: z.string().optional().describe('Repository to store memory in'),
     },
-    async ({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill, draft, repo }) => {
+    async ({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill, draft, sessionId, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found. Run codegraph_list_repos.' }] }
+
+      // Auto-link skill if not provided
+      let effectiveSkill = skill
+      if (!effectiveSkill && sessionId) {
+        effectiveSkill = withSkillsStore(resolved.path, (skillStore) =>
+          skillStore.lastLoadedSkill(sessionId)
+        )
+      }
 
       const memory = withMemoryStore(resolved.path, (store) => {
         // Check for near-duplicates before adding
@@ -76,7 +96,7 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
           return { mem: null, duplicate: existing, contradictionWarnings: [] }
         }
 
-        const mem = store.add({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill, status: draft ? 'pending-review' : 'active' })
+        const mem = store.add({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill: effectiveSkill, status: draft ? 'pending-review' : 'active' })
         const contradictions = store.detectContradictions(mem)
         const contradictionWarnings = contradictions.map((c) =>
           `⚠️ Potential contradiction with ${c.id}: "${c.context.slice(0, 80)}..."`,
@@ -307,14 +327,30 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       project: z.string().optional(),
       repo: z.string().optional(),
     },
-    async ({ taskDescription, outcome, project }) => {
-      // Return structured guidance — Claude uses this to extract and propose memories
+    async ({ taskDescription, outcome, project, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      const prefs = withMemoryStore(resolved.path, (store) => store.suggestPreferences())
+
+      const typeGuidance = Object.entries(prefs)
+        .filter(([_, v]) => v.total >= 3)
+        .sort((a, b) => b[1].rate - a[1].rate)
+
+      let personalizedHint = ''
+      if (typeGuidance.length > 0) {
+        const preferred = typeGuidance.filter(([_, v]) => v.rate >= 0.6).map(([k]) => k)
+        const avoided = typeGuidance.filter(([_, v]) => v.rate <= 0.2).map(([k]) => k)
+        if (preferred.length > 0) personalizedHint += `\n\nUser tends to accept: ${preferred.join(', ')}`
+        if (avoided.length > 0) personalizedHint += `\nUser tends to reject: ${avoided.join(', ')} (skip these unless very high value)`
+      }
+
       const template = `## Memory Capture Suggestions
 
 Based on this task:
 - **Task**: ${taskDescription}
 - **Outcome**: ${outcome}
-${project ? `- **Project**: ${project}` : ''}
+${project ? `- **Project**: ${project}` : ''}${personalizedHint}
 
 Extract 1-3 memories that would be valuable in FUTURE sessions. For each:
 
@@ -339,10 +375,33 @@ I learned something worth saving. Want me to save:
 \`\`\`
 
 4. For each approved: call \`memory_add({ type, context, problem, solution, reason, tags, project, skill })\`
+5. For each outcome: call \`logSuggestOutcome(type, accepted, project)\` via internal tracking
 
 Only save what would SAVE FUTURE TIME. Quality over quantity.`
 
       return { content: [{ type: 'text', text: template }] }
+    },
+  )
+
+  // --- Tool: memory_suggest_outcome ---
+  server.tool(
+    'memory_suggest_outcome',
+    'Log whether a suggested memory was accepted or rejected. Improves future suggestions.',
+    {
+      type: z.enum(memoryTypes).describe('The memory type that was suggested'),
+      accepted: z.boolean().describe('Whether the user accepted the suggestion'),
+      project: z.string().optional(),
+      repo: z.string().optional(),
+    },
+    async ({ type, accepted, project, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      withMemoryStore(resolved.path, (store) => {
+        store.logSuggestOutcome(type, accepted, project)
+      })
+
+      return { content: [{ type: 'text', text: `Logged: ${type} ${accepted ? 'accepted' : 'rejected'}` }] }
     },
   )
 }
