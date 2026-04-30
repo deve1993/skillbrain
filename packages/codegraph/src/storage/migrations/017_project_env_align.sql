@@ -10,8 +10,8 @@ ALTER TABLE project_env_vars ADD COLUMN category TEXT NOT NULL DEFAULT 'api_key'
 -- 2. Add service
 ALTER TABLE project_env_vars ADD COLUMN service TEXT;
 
--- 3. Rename notes → description (requires SQLite 3.25.0+)
-ALTER TABLE project_env_vars RENAME COLUMN notes TO description;
+-- 3. Add description column (notes never existed in project_env_vars)
+ALTER TABLE project_env_vars ADD COLUMN description TEXT;
 
 -- 4. Backfill source = 'manual' for existing NULL rows
 UPDATE project_env_vars SET source = 'manual' WHERE source IS NULL;
