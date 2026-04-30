@@ -86,7 +86,7 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       if (!effectiveSkill && sessionId) {
         effectiveSkill = withSkillsStore(resolved.path, (skillStore) =>
           skillStore.lastLoadedSkill(sessionId)
-        )
+        ) ?? undefined
       }
 
       const memory = withMemoryStore(resolved.path, (store) => {
