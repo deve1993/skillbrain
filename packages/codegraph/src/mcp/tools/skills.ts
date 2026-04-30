@@ -225,6 +225,29 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
     },
   )
 
+  // --- Tool: skill_dismiss ---
+  server.tool(
+    'skill_dismiss',
+    'Record that a routed skill was not useful for this task. Helps improve future routing.',
+    {
+      name: z.string().describe('Skill name to dismiss'),
+      task: z.string().optional().describe('Task description for context'),
+      sessionId: z.string().optional(),
+      project: z.string().optional(),
+      repo: z.string().optional(),
+    },
+    async ({ name, task, sessionId, project, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      withSkillsStore(resolved.path, (store) => {
+        store.recordUsage(name, 'dismissed', { sessionId, project, task, userId: ctx.userId })
+      })
+
+      return { content: [{ type: 'text', text: `Noted: "${name}" dismissed for this task.` }] }
+    },
+  )
+
   // --- Tool: agent_list ---
   server.tool(
     'agent_list',

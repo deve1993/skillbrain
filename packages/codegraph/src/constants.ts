@@ -37,3 +37,7 @@ export const DEFAULT_DASHBOARD_PORT = 3333
 export function dashboardUrl(): string {
   return (process.env.PUBLIC_URL || process.env.OAUTH_ISSUER || 'https://memory.fl1.it').replace(/\/+$/, '')
 }
+
+// ── Skill Decay ──
+export const SKILL_DECAY_SESSIONS_THRESHOLD = 5
+export const SKILL_DEPRECATION_SESSIONS_THRESHOLD = 20

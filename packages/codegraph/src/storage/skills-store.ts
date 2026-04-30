@@ -10,6 +10,7 @@
 
 import type Database from 'better-sqlite3'
 import { openDb, closeDb } from './db.js'
+import { SKILL_DECAY_SESSIONS_THRESHOLD, SKILL_DEPRECATION_SESSIONS_THRESHOLD } from '../constants.js'
 
 export type SkillType = 'domain' | 'lifecycle' | 'process' | 'agent' | 'command'
 
@@ -58,7 +59,7 @@ export interface SkillSearchResult {
   rank: number
 }
 
-export type SkillUsageAction = 'routed' | 'loaded' | 'applied'
+export type SkillUsageAction = 'routed' | 'loaded' | 'applied' | 'dismissed'
 
 export interface SkillUsageContext {
   sessionId?: string
@@ -183,6 +184,14 @@ export class SkillsStore {
       recentLoadCount: this.db.prepare(`
         SELECT COUNT(*) as count FROM skill_usage
         WHERE skill_name = ? AND action IN ('loaded','applied') AND ts >= datetime('now', ?)
+      `),
+      recentAppliedCount: this.db.prepare(`
+        SELECT COUNT(*) as count FROM skill_usage
+        WHERE skill_name = ? AND action = 'applied' AND ts >= datetime('now', ?)
+      `),
+      dismissalCount: this.db.prepare(`
+        SELECT COUNT(*) as count FROM skill_usage
+        WHERE skill_name = ? AND action = 'dismissed' AND ts >= datetime('now', '-7 days')
       `),
       // Upsert co-occurrence pair
       upsertCooccurrence: this.db.prepare(`
@@ -344,15 +353,34 @@ export class SkillsStore {
       })()
       const recentCount = (() => {
         try {
-          const row = this.stmts.recentLoadCount.get(r.skill.name, '-24 hours') as { count: number } | undefined
-          return Math.log1p(row?.count ?? 0)
+          const loaded = (this.stmts.recentLoadCount.get(r.skill.name, '-24 hours') as { count: number } | undefined)?.count ?? 0
+          const applied = (this.stmts.recentAppliedCount.get(r.skill.name, '-24 hours') as { count: number } | undefined)?.count ?? 0
+          return Math.log1p(loaded + applied * 3)
         } catch { return 0 }
       })()
       const recencyBoost = recentCount / (Math.log1p(100))
       const coocCount = this.getCooccurrenceCount(r.skill.name, activeSkills)
       const coocBoost = Math.min(coocCount / 100, 1.0)
 
-      const score = 0.50 * bm25Norm + 0.20 * confidence + 0.15 * recencyBoost + 0.15 * coocBoost
+      const dismissalPenalty = (() => {
+        try {
+          const row = this.stmts.dismissalCount.get(r.skill.name) as { count: number } | undefined
+          const count = row?.count ?? 0
+          return Math.min(count * 0.05, 0.20)
+        } catch { return 0 }
+      })()
+
+      const categoryBoost = (() => {
+        if (!activeSkills.length) return 0
+        const activeCategories = new Set<string>()
+        for (const as of activeSkills) {
+          const skill = this.get(as)
+          if (skill) activeCategories.add(skill.category)
+        }
+        return activeCategories.has(r.skill.category) ? 0.15 : 0
+      })()
+
+      const score = 0.45 * bm25Norm + 0.18 * confidence + 0.12 * recencyBoost + 0.10 * coocBoost + categoryBoost - dismissalPenalty
       return { skill: r.skill, score }
     })
 
@@ -447,13 +475,18 @@ export class SkillsStore {
     }
     try {
       this.stmts.incrementSkillSessionCount.run()
-      this.stmts.applySkillDecay.run(now)
+      this.db.prepare(`
+        UPDATE skills SET confidence = MAX(COALESCE(confidence, 5) - 1, 1), updated_at = ?
+        WHERE sessions_since_validation >= ${SKILL_DECAY_SESSIONS_THRESHOLD} AND COALESCE(confidence, 5) > 1 AND status = 'active'
+      `).run(now)
       const deprecated = (this.db.prepare(
-        `SELECT COUNT(*) as c FROM skills WHERE sessions_since_validation >= 30 AND COALESCE(confidence, 5) < 3 AND status = 'active'`
+        `SELECT COUNT(*) as c FROM skills WHERE sessions_since_validation >= ${SKILL_DEPRECATION_SESSIONS_THRESHOLD} AND COALESCE(confidence, 5) < 3 AND status = 'active'`
       ).get() as any)?.c ?? 0
-      this.stmts.deprecateSkills.run(now)
+      this.db.prepare(
+        `UPDATE skills SET status = 'deprecated', updated_at = ? WHERE sessions_since_validation >= ${SKILL_DEPRECATION_SESSIONS_THRESHOLD} AND COALESCE(confidence, 5) < 3 AND status = 'active'`
+      ).run(now)
       const decayed = (this.db.prepare(
-        `SELECT COUNT(*) as c FROM skills WHERE sessions_since_validation >= 10 AND COALESCE(confidence, 5) > 1 AND status = 'active'`
+        `SELECT COUNT(*) as c FROM skills WHERE sessions_since_validation >= ${SKILL_DECAY_SESSIONS_THRESHOLD} AND COALESCE(confidence, 5) > 1 AND status = 'active'`
       ).get() as any)?.c ?? 0
       return { reinforced, decayed, deprecated }
     } catch {
