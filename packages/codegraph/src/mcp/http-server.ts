@@ -360,6 +360,9 @@ export async function startHttpServer(port: number, authToken?: string): Promise
         ;(req as any).userId = userId
         next()
       } else if (req.path.startsWith('/api/')) {
+        // Allow Bearer token auth for programmatic API access (e.g. proxy upload)
+        const token = req.headers.authorization?.replace('Bearer ', '')
+        if (authToken && token === authToken) { next(); return }
         res.status(401).json({ error: 'Authentication required' })
       } else {
         // Serve login page for HTML requests — preserve return_to
