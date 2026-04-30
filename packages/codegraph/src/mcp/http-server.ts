@@ -23,6 +23,7 @@ import { randomUUID } from 'node:crypto'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { promisify } from 'node:util'
@@ -31,7 +32,7 @@ import nodemailer from 'nodemailer'
 import Anthropic from '@anthropic-ai/sdk'
 import { createMcpServer } from './server.js'
 import { createOAuthRouter, verifyOAuthBearer } from './oauth-router.js'
-import { loadRegistry } from '../storage/registry.js'
+import { loadRegistry, upsertRegistry } from '../storage/registry.js'
 import { openDb, closeDb } from '../storage/db.js'
 import { MemoryStore } from '../storage/memory-store.js'
 import { SkillsStore } from '../storage/skills-store.js'
@@ -502,6 +503,47 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       activeSessions: transports.size,
       timestamp: new Date().toISOString(),
     })
+  })
+
+  // ── API: CodeGraph Upload ──
+  app.post('/api/codegraph/upload', bearerAuth, express.json({ limit: '512mb' }), (req, res) => {
+    const { repoName, lastCommit, stats, graphDb } = req.body || {}
+    if (!repoName || typeof repoName !== 'string') {
+      res.status(400).json({ error: 'repoName (string) required' }); return
+    }
+    if (typeof graphDb !== 'string' || graphDb.length === 0) {
+      res.status(400).json({ error: 'graphDb (base64 string) required' }); return
+    }
+    const repoPath = path.join(process.cwd(), 'repos', repoName)
+    const dbDir = path.join(repoPath, '.codegraph')
+    const dbPath = path.join(dbDir, 'graph.db')
+    try {
+      fs.mkdirSync(dbDir, { recursive: true })
+      const binary = Buffer.from(graphDb, 'base64')
+      fs.writeFileSync(dbPath, binary)
+    } catch (err: any) {
+      console.error('[codegraph/upload] fs error', err)
+      res.status(500).json({ error: `Failed to write graph.db: ${err.message}` }); return
+    }
+    try {
+      upsertRegistry({
+        name: repoName,
+        path: repoPath,
+        lastCommit: lastCommit ?? null,
+        indexedAt: new Date().toISOString(),
+        stats: {
+          nodes: stats?.nodes ?? 0,
+          edges: stats?.edges ?? 0,
+          files: stats?.files ?? 0,
+          communities: stats?.communities ?? 0,
+          processes: stats?.processes ?? 0,
+        },
+      })
+    } catch (err: any) {
+      console.error('[codegraph/upload] registry error', err)
+      res.status(500).json({ error: `Failed to update registry: ${err.message}` }); return
+    }
+    res.json({ success: true, repoName, path: repoPath })
   })
 
   // ── API: Skills ──
