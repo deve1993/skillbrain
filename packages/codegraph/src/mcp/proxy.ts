@@ -34,10 +34,53 @@ import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { HEARTBEAT_INTERVAL_MS, SESSION_REUSE_WINDOW_MS } from '../constants.js'
+import { analyzeCommand } from '../cli/commands/analyze.js'
+import { getDbPath } from '../storage/db.js'
+import { loadMeta } from '../storage/meta.js'
 
 // Default points to the author's public instance. Override via SKILLBRAIN_MCP_URL for your own deployment.
 const REMOTE_URL = process.env.SKILLBRAIN_MCP_URL || 'https://memory.fl1.it/mcp'
 const AUTH_TOKEN = process.env.CODEGRAPH_AUTH_TOKEN || ''
+
+/**
+ * Run codegraph analyze on the local workspace, then upload
+ * the resulting graph.db to the remote SkillBrain server.
+ */
+async function localAnalyzeAndUpload(repoPath: string, remoteUrl: string, authToken: string): Promise<void> {
+  // 1. Run local analysis
+  await analyzeCommand(repoPath, { noProgress: true, skipGit: false })
+
+  // 2. Read graph.db produced by analyze
+  const dbPath = getDbPath(repoPath)
+  if (!fs.existsSync(dbPath)) return
+
+  const graphDb = fs.readFileSync(dbPath).toString('base64')
+
+  // 3. Load local meta for stats + lastCommit
+  const meta = loadMeta(repoPath)
+  if (!meta) return
+
+  // 4. POST to server upload endpoint
+  const uploadUrl = remoteUrl.replace('/mcp', '/api/codegraph/upload')
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: JSON.stringify({
+      repoName: meta.name,
+      lastCommit: meta.lastCommit,
+      stats: meta.stats,
+      graphDb,
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`CodeGraph upload failed (${response.status}): ${text}`)
+  }
+}
 
 // ── Auto-detect project context from working directory ──
 
@@ -113,6 +156,7 @@ export async function startProxy(): Promise<void> {
 
   // 2. Auto-start session (with dedup)
   const project = detectProject()
+  const workspacePath = project.workspace ?? process.cwd()
   const sessionName = detectSessionName()
   let sessionId: string | null = null
 
@@ -171,6 +215,27 @@ export async function startProxy(): Promise<void> {
     // Session start is best-effort — don't block proxy
   }
 
+  // Auto-index current workspace if not in remote registry or stale commit
+  try {
+    const listResult = await client.callTool({ name: 'codegraph_list_repos', arguments: {} })
+    const remoteRepos: Array<{ name: string; lastCommit: string | null }> =
+      JSON.parse((listResult as any)?.content?.[0]?.text || '[]')
+
+    const localMeta = loadMeta(workspacePath)
+    const remoteEntry = remoteRepos.find((r) => r.name === project.name)
+
+    const needsUpload =
+      localMeta !== null &&
+      (!remoteEntry || remoteEntry.lastCommit !== localMeta.lastCommit)
+
+    if (needsUpload) {
+      // Fire-and-forget — never block proxy startup
+      localAnalyzeAndUpload(workspacePath, REMOTE_URL, AUTH_TOKEN).catch(() => {})
+    }
+  } catch {
+    // best-effort — never block proxy startup
+  }
+
   // 3. Heartbeat every 5 minutes (keeps session alive on server)
   // Server auto-closes sessions without heartbeat after 15 min
   if (sessionId) {
@@ -221,13 +286,38 @@ export async function startProxy(): Promise<void> {
     },
   )
 
-  // 5. Forward tools/list → remote
+  // 5. Forward tools/list → remote (+ inject local codegraph_analyze tool)
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return await client.listTools()
+    const remote = await client.listTools()
+    return {
+      tools: [
+        ...remote.tools,
+        {
+          name: 'codegraph_analyze',
+          description: 'Analyze current workspace and upload graph to SkillBrain server',
+          inputSchema: { type: 'object' as const, properties: {}, required: [] },
+        },
+      ],
+    }
   })
 
-  // 6. Forward tools/call → remote
+  // 6. Forward tools/call → remote (intercept codegraph_analyze locally)
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    // Intercept codegraph_analyze — runs locally in the proxy, not on remote server
+    if (request.params.name === 'codegraph_analyze') {
+      try {
+        await localAnalyzeAndUpload(workspacePath, REMOTE_URL, AUTH_TOKEN)
+        return {
+          content: [{ type: 'text' as const, text: `✅ Workspace "${project.name}" analyzed and uploaded to SkillBrain.` }],
+        }
+      } catch (err: any) {
+        return {
+          content: [{ type: 'text' as const, text: `❌ Analysis failed: ${err.message}` }],
+        }
+      }
+    }
+
+    // All other tools → remote server
     const result = await client.callTool({
       name: request.params.name,
       arguments: request.params.arguments,
