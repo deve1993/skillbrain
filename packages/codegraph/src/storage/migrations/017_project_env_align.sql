@@ -13,5 +13,6 @@ ALTER TABLE project_env_vars ADD COLUMN service TEXT;
 -- 3. Add description column (notes never existed in project_env_vars)
 ALTER TABLE project_env_vars ADD COLUMN description TEXT;
 
--- 4. Backfill source = 'manual' for existing NULL rows
+-- 4. Add source column and backfill with 'manual' for existing rows
+ALTER TABLE project_env_vars ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
 UPDATE project_env_vars SET source = 'manual' WHERE source IS NULL;
