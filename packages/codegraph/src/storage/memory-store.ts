@@ -409,6 +409,7 @@ export class MemoryStore {
   }
 
   search(query: string, limit = 15, project?: string): MemorySearchResult[] {
+    if (query.length > 500) query = query.slice(0, 500) // guard against oversized queries
     const tokens = query
       .replace(/([a-z])([A-Z])/g, '$1 $2')
       .replace(/[_-]/g, ' ')
@@ -538,43 +539,50 @@ export class MemoryStore {
     const now = new Date().toISOString()
     let reinforced = 0
 
-    // Reinforce validated memories
-    for (const id of validatedIds) {
-      const mem = this.get(id)
-      if (!mem) continue
-      const newValidatedBy = [...mem.validatedBy, sessionDate]
-      this.stmts.reinforceMemory.run(now, JSON.stringify(newValidatedBy), now, id)
-      reinforced++
-    }
+    return this.db.transaction(() => {
+      // Reinforce validated memories
+      for (const id of validatedIds) {
+        const mem = this.get(id)
+        if (!mem) continue
+        const newValidatedBy = [...mem.validatedBy, sessionDate]
+        this.stmts.reinforceMemory.run(now, JSON.stringify(newValidatedBy), now, id)
+        reinforced++
+      }
 
-    // Increment session count for all non-validated active memories
-    // (we use a placeholder — in practice we'd exclude all validatedIds)
-    for (const id of validatedIds) {
-      this.stmts.incrementSessionCount.run(id)
-    }
+      // Increment session count for all non-validated active memories in a single query
+      // Bug fix: previous loop ran once per validatedId, accidentally incrementing validated memories too
+      if (validatedIds.length > 0) {
+        const placeholders = validatedIds.map(() => '?').join(', ')
+        this.db.prepare(
+          `UPDATE memories SET sessions_since_validation = sessions_since_validation + 1 WHERE id NOT IN (${placeholders}) AND status = 'active'`
+        ).run(...validatedIds)
+      } else {
+        this.stmts.incrementSessionCount.run('__none__')
+      }
 
-    // Apply decay thresholds
-    this.stmts.applyDecay.run(now)
-    const pendingReview = this.db.prepare(
-      `SELECT COUNT(*) as c FROM memories WHERE sessions_since_validation >= 15 AND status = 'active'`
-    ).get() as any
-    this.stmts.markPendingReview.run(now)
+      // Apply decay thresholds (all batch SQL — no loops)
+      this.stmts.applyDecay.run(now)
+      const pendingReview = this.db.prepare(
+        `SELECT COUNT(*) as c FROM memories WHERE sessions_since_validation >= 15 AND status = 'active'`
+      ).get() as any
+      this.stmts.markPendingReview.run(now)
 
-    const deprecatedCount = this.db.prepare(
-      `SELECT COUNT(*) as c FROM memories WHERE sessions_since_validation >= 30 AND status = 'pending-review'`
-    ).get() as any
-    this.stmts.markDeprecated.run(now)
+      const deprecatedCount = this.db.prepare(
+        `SELECT COUNT(*) as c FROM memories WHERE sessions_since_validation >= 30 AND status = 'pending-review'`
+      ).get() as any
+      this.stmts.markDeprecated.run(now)
 
-    const decayed = this.db.prepare(
-      `SELECT COUNT(*) as c FROM memories WHERE sessions_since_validation >= 5 AND status = 'active'`
-    ).get() as any
+      const decayed = this.db.prepare(
+        `SELECT COUNT(*) as c FROM memories WHERE sessions_since_validation >= 5 AND status = 'active'`
+      ).get() as any
 
-    return {
-      reinforced,
-      decayed: decayed?.c ?? 0,
-      pendingReview: pendingReview?.c ?? 0,
-      deprecated: deprecatedCount?.c ?? 0,
-    }
+      return {
+        reinforced,
+        decayed: decayed?.c ?? 0,
+        pendingReview: pendingReview?.c ?? 0,
+        deprecated: deprecatedCount?.c ?? 0,
+      }
+    })()
   }
 
   // ── Contradiction Detection ───────────────────────

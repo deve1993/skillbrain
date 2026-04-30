@@ -47,6 +47,17 @@ const AUTH_TOKEN = process.env.CODEGRAPH_AUTH_TOKEN || ''
  * Run codegraph analyze on the local workspace, then upload
  * the resulting graph.db to the remote SkillBrain server.
  */
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, baseDelayMs = 1500): Promise<T> {
+  let lastErr: unknown
+  for (let i = 0; i < maxAttempts; i++) {
+    try { return await fn() } catch (err) {
+      lastErr = err
+      if (i < maxAttempts - 1) await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** i))
+    }
+  }
+  throw lastErr
+}
+
 async function localAnalyzeAndUpload(repoPath: string, remoteUrl: string, authToken: string): Promise<void> {
   // 1. Run local analysis
   await analyzeCommand(repoPath, { noProgress: true, skipGit: false })
@@ -199,7 +210,9 @@ export async function startProxy(): Promise<void> {
                 filesChanged: [], commits: [],
               },
             })
-          } catch {}
+          } catch (err) {
+            process.stderr.write(`[proxy] failed to end reused session: ${(err as any)?.message ?? err}\n`)
+          }
         }
       }
 
@@ -236,7 +249,8 @@ export async function startProxy(): Promise<void> {
 
     if (needsUpload) {
       // Fire-and-forget — never block proxy startup
-      localAnalyzeAndUpload(workspacePath, REMOTE_URL, AUTH_TOKEN).catch(() => {})
+      withRetry(() => localAnalyzeAndUpload(workspacePath, REMOTE_URL, AUTH_TOKEN), 3, 2000)
+        .catch((err) => process.stderr.write(`[proxy] codegraph upload failed after retries: ${err?.message ?? err}\n`))
     }
   } catch {
     // best-effort — never block proxy startup
@@ -251,7 +265,9 @@ export async function startProxy(): Promise<void> {
           name: 'session_heartbeat',
           arguments: { sessionId },
         })
-      } catch {}
+      } catch (err) {
+        process.stderr.write(`[proxy] heartbeat failed: ${(err as any)?.message ?? err}\n`)
+      }
     }, HEARTBEAT_INTERVAL_MS)
   }
 
