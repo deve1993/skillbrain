@@ -142,9 +142,12 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
-      withMemoryStore(resolved.path, (store) =>
-        store.endSession(sessionId, summary, memoriesCreated, memoriesValidated, filesChanged, nextSteps, blockers, commits, status, workType as any, deliverables),
-      )
+      withMemoryStore(resolved.path, (store) => {
+        store.endSession(sessionId, summary, memoriesCreated, memoriesValidated, filesChanged, nextSteps, blockers, commits, status, workType as any, deliverables)
+        // Index session content as verbatim searchable chunks (MemPalace pattern)
+        const fullText = [summary, deliverables, nextSteps].filter(Boolean).join('\n\n')
+        if (fullText.length > 50) store.indexSessionChunks(sessionId, fullText, undefined, new Date().toISOString())
+      })
 
       // Skill proposal analysis: group memories from this session by skill tag
       const skillProposals = withMemoryStore(resolved.path, (store) => {
@@ -200,6 +203,27 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
 
       withMemoryStore(resolved.path, (store) => store.heartbeat(sessionId))
       return { content: [{ type: 'text', text: `ok` }] }
+    },
+  )
+
+  // --- Tool: session_search ---
+  server.tool(
+    'session_search',
+    'Search verbatim content from past session summaries and deliverables',
+    {
+      query: z.string().describe('Search query'),
+      limit: z.number().optional().default(10).describe('Max results'),
+      repo: z.string().optional(),
+    },
+    async ({ query, limit, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      const results = withMemoryStore(resolved.path, (store) => store.searchSessions(query, limit ?? 10))
+      if (!results || results.length === 0) {
+        return { content: [{ type: 'text', text: `No past session content found for: "${query}"` }] }
+      }
+      return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] }
     },
   )
 

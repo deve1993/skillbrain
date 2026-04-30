@@ -408,7 +408,7 @@ export class MemoryStore {
     return rows.map(this.rowToMemory)
   }
 
-  search(query: string, limit = 15): MemorySearchResult[] {
+  search(query: string, limit = 15, project?: string): MemorySearchResult[] {
     const tokens = query
       .replace(/([a-z])([A-Z])/g, '$1 $2')
       .replace(/[_-]/g, ' ')
@@ -416,18 +416,80 @@ export class MemoryStore {
       .split(/\s+/)
       .filter((w) => w.length > 1)
 
-    const ftsQuery = tokens.map((w) => `"${w}"`).join(' OR ')
+    if (tokens.length === 0) return []
 
+    let rows: Memory[] = []
     try {
-      const rows = this.stmts.searchFts.all(ftsQuery, limit) as any[]
-      return rows.map((r) => {
-        const memory = this.rowToMemory(r)
-        const edges = this.getEdges(memory.id)
-        return { memory, rank: r.rank, edges }
-      })
+      // Trigram FTS — supports partial/prefix matching ("serv" → "server")
+      const ftsQuery = tokens.join(' OR ')
+      rows = this.db.prepare(`
+        SELECT m.* FROM memories_fts_trgm fts
+        JOIN memories m ON m.rowid = fts.rowid
+        WHERE memories_fts_trgm MATCH ? AND m.status = 'active'
+        ORDER BY fts.rank LIMIT ?
+      `).all(ftsQuery, limit * 3) as any[]
     } catch {
-      return []
+      // Fallback: legacy FTS (unicode61) for DBs not yet migrated
+      try {
+        const ftsQuery = tokens.map((w) => `"${w}"`).join(' OR ')
+        rows = (this.stmts.searchFts.all(ftsQuery, limit * 3) as any[]).map((r) => r as Memory)
+      } catch {
+        return []
+      }
     }
+
+    if (rows.length === 0) return []
+
+    const reranked = this.bm25Rerank(rows.map((r) => this.rowToMemory(r)), tokens)
+    const boosted = this.closetBoost(reranked.sort((a, b) => b.score - a.score), project)
+
+    return boosted
+      .sort((a, b) => b.finalScore - a.finalScore)
+      .slice(0, limit)
+      .map(({ memory, finalScore }) => ({ memory, rank: finalScore, edges: this.getEdges(memory.id) }))
+  }
+
+  private bm25Rerank(candidates: Memory[], queryTokens: string[]): Array<{ memory: Memory; score: number }> {
+    if (candidates.length === 0) return []
+
+    const totalActive = (this.db.prepare(`SELECT COUNT(*) as n FROM memories WHERE status = 'active'`).get() as any)?.n ?? 1
+    const k1 = 1.5, b = 0.75
+
+    const texts = candidates.map((m) =>
+      [m.context, m.problem, m.solution, m.reason, ...(m.tags ?? [])].join(' ').toLowerCase()
+    )
+    const avgdl = texts.reduce((s, t) => s + t.length, 0) / texts.length
+
+    return candidates.map((m, i) => {
+      const text = texts[i]
+      const dl = text.length
+      let score = 0
+      for (const t of queryTokens) {
+        const df = texts.filter((tx) => tx.includes(t)).length
+        if (df === 0) continue
+        const idf = Math.log((totalActive - df + 0.5) / (df + 0.5) + 1)
+        const tf = (text.match(new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) ?? []).length
+        score += idf * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * dl / avgdl))
+      }
+      return { memory: m, score }
+    })
+  }
+
+  private closetBoost(
+    results: Array<{ memory: Memory; score: number }>,
+    project?: string,
+  ): Array<{ memory: Memory; finalScore: number }> {
+    const BOOSTS = [0.40, 0.25, 0.15, 0.08, 0.04]
+    const clusterCount = new Map<string, number>()
+
+    return results.map(({ memory, score }) => {
+      const isTarget = !!project && memory.project === project
+      const key = `${memory.project ?? ''}::${memory.skill ?? ''}`
+      const pos = isTarget ? (clusterCount.get(key) ?? 0) : -1
+      if (isTarget) clusterCount.set(key, pos + 1)
+      const boost = pos >= 0 && pos < BOOSTS.length ? BOOSTS[pos] : 0
+      return { memory, finalScore: score + boost }
+    })
   }
 
   getEdges(memoryId: string): MemoryEdge[] {
@@ -542,21 +604,41 @@ export class MemoryStore {
 
   // ── FTS Population ────────────────────────────────
 
+  private stripSystemNoise(text: string): string {
+    return text
+      .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
+      .replace(/^(Hook output|Pre-commit hook|Running hook)[^\n]*\n/gim, '')
+      .replace(/\[claude_ai_\w+__\w+\][^\n]*/g, '')
+      .trim()
+  }
+
   private populateFts(memory: Memory): void {
+    const clean = {
+      context: this.stripSystemNoise(memory.context),
+      problem: this.stripSystemNoise(memory.problem),
+      solution: this.stripSystemNoise(memory.solution),
+      reason: this.stripSystemNoise(memory.reason),
+      tags: memory.tags.join(' '),
+    }
+
+    // Legacy FTS (unicode61) — backward compat
     try {
       this.db.prepare(`
         INSERT OR REPLACE INTO memories_fts(rowid, context, problem, solution, reason, tags)
         VALUES ((SELECT rowid FROM memories WHERE id = ?), ?, ?, ?, ?, ?)
-      `).run(
-        memory.id,
-        memory.context,
-        memory.problem,
-        memory.solution,
-        memory.reason,
-        memory.tags.join(' '),
-      )
+      `).run(memory.id, clean.context, clean.problem, clean.solution, clean.reason, clean.tags)
     } catch {
       // FTS insert can fail if memory was just deleted
+    }
+
+    // Trigram FTS — partial/prefix matching (from migration 018)
+    try {
+      this.db.prepare(`
+        INSERT OR REPLACE INTO memories_fts_trgm(rowid, context, problem, solution, reason, tags)
+        VALUES ((SELECT rowid FROM memories WHERE id = ?), ?, ?, ?, ?, ?)
+      `).run(memory.id, clean.context, clean.problem, clean.solution, clean.reason, clean.tags)
+    } catch {
+      // Table may not exist on old DBs — silently skip
     }
   }
 
@@ -632,6 +714,52 @@ export class MemoryStore {
       JSON.stringify(commits || []), status || 'completed',
       workType ?? null, deliverables ?? null, id,
     )
+  }
+
+  // ── Session Chunks (MemPalace verbatim indexing) ──
+
+  indexSessionChunks(sessionId: string, text: string, project?: string, startedAt?: string): number {
+    const clean = this.stripSystemNoise(text)
+    const CHUNK = 800, STEP = 700, MIN = 50  // overlap = 100 chars
+    let count = 0
+    for (let i = 0; i * STEP < clean.length; i++) {
+      const chunk = clean.slice(i * STEP, i * STEP + CHUNK)
+      if (chunk.length < MIN) break
+      const id = `sc_${sessionId}_${i}`
+      try {
+        this.db.prepare(
+          `INSERT OR IGNORE INTO session_chunks (id, session_id, chunk_index, content, project, started_at) VALUES (?,?,?,?,?,?)`
+        ).run(id, sessionId, i, chunk, project ?? null, startedAt ?? null)
+        const row = this.db.prepare('SELECT rowid FROM session_chunks WHERE id = ?').get(id) as any
+        if (row) {
+          this.db.prepare(
+            `INSERT OR REPLACE INTO session_chunks_fts(rowid, content) VALUES (?,?)`
+          ).run(row.rowid, chunk)
+        }
+        count++
+      } catch {
+        // table may not exist on old DBs — skip silently
+        break
+      }
+    }
+    return count
+  }
+
+  searchSessions(query: string, limit = 10): Array<{ sessionId: string; chunkIndex: number; content: string; project?: string }> {
+    const tokens = query.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+    if (tokens.length === 0) return []
+    const ftsQuery = tokens.join(' OR ')
+    try {
+      return this.db.prepare(`
+        SELECT sc.session_id as sessionId, sc.chunk_index as chunkIndex, sc.content, sc.project
+        FROM session_chunks_fts fts
+        JOIN session_chunks sc ON sc.rowid = fts.rowid
+        WHERE session_chunks_fts MATCH ?
+        ORDER BY fts.rank LIMIT ?
+      `).all(ftsQuery, limit) as any[]
+    } catch {
+      return []
+    }
   }
 
   recentSessions(limit = 5): SessionLog[] {
