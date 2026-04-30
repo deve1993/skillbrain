@@ -100,13 +100,14 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
     {
       query: z.string().describe('Search query (natural language)'),
       limit: z.number().optional().default(15),
+      project: z.string().optional().describe('Project name to boost results from (enables closet boost)'),
       repo: z.string().optional(),
     },
-    async ({ query, limit, repo }) => {
+    async ({ query, limit, project, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
-      const results = withMemoryStore(resolved.path, (store) => store.search(query, limit))
+      const results = withMemoryStore(resolved.path, (store) => store.search(query, limit, project))
 
       const formatted = results.map((r) => ({
         id: r.memory.id,

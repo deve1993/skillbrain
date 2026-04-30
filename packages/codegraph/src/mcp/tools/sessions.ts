@@ -250,7 +250,7 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
       const memories = memStore.query({ project, limit: 10 })
 
       // Get recent memories related to this project
-      const searchResults = memStore.search(project, 5)
+      const searchResults = memStore.search(project, 5, project)
 
       // Capability profile from THIS user's master.env (when MCP session is bound to a user).
       // Includes which env var names overlap with the project's env so Claude Code knows
