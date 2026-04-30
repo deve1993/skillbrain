@@ -408,7 +408,7 @@ export class MemoryStore {
     return rows.map(this.rowToMemory)
   }
 
-  search(query: string, limit = 15, project?: string): MemorySearchResult[] {
+  search(query: string, limit = 15, project?: string, activeSkills?: string[]): MemorySearchResult[] {
     if (query.length > 500) query = query.slice(0, 500) // guard against oversized queries
     const tokens = query
       .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -442,7 +442,7 @@ export class MemoryStore {
     if (rows.length === 0) return []
 
     const reranked = this.bm25Rerank(rows.map((r) => this.rowToMemory(r)), tokens)
-    const boosted = this.closetBoost(reranked.sort((a, b) => b.score - a.score), project)
+    const boosted = this.closetBoost(reranked.sort((a, b) => b.score - a.score), project, activeSkills)
 
     return boosted
       .sort((a, b) => b.finalScore - a.finalScore)
@@ -455,6 +455,7 @@ export class MemoryStore {
 
     const totalActive = (this.db.prepare(`SELECT COUNT(*) as n FROM memories WHERE status = 'active'`).get() as any)?.n ?? 1
     const k1 = 1.5, b = 0.75
+    const TAG_MATCH_BONUS = 0.30
 
     const texts = candidates.map((m) =>
       [m.context, m.problem, m.solution, m.reason, ...(m.tags ?? [])].join(' ').toLowerCase()
@@ -472,6 +473,15 @@ export class MemoryStore {
         const tf = (text.match(new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) ?? []).length
         score += idf * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * dl / avgdl))
       }
+
+      // Tag match bonus: exact token match against memory tags
+      const memTags = (m.tags ?? []).map((t) => t.toLowerCase())
+      for (const qt of queryTokens) {
+        if (memTags.includes(qt)) {
+          score += TAG_MATCH_BONUS
+        }
+      }
+
       return { memory: m, score }
     })
   }
@@ -479,16 +489,30 @@ export class MemoryStore {
   private closetBoost(
     results: Array<{ memory: Memory; score: number }>,
     project?: string,
+    activeSkills?: string[],
   ): Array<{ memory: Memory; finalScore: number }> {
     const BOOSTS = [0.40, 0.25, 0.15, 0.08, 0.04]
+    const SIBLING_BOOST = 0.20
     const clusterCount = new Map<string, number>()
+    const activeSet = new Set(activeSkills ?? [])
 
     return results.map(({ memory, score }) => {
       const isTarget = !!project && memory.project === project
       const key = `${memory.project ?? ''}::${memory.skill ?? ''}`
       const pos = isTarget ? (clusterCount.get(key) ?? 0) : -1
       if (isTarget) clusterCount.set(key, pos + 1)
-      const boost = pos >= 0 && pos < BOOSTS.length ? BOOSTS[pos] : 0
+
+      let boost = pos >= 0 && pos < BOOSTS.length ? BOOSTS[pos] : 0
+
+      // Sibling project boost: memory from different project but shares skill tags
+      if (!isTarget && memory.project && memory.project !== project && activeSet.size > 0) {
+        const memTags = memory.tags ?? []
+        const overlap = memTags.filter((t) => activeSet.has(t))
+        if (overlap.length > 0) {
+          boost = SIBLING_BOOST * Math.min(overlap.length, 3) / 3
+        }
+      }
+
       return { memory, finalScore: score + boost }
     })
   }
@@ -506,18 +530,20 @@ export class MemoryStore {
   // ── Scoring (load-learnings algorithm) ────────────
 
   scored(project?: string, activeSkills?: string[], limit = 15): MemorySearchResult[] {
-    // Lazy auto-decay: runs once per 24h when someone loads memories
     try { this.autoDecayIfDue() } catch {}
+
+    const TYPE_WEIGHTS: Record<string, number> = {
+      BugFix: 1.5, AntiPattern: 1.4, Pattern: 1.3,
+      Decision: 1.2, Preference: 1.1, Fact: 1.0, Goal: 0.8, Todo: 0.7,
+    }
 
     const active = (this.stmts.allActive.all() as any[])
       .map(this.rowToMemory)
-      .filter((m) => !m.id.startsWith('M-_system_')) // hide internal metadata
+      .filter((m) => !m.id.startsWith('M-_system_'))
 
     const scored = active
       .filter((m) => {
-        // Exclude project-scoped memories from other projects
         if ((m.scope === 'project-specific' || m.scope === 'project') && project && m.project !== project) return false
-        // Personal memories: only show if userId matches (or no userId filter)
         return true
       })
       .map((m) => {
@@ -526,6 +552,7 @@ export class MemoryStore {
         if (m.sessionsSinceValidation <= 5) score += 2
         if (activeSkills?.includes(m.skill ?? '')) score += 2
         score += m.importance * 0.5
+        score *= (TYPE_WEIGHTS[m.type] ?? 1.0)
         return { memory: m, rank: score, edges: this.getEdges(m.id) }
       })
       .sort((a, b) => b.rank - a.rank)
@@ -595,6 +622,40 @@ export class MemoryStore {
       const overlap = m.tags.filter((t) => memory.tags.includes(t))
       return overlap.length >= 2
     })
+  }
+
+  // ── Semantic Dedup ────────────────────────────────
+
+  findDuplicate(input: Pick<MemoryInput, 'type' | 'context' | 'solution' | 'problem' | 'reason' | 'tags'>): Memory | null {
+    const candidates = this.search(input.solution.slice(0, 200), 5)
+    if (candidates.length === 0) return null
+
+    const inputTrigrams = this.trigrams(input.solution.toLowerCase())
+    for (const { memory } of candidates) {
+      if (memory.type !== input.type) continue
+      const existTrigrams = this.trigrams(memory.solution.toLowerCase())
+      const similarity = this.jaccardSimilarity(inputTrigrams, existTrigrams)
+      if (similarity >= 0.45) return memory
+    }
+    return null
+  }
+
+  private trigrams(text: string): Set<string> {
+    const set = new Set<string>()
+    const clean = text.replace(/\s+/g, ' ').trim()
+    for (let i = 0; i <= clean.length - 3; i++) {
+      set.add(clean.slice(i, i + 3))
+    }
+    return set
+  }
+
+  private jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+    let intersection = 0
+    for (const t of a) {
+      if (b.has(t)) intersection++
+    }
+    const union = a.size + b.size - intersection
+    return union === 0 ? 0 : intersection / union
   }
 
   // ── Stats ─────────────────────────────────────────

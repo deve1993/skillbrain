@@ -70,20 +70,31 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found. Run codegraph_list_repos.' }] }
 
       const memory = withMemoryStore(resolved.path, (store) => {
-        const mem = store.add({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill, status: draft ? 'pending-review' : 'active' })
+        // Check for near-duplicates before adding
+        const existing = store.findDuplicate({ type, context, problem, solution, reason, tags })
+        if (existing) {
+          return { mem: null, duplicate: existing, contradictionWarnings: [] }
+        }
 
-        // Auto-detect contradictions
+        const mem = store.add({ type, context, problem, solution, reason, tags, confidence, importance, scope, project, skill, status: draft ? 'pending-review' : 'active' })
         const contradictions = store.detectContradictions(mem)
         const contradictionWarnings = contradictions.map((c) =>
           `⚠️ Potential contradiction with ${c.id}: "${c.context.slice(0, 80)}..."`,
         )
-
-        return { mem, contradictionWarnings }
+        return { mem, duplicate: null, contradictionWarnings }
       })
 
+      if (memory.duplicate) {
+        const d = memory.duplicate
+        let text = `⚠️ Near-duplicate found: ${d.id} (${d.type}, confidence: ${d.confidence})\n`
+        text += `Existing: "${d.solution.slice(0, 120)}..."\n\n`
+        text += `Options:\n1. Skip (don't create duplicate)\n2. Create edge: memory_add_edge(source: NEW_ID, target: "${d.id}", type: "Updates")\n3. Force create anyway by re-calling memory_add`
+        return { content: [{ type: 'text', text }] }
+      }
+
       let text = draft
-        ? `⏳ Memory queued for review: ${memory.mem.id} (${memory.mem.type}) — approve at ${dashboardUrl()}/#/review`
-        : `✅ Memory added: ${memory.mem.id} (${memory.mem.type}, confidence: ${memory.mem.confidence})`
+        ? `⏳ Memory queued for review: ${memory.mem!.id} (${memory.mem!.type}) — approve at ${dashboardUrl()}/#/review`
+        : `✅ Memory added: ${memory.mem!.id} (${memory.mem!.type}, confidence: ${memory.mem!.confidence})`
       if (memory.contradictionWarnings.length > 0) {
         text += '\n\n' + memory.contradictionWarnings.join('\n')
         text += '\n\nUse memory_add_edge to create Contradicts edges if confirmed.'
@@ -101,13 +112,14 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       query: z.string().describe('Search query (natural language)'),
       limit: z.number().optional().default(15),
       project: z.string().optional().describe('Project name to boost results from (enables closet boost)'),
+      activeSkills: z.array(z.string()).optional().describe('Currently active skill names for cluster boost'),
       repo: z.string().optional(),
     },
-    async ({ query, limit, project, repo }) => {
+    async ({ query, limit, project, activeSkills, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
-      const results = withMemoryStore(resolved.path, (store) => store.search(query, limit, project))
+      const results = withMemoryStore(resolved.path, (store) => store.search(query, limit, project, activeSkills))
 
       const formatted = results.map((r) => ({
         id: r.memory.id,
