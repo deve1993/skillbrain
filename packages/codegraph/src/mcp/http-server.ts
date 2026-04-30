@@ -506,8 +506,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   })
 
   // ── API: CodeGraph Upload ──
-  app.post('/api/codegraph/upload', bearerAuth, express.json({ limit: '512mb' }), (req, res) => {
-    const { repoName, lastCommit, stats, graphDb } = req.body || {}
+  app.post('/api/codegraph/upload', bearerAuth, express.json({ limit: '512mb' }), async (req, res) => {
+    const { repoName, lastCommit, stats, graphDb, compressed } = req.body || {}
     if (!repoName || typeof repoName !== 'string') {
       res.status(400).json({ error: 'repoName (string) required' }); return
     }
@@ -519,7 +519,11 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       res.status(400).json({ error: 'Invalid repoName' }); return
     }
     const MAX_DB_BYTES = 200 * 1024 * 1024 // 200 MB
-    const binary = Buffer.from(graphDb, 'base64')
+    let binary = Buffer.from(graphDb, 'base64')
+    if (compressed) {
+      const { gunzipSync } = await import('node:zlib')
+      binary = gunzipSync(binary)
+    }
     if (binary.length > MAX_DB_BYTES) {
       res.status(413).json({ error: 'graphDb exceeds 200 MB limit' }); return
     }

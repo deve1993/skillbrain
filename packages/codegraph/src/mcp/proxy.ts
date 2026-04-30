@@ -33,6 +33,7 @@ import {
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { gzipSync } from 'node:zlib'
 import { HEARTBEAT_INTERVAL_MS, SESSION_REUSE_WINDOW_MS } from '../constants.js'
 import { analyzeCommand } from '../cli/commands/analyze.js'
 import { getDbPath } from '../storage/db.js'
@@ -54,7 +55,9 @@ async function localAnalyzeAndUpload(repoPath: string, remoteUrl: string, authTo
   const dbPath = getDbPath(repoPath)
   if (!fs.existsSync(dbPath)) return
 
-  const graphDb = fs.readFileSync(dbPath).toString('base64')
+  // gzip compress before base64 to reduce payload size (~3x smaller)
+  const rawDb = fs.readFileSync(dbPath)
+  const graphDb = gzipSync(rawDb).toString('base64')
 
   // 3. Load local meta for stats + lastCommit
   const meta = loadMeta(repoPath)
@@ -75,6 +78,7 @@ async function localAnalyzeAndUpload(repoPath: string, remoteUrl: string, authTo
       lastCommit: meta.lastCommit,
       stats: meta.stats,
       graphDb,
+      compressed: true,
     }),
   })
 
