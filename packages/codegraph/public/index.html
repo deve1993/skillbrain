@@ -46,7 +46,7 @@
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span>
       Design Systems
     </a>
-    <a href="#/team" class="nav-item" data-page="team">
+    <a href="#/team" class="nav-item admin-only" data-page="team" style="display:none">
       <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
       Team
     </a>
@@ -151,11 +151,19 @@
   </dialog>
 
   <dialog id="modal-show-key">
-    <h2>New API Key</h2>
-    <p>Copy this key now — it won't be shown again.</p>
-    <code id="new-key-value" class="key-display"></code>
+    <h2>New Member Created</h2>
+    <div id="email-status-banner" style="display:none;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px"></div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Save these credentials — they won't be shown again.</p>
+    <div class="form-field" style="margin-bottom:8px">
+      <label style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;opacity:.6">Password</label>
+      <code id="new-password-value" class="key-display"></code>
+    </div>
+    <div class="form-field" style="margin-bottom:8px">
+      <label style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;opacity:.6">API Key</label>
+      <code id="new-key-value" class="key-display"></code>
+    </div>
     <div class="modal-actions">
-      <button id="btn-copy-key" class="btn-ghost">Copy</button>
+      <button id="btn-copy-key" class="btn-ghost">Copy All</button>
       <button id="btn-close-key-modal" class="btn-primary">Done</button>
     </div>
     <details>

@@ -30,8 +30,8 @@ importers:
         specifier: ^7.0.5
         version: 7.0.5
       nodemailer:
-        specifier: ^6.9.0
-        version: 6.10.1
+        specifier: ^8.0.7
+        version: 8.0.7
       ts-morph:
         specifier: ^25.0.0
         version: 25.0.1
@@ -49,8 +49,8 @@ importers:
         specifier: ^22.0.0
         version: 22.19.17
       '@types/nodemailer':
-        specifier: ^6.4.0
-        version: 6.4.23
+        specifier: ^8.0.0
+        version: 8.0.0
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -431,8 +431,8 @@ packages:
   '@types/node@22.19.17':
     resolution: {integrity: sha512-wGdMcf+vPYM6jikpS/qhg6WiqSV/OhG+jeeHT/KlVqxYfD40iYJf9/AE1uQxVWFvU7MipKRkRv8NSHiCGgPr8Q==}
 
-  '@types/nodemailer@6.4.23':
-    resolution: {integrity: sha512-aFV3/NsYFLSx9mbb5gtirBSXJnAlrusoKNuPbxsASWc7vrKLmIrTQRpdcxNcSFL3VW2A2XpeLEavwb2qMi6nlQ==}
+  '@types/nodemailer@8.0.0':
+    resolution: {integrity: sha512-fyf8jWULsCo0d0BuoQ75i6IeoHs47qcqxWc7yUdUcV0pOZGjUTTOvwdG1PRXUDqN/8A64yQdQdnA2pZgcdi+cA==}
 
   '@types/qs@6.15.0':
     resolution: {integrity: sha512-JawvT8iBVWpzTrz3EGw9BTQFg3BQNmwERdKE22vlTxawwtbyUSlMppvZYKLZzB5zgACXdXxbD3m1bXaMqP/9ow==}
@@ -921,8 +921,8 @@ packages:
     resolution: {integrity: sha512-6u9UwL0HlAl21+agMN3YAMXcKByMqwGx+pq+P76vii5f7hTPtKDp08/H9py6DY+cfDw7kQNTGEj/rly3IgbNQA==}
     engines: {node: '>=10'}
 
-  nodemailer@6.10.1:
-    resolution: {integrity: sha512-Z+iLaBGVaSjbIzQ4pX6XV41HrooLsQ10ZWPUehGmuantvzWoDVBnmsdUcOIDM1t+yPor5pDhVlDESgOMEGxhHA==}
+  nodemailer@8.0.7:
+    resolution: {integrity: sha512-pkjE4mkBzQjdJT4/UmlKl3pX0rC9fZmjh7c6C9o7lv66Ac6w9WCnzPzhbPNxwZAzlF4mdq4CSWB5+FbK6FWCow==}
     engines: {node: '>=6.0.0'}
 
   object-assign@4.1.1:
@@ -1539,7 +1539,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/nodemailer@6.4.23':
+  '@types/nodemailer@8.0.0':
     dependencies:
       '@types/node': 22.19.17
 
@@ -2040,7 +2040,7 @@ snapshots:
     dependencies:
       semver: 7.7.4
 
-  nodemailer@6.10.1: {}
+  nodemailer@8.0.7: {}
 
   object-assign@4.1.1: {}
 

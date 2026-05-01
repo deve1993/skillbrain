@@ -52,12 +52,12 @@ const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || ''
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || ''
 const PUBLIC_ISSUER  = process.env.OAUTH_ISSUER || process.env.PUBLIC_URL || dashboardUrl()
-const SMTP_HOST      = process.env.SMTP_HOST || ''
-const SMTP_PORT      = parseInt(process.env.SMTP_PORT || '587', 10)
-const SMTP_USER      = process.env.SMTP_USER || ''
-const SMTP_PASS      = process.env.SMTP_PASS || ''
-const SMTP_FROM      = process.env.SMTP_FROM || 'SkillBrain <noreply@memory.fl1.it>'
-const SMTP_SECURE      = process.env.SMTP_SECURE === 'true'
+const SMTP_HOST    = process.env.SMTP_HOST || ''
+const SMTP_PORT    = parseInt(process.env.SMTP_PORT || '587', 10)
+const SMTP_USER    = process.env.SMTP_USER || ''
+const SMTP_PASS    = process.env.SMTP_PASS || ''
+const SMTP_FROM    = process.env.SMTP_FROM || 'SkillBrain <noreply@dvesolutions.eu>'
+const SMTP_SECURE  = process.env.SMTP_SECURE === 'true'
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
 const LEGACY_TOKEN_USER_EMAIL = process.env.LEGACY_TOKEN_USER_EMAIL || ''
 
@@ -1204,7 +1204,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     return 'sk-codegraph-' + crypto.randomBytes(12).toString('hex')
   }
 
-  app.get('/api/admin/team', (_req, res) => {
+  app.get('/api/admin/team', requireAdmin, (_req, res) => {
     try {
       const db = openDb(SKILLBRAIN_ROOT)
       const users = db.prepare(`
@@ -1227,7 +1227,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
-  app.post('/api/admin/team/users', express.json(), async (req, res) => {
+  app.post('/api/admin/team/users', requireAdmin, express.json(), async (req, res) => {
     const { name, email, label } = req.body as { name?: string; email?: string; label?: string }
     if (!name) { res.status(400).json({ error: 'name required' }); return }
     try {
@@ -1243,8 +1243,21 @@ export async function startHttpServer(port: number, authToken?: string): Promise
       db.prepare(`INSERT INTO api_keys (id, user_id, key_hash, label) VALUES (?, ?, ?, ?)`)
         .run(keyId, userId, keyHash, label ?? `${name}'s key`)
       closeDb(db)
-      if (email) sendInviteEmail(email, name, plainPw, plainKey).catch(console.error)
-      res.json({ userId, keyId, key: plainKey })
+      let emailSent: boolean | null = null
+      if (email) {
+        if (!SMTP_HOST) {
+          emailSent = false
+        } else {
+          try {
+            await sendInviteEmail(email, name, plainPw, plainKey)
+            emailSent = true
+          } catch (err) {
+            console.error('[team] invite email failed:', err)
+            emailSent = false
+          }
+        }
+      }
+      res.json({ userId, keyId, key: plainKey, password: plainPw, emailSent })
     } catch {
       res.status(500).json({ error: 'Internal error' })
     }
@@ -1273,7 +1286,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
-  app.delete('/api/admin/team/keys/:id', (req, res) => {
+  app.delete('/api/admin/team/keys/:id', requireAdmin, (req, res) => {
     try {
       const db = openDb(SKILLBRAIN_ROOT)
       db.prepare(`UPDATE api_keys SET revoked_at = ? WHERE id = ?`)
@@ -1285,7 +1298,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
-  app.put('/api/admin/team/users/:id', express.json(), (req, res) => {
+  app.put('/api/admin/team/users/:id', requireAdmin, express.json(), (req, res) => {
     const { name, email, role } = req.body as { name?: string; email?: string; role?: string }
     if (!name) { res.status(400).json({ error: 'name required' }); return }
     if (role && !['admin', 'member'].includes(role)) { res.status(400).json({ error: 'invalid role' }); return }
@@ -1301,7 +1314,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   })
 
-  app.delete('/api/admin/team/users/:id', (req, res) => {
+  app.delete('/api/admin/team/users/:id', requireAdmin, (req, res) => {
     try {
       const db = openDb(SKILLBRAIN_ROOT)
       db.prepare(`DELETE FROM api_keys WHERE user_id = ?`).run(req.params.id)

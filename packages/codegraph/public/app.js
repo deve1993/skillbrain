@@ -301,6 +301,13 @@ async function renderTeam() {
 
 async function loadTeamList() {
   const res = await fetch('/api/admin/team')
+  if (res.status === 403) {
+    const el = document.getElementById('team-list')
+    if (el) el.innerHTML = '<p style="color:#f87171;font-size:13px">Access denied — admin role required.</p>'
+    const btn = document.getElementById('btn-add-member')
+    if (btn) btn.style.display = 'none'
+    return
+  }
   const { users } = await res.json()
   const el = document.getElementById('team-list')
   if (!el) return
@@ -402,19 +409,41 @@ document.getElementById('btn-create-member')?.addEventListener('click', async ()
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, email: email || undefined, label: label || undefined }),
   })
-  const { key } = await res.json()
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: 'Request failed' }))
+    alert(`Error: ${error}`)
+    return
+  }
+  const { key, password, emailSent } = await res.json()
 
   document.getElementById('modal-add-member').close()
+  document.getElementById('new-password-value').textContent = password
   document.getElementById('new-key-value').textContent = key
   document.getElementById('connection-snippet').textContent =
     `SKILLBRAIN_MCP_URL=https://memory.fl1.it/mcp\nCODEGRAPH_AUTH_TOKEN=${key}`
+
+  const banner = document.getElementById('email-status-banner')
+  if (email) {
+    if (emailSent) {
+      banner.textContent = `Invite email sent to ${email}`
+      banner.style.cssText = 'display:block;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;background:rgba(74,222,128,.15);color:#4ade80;border:1px solid rgba(74,222,128,.3)'
+    } else {
+      banner.textContent = `Email NOT sent (SMTP not configured) — share credentials manually`
+      banner.style.cssText = 'display:block;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)'
+    }
+  } else {
+    banner.style.display = 'none'
+  }
+
   document.getElementById('modal-show-key').showModal()
   await loadTeamList()
 })
 
 document.getElementById('btn-copy-key')?.addEventListener('click', async () => {
+  const pw = document.getElementById('new-password-value').textContent
   const key = document.getElementById('new-key-value').textContent
-  try { await navigator.clipboard.writeText(key) } catch { prompt('Copy this key:', key) }
+  const text = `Password: ${pw}\nAPI Key: ${key}`
+  try { await navigator.clipboard.writeText(text) } catch { prompt('Copy these credentials:', text) }
 })
 
 document.getElementById('btn-close-key-modal')?.addEventListener('click', () => {
@@ -1004,5 +1033,13 @@ document.getElementById('btn-logout')?.addEventListener('click', () => {
 })
 
 // ── Init ──
+;(async () => {
+  try {
+    const { user } = await api.get('/api/me')
+    if (user?.role === 'admin') {
+      document.querySelectorAll('.admin-only').forEach(el => el.style.display = '')
+    }
+  } catch {}
+})()
 route()
 updateReviewBadge()
