@@ -178,7 +178,7 @@
   </dialog>
 
   <!-- My master.env modals -->
-  <dialog id="modal-add-env">
+  <dialog id="modal-add-env" style="max-width:560px">
     <h2 id="modal-add-env-title">Add credential</h2>
     <div class="form-field">
       <label>Template <span style="opacity:.5">(optional — pre-fills the fields)</span></label>
@@ -186,15 +186,14 @@
         <option value="">— Custom (no template) —</option>
       </select>
     </div>
-    <div class="form-field">
-      <label>Variable name</label>
-      <input id="env-var-name" type="text" placeholder="ANTHROPIC_API_KEY" autocomplete="off">
-    </div>
-    <div class="form-field">
-      <label>Value</label>
-      <input id="env-var-value" type="password" placeholder="sk-ant-..." autocomplete="off">
-    </div>
-    <div class="form-field" style="display:flex;gap:8px">
+    <div id="env-template-hint" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;display:none"></div>
+    <div id="env-template-desc" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;display:none"></div>
+
+    <!-- Dynamic fields container: template mode renders fields here, custom mode shows manual inputs -->
+    <div id="env-fields-container"></div>
+
+    <!-- Meta fields (category, service) — auto-filled by template, editable in custom -->
+    <div id="env-meta-fields" class="form-field" style="display:flex;gap:8px">
       <div style="flex:1">
         <label>Category</label>
         <select id="env-var-category">
@@ -209,11 +208,7 @@
         <input id="env-var-service" type="text" placeholder="anthropic" autocomplete="off">
       </div>
     </div>
-    <div class="form-field">
-      <label>Description <span style="opacity:.5">(optional)</span></label>
-      <input id="env-var-description" type="text" placeholder="Personal Anthropic key for direct SDK calls" autocomplete="off">
-    </div>
-    <div id="env-template-hint" style="font-size:11px;color:var(--text-muted);margin-top:-4px;display:none"></div>
+
     <div id="env-error" style="color:#f87171;font-size:12px;display:none"></div>
     <div class="modal-actions">
       <button id="btn-cancel-add-env" class="btn-ghost">Cancel</button>

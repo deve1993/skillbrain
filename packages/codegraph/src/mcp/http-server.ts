@@ -43,23 +43,7 @@ import { OAuthStore } from '../storage/oauth-store.js'
 import { UsersEnvStore } from '../storage/users-env-store.js'
 import { assertEncryptionUsable, decrypt, rotateKey } from '../storage/crypto.js'
 import { dashboardUrl } from '../constants.js'
-
-// Curated catalog for the hub's "Add credential" flow. Adding to this list
-// surfaces a one-click template; everything else is still addable via the
-// generic form. Order matters — most-common services first.
-const ENV_TEMPLATES = [
-  { service: 'anthropic', varName: 'ANTHROPIC_API_KEY', category: 'api_key', label: 'Anthropic (Claude)', helpUrl: 'https://console.anthropic.com/settings/keys', description: 'Personal Claude API key for direct SDK calls' },
-  { service: 'openai',    varName: 'OPENAI_API_KEY',    category: 'api_key', label: 'OpenAI',             helpUrl: 'https://platform.openai.com/api-keys',           description: 'OpenAI API key' },
-  { service: 'github',    varName: 'GITHUB_TOKEN',      category: 'api_key', label: 'GitHub PAT',         helpUrl: 'https://github.com/settings/tokens',             description: 'Personal access token (repo scope)' },
-  { service: 'supabase',  varName: 'SUPABASE_ACCESS_TOKEN', category: 'api_key', label: 'Supabase',       helpUrl: 'https://supabase.com/dashboard/account/tokens',  description: 'Personal access token for the Supabase CLI' },
-  { service: 'vercel',    varName: 'VERCEL_TOKEN',      category: 'api_key', label: 'Vercel',             helpUrl: 'https://vercel.com/account/tokens',              description: 'API token for vercel CLI / API' },
-  { service: 'resend',    varName: 'RESEND_API_KEY',    category: 'api_key', label: 'Resend',             helpUrl: 'https://resend.com/api-keys',                    description: 'Transactional email API key' },
-  { service: 'stripe',    varName: 'STRIPE_SECRET_KEY', category: 'api_key', label: 'Stripe',             helpUrl: 'https://dashboard.stripe.com/apikeys',           description: 'Secret key for the Stripe SDK' },
-  { service: 'figma',     varName: 'FIGMA_TOKEN',       category: 'api_key', label: 'Figma',              helpUrl: 'https://www.figma.com/settings',                 description: 'Personal access token for the Figma API' },
-  { service: 'cloudflare',varName: 'CLOUDFLARE_API_TOKEN', category: 'api_key', label: 'Cloudflare',     helpUrl: 'https://dash.cloudflare.com/profile/api-tokens', description: 'API token (workers/pages/dns scopes)' },
-  { service: 'coolify',   varName: 'COOLIFY_API_TOKEN', category: 'api_key', label: 'Coolify',            helpUrl: 'https://coolify.io',                              description: 'API token for the self-hosted Coolify instance' },
-  { service: 'odoo',      varName: 'ODOO_API_KEY',      category: 'api_key', label: 'Odoo CRM',           helpUrl: 'https://fl1.cz/odoo',                            description: 'API key for fl1.cz/odoo CRM' },
-] as const
+import { ENV_TEMPLATES } from './env-templates.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 

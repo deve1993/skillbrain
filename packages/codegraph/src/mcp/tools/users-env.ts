@@ -14,6 +14,7 @@ import { openDb, closeDb } from '../../storage/db.js'
 import { UsersEnvStore } from '../../storage/users-env-store.js'
 import { ProjectsStore } from '../../storage/projects-store.js'
 import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import { ENV_TEMPLATES } from '../env-templates.js'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
@@ -167,7 +168,30 @@ export function registerUserEnvTools(server: McpServer, ctx: ToolContext): void 
             return { available: s.hasEnv(userId, varName), varName }
           }
           const matches = s.listEnv(userId, { service })
-          return { available: matches.length > 0, service, vars: matches.map((v) => v.varName) }
+          const haveVars = matches.map((v) => v.varName)
+
+          // Check template to report required/optional field status
+          const template = ENV_TEMPLATES.find((t) => t.service === service)
+          if (template) {
+            const requiredFields = template.fields.filter((f) => f.required).map((f) => f.varName)
+            const optionalFields = template.fields.filter((f) => !f.required).map((f) => f.varName)
+            const missingRequired = requiredFields.filter((v) => !haveVars.includes(v))
+            const missingOptional = optionalFields.filter((v) => !haveVars.includes(v))
+            const ready = missingRequired.length === 0
+
+            return {
+              available: matches.length > 0,
+              ready,
+              service,
+              vars: haveVars,
+              ...(missingRequired.length > 0 ? { missingRequired } : {}),
+              ...(missingOptional.length > 0 ? { missingOptional } : {}),
+              totalFields: template.fields.length,
+              helpUrl: template.helpUrl,
+            }
+          }
+
+          return { available: matches.length > 0, service, vars: haveVars }
         })
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }
       } catch (err: any) {

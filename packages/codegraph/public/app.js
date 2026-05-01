@@ -695,33 +695,153 @@ async function loadMyEnv() {
   }
 }
 
+let _envEditMode = null // null = add, { varName } = editing single var
+
+function renderCustomFields() {
+  const container = document.getElementById('env-fields-container')
+  container.innerHTML = `
+    <div id="env-custom-fields">
+      <div class="env-field-row" style="display:flex;gap:8px;margin-bottom:8px;align-items:end">
+        <div style="flex:1">
+          <label style="font-size:12px">Variable name</label>
+          <input type="text" class="env-cf-name" placeholder="MY_API_KEY" autocomplete="off" style="width:100%">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:12px">Value</label>
+          <input type="password" class="env-cf-value" placeholder="value..." autocomplete="off" style="width:100%">
+        </div>
+        <div style="flex:0 0 auto">
+          <label style="font-size:12px">Description</label>
+          <input type="text" class="env-cf-desc" placeholder="optional" autocomplete="off" style="width:100%">
+        </div>
+      </div>
+    </div>
+    <button type="button" id="btn-add-custom-field" class="btn-ghost" style="font-size:11px;padding:4px 10px;margin-top:4px">+ Add field</button>`
+  document.getElementById('btn-add-custom-field').addEventListener('click', () => {
+    const rows = document.getElementById('env-custom-fields')
+    const row = document.createElement('div')
+    row.className = 'env-field-row'
+    row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:end'
+    row.innerHTML = `
+      <div style="flex:1">
+        <input type="text" class="env-cf-name" placeholder="ANOTHER_KEY" autocomplete="off" style="width:100%">
+      </div>
+      <div style="flex:1">
+        <input type="password" class="env-cf-value" placeholder="value..." autocomplete="off" style="width:100%">
+      </div>
+      <div style="flex:0 0 auto">
+        <input type="text" class="env-cf-desc" placeholder="optional" autocomplete="off" style="width:100%">
+      </div>
+      <button type="button" class="btn-ghost" onclick="this.closest('.env-field-row').remove()" style="font-size:11px;padding:4px 6px;color:var(--red)" title="Remove field">&times;</button>`
+    rows.appendChild(row)
+  })
+}
+
+function renderTemplateFields(template) {
+  const container = document.getElementById('env-fields-container')
+  const requiredFields = template.fields.filter(f => f.required)
+  const optionalFields = template.fields.filter(f => !f.required)
+
+  let html = ''
+  for (const f of requiredFields) {
+    html += `
+      <div class="form-field" style="margin-bottom:8px">
+        <label style="font-size:12px">${escHtml(f.label)} <span style="color:var(--red)">*</span></label>
+        <input type="password" class="env-tf-value" data-var="${escHtml(f.varName)}" data-required="true"
+               placeholder="${escHtml(f.placeholder || '')}" autocomplete="off" style="width:100%">
+        ${f.description ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escHtml(f.description)}</div>` : ''}
+      </div>`
+  }
+  if (optionalFields.length) {
+    html += `<div style="font-size:11px;color:var(--text-muted);margin:8px 0 4px;border-top:1px solid var(--border);padding-top:8px">Optional fields</div>`
+    for (const f of optionalFields) {
+      html += `
+        <div class="form-field" style="margin-bottom:8px">
+          <label style="font-size:12px">${escHtml(f.label)}</label>
+          <input type="password" class="env-tf-value" data-var="${escHtml(f.varName)}" data-required="false"
+                 placeholder="${escHtml(f.placeholder || '')}" autocomplete="off" style="width:100%">
+          ${f.description ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escHtml(f.description)}</div>` : ''}
+        </div>`
+    }
+  }
+  container.innerHTML = html
+}
+
 async function openAddEnvModal(prefill) {
   const templates = await loadEnvTemplates()
   const sel = document.getElementById('env-template-select')
-  sel.innerHTML = '<option value="">— Custom (no template) —</option>' +
-    templates.map((t, i) => `<option value="${i}">${escHtml(t.label)} — ${escHtml(t.varName)}</option>`).join('')
+  const hint = document.getElementById('env-template-hint')
+  const desc = document.getElementById('env-template-desc')
+  const errEl = document.getElementById('env-error')
+  const meta = document.getElementById('env-meta-fields')
+
+  _envEditMode = prefill || null
+
+  // Build template dropdown — group labels include field count
+  sel.innerHTML = '<option value="">— Custom (manual fields) —</option>' +
+    templates.map((t, i) => {
+      const n = t.fields ? t.fields.length : 1
+      return `<option value="${i}">${escHtml(t.label)}${n > 1 ? ` (${n} fields)` : ''}</option>`
+    }).join('')
 
   document.getElementById('modal-add-env-title').textContent = prefill ? `Edit ${prefill.varName}` : 'Add credential'
-  document.getElementById('env-var-name').value = prefill?.varName || ''
-  document.getElementById('env-var-name').readOnly = !!prefill
-  document.getElementById('env-var-value').value = ''
-  document.getElementById('env-var-value').placeholder = prefill ? '(leave blank to keep current value — not yet supported, paste new value to update)' : 'sk-ant-...'
   document.getElementById('env-var-category').value = prefill?.category || 'api_key'
   document.getElementById('env-var-service').value = prefill?.service || ''
-  document.getElementById('env-var-description').value = prefill?.description || ''
-  document.getElementById('env-template-hint').style.display = 'none'
-  document.getElementById('env-error').style.display = 'none'
+  hint.style.display = 'none'
+  desc.style.display = 'none'
+  errEl.style.display = 'none'
+
+  if (prefill) {
+    // Edit mode — single field, no template
+    sel.style.display = 'none'
+    sel.closest('.form-field').style.display = 'none'
+    const container = document.getElementById('env-fields-container')
+    container.innerHTML = `
+      <div class="form-field" style="margin-bottom:8px">
+        <label style="font-size:12px">Variable name</label>
+        <input type="text" id="env-edit-name" value="${escHtml(prefill.varName)}" readonly
+               style="width:100%;opacity:.7;cursor:not-allowed" autocomplete="off">
+      </div>
+      <div class="form-field" style="margin-bottom:8px">
+        <label style="font-size:12px">New value</label>
+        <input type="password" id="env-edit-value" placeholder="paste new value..." autocomplete="off" style="width:100%">
+      </div>
+      <div class="form-field" style="margin-bottom:8px">
+        <label style="font-size:12px">Description <span style="opacity:.5">(optional)</span></label>
+        <input type="text" id="env-edit-desc" value="${escHtml(prefill.description || '')}" autocomplete="off" style="width:100%">
+      </div>`
+    meta.style.display = 'flex'
+  } else {
+    // Add mode — show template selector
+    sel.style.display = ''
+    sel.closest('.form-field').style.display = ''
+    renderCustomFields()
+    meta.style.display = 'flex'
+  }
 
   sel.onchange = () => {
-    const t = templates[parseInt(sel.value, 10)]
-    if (!t) { document.getElementById('env-template-hint').style.display = 'none'; return }
-    document.getElementById('env-var-name').value = t.varName
+    const idx = parseInt(sel.value, 10)
+    const t = templates[idx]
+    if (!t) {
+      // Custom mode
+      renderCustomFields()
+      hint.style.display = 'none'
+      desc.style.display = 'none'
+      meta.style.display = 'flex'
+      document.getElementById('env-var-category').value = 'api_key'
+      document.getElementById('env-var-service').value = ''
+      return
+    }
+    // Template mode — render multi-field form
+    renderTemplateFields(t)
     document.getElementById('env-var-category').value = t.category
     document.getElementById('env-var-service').value = t.service
-    document.getElementById('env-var-description').value = t.description
-    const hint = document.getElementById('env-template-hint')
-    hint.innerHTML = t.helpUrl ? `Get your key at <a href="${t.helpUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${escHtml(t.helpUrl)}</a>` : ''
+    // Hide meta in template mode (auto-filled)
+    meta.style.display = 'none'
+    hint.innerHTML = t.helpUrl ? `Get your keys at <a href="${t.helpUrl}" target="_blank" rel="noopener" style="color:var(--accent)">${escHtml(t.helpUrl)}</a>` : ''
     hint.style.display = t.helpUrl ? 'block' : 'none'
+    desc.textContent = t.description || ''
+    desc.style.display = t.description ? 'block' : 'none'
   }
 
   document.getElementById('modal-add-env').showModal()
@@ -770,21 +890,83 @@ document.getElementById('btn-cancel-add-env')?.addEventListener('click', () => {
 })
 
 document.getElementById('btn-save-add-env')?.addEventListener('click', async () => {
-  const varName = document.getElementById('env-var-name').value.trim()
-  const value = document.getElementById('env-var-value').value
-  const category = document.getElementById('env-var-category').value
-  const service = document.getElementById('env-var-service').value.trim()
-  const description = document.getElementById('env-var-description').value.trim()
   const errEl = document.getElementById('env-error')
   errEl.style.display = 'none'
-
-  if (!varName) { errEl.textContent = 'Variable name is required'; errEl.style.display = 'block'; return }
-  if (!value) { errEl.textContent = 'Value is required'; errEl.style.display = 'block'; return }
+  const category = document.getElementById('env-var-category').value
+  const service = document.getElementById('env-var-service').value.trim()
 
   try {
-    await api.put(`/api/me/env/${encodeURIComponent(varName)}`, {
-      value, category, service: service || undefined, description: description || undefined,
-    })
+    if (_envEditMode) {
+      // Edit mode — single var update
+      const varName = document.getElementById('env-edit-name').value.trim()
+      const value = document.getElementById('env-edit-value').value
+      const description = document.getElementById('env-edit-desc').value.trim()
+      if (!value) { errEl.textContent = 'Value is required'; errEl.style.display = 'block'; return }
+      await api.put(`/api/me/env/${encodeURIComponent(varName)}`, {
+        value, category, service: service || undefined, description: description || undefined,
+      })
+    } else {
+      // Check if template mode or custom mode
+      const templateInputs = document.querySelectorAll('.env-tf-value')
+      if (templateInputs.length > 0) {
+        // Template mode — save each field with a value
+        const saves = []
+        for (const input of templateInputs) {
+          const val = input.value.trim()
+          const vn = input.dataset.var
+          const req = input.dataset.required === 'true'
+          if (req && !val) {
+            errEl.textContent = `${vn} is required`
+            errEl.style.display = 'block'
+            input.focus()
+            return
+          }
+          if (val) {
+            const labelEl = input.closest('.form-field')?.querySelector('label')
+            const descEl = input.closest('.form-field')?.querySelector('div[style*="font-size:10px"]')
+            saves.push({
+              varName: vn,
+              value: val,
+              category,
+              service: service || undefined,
+              description: descEl?.textContent || labelEl?.textContent?.replace(/\s*\*\s*$/, '').trim() || undefined,
+            })
+          }
+        }
+        if (saves.length === 0) {
+          errEl.textContent = 'Fill in at least one field'
+          errEl.style.display = 'block'
+          return
+        }
+        for (const s of saves) {
+          await api.put(`/api/me/env/${encodeURIComponent(s.varName)}`, s)
+        }
+      } else {
+        // Custom mode — save each row
+        const rows = document.querySelectorAll('#env-custom-fields .env-field-row')
+        const saves = []
+        for (const row of rows) {
+          const vn = row.querySelector('.env-cf-name')?.value?.trim()
+          const val = row.querySelector('.env-cf-value')?.value?.trim()
+          const desc = row.querySelector('.env-cf-desc')?.value?.trim()
+          if (vn && val) {
+            saves.push({ varName: vn, value: val, category, service: service || undefined, description: desc || undefined })
+          } else if (vn && !val) {
+            errEl.textContent = `Value is required for ${vn}`
+            errEl.style.display = 'block'
+            return
+          }
+        }
+        if (saves.length === 0) {
+          errEl.textContent = 'Fill in at least one variable name and value'
+          errEl.style.display = 'block'
+          return
+        }
+        for (const s of saves) {
+          await api.put(`/api/me/env/${encodeURIComponent(s.varName)}`, s)
+        }
+      }
+    }
     document.getElementById('modal-add-env').close()
     await loadMyEnv()
   } catch (err) {
