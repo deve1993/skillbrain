@@ -521,6 +521,30 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
     },
   )
 
+  // --- Tool: skill_gc ---
+  server.tool(
+    'skill_gc',
+    'Garbage-collect skills routed >= threshold times in the last N days but never loaded. Marks them deprecated (reversible).',
+    {
+      threshold: z.number().int().min(1).default(3),
+      days: z.number().int().min(1).default(30),
+      dryRun: z.boolean().default(true),
+      repo: z.string().optional(),
+    },
+    async ({ threshold, days, dryRun, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      const result = withSkillsStore(resolved.path, (store) => store.gcDeadSkills({ threshold, days, dryRun }))
+      return {
+        content: [{
+          type: 'text',
+          text: `skill_gc (dryRun=${dryRun}): ${result.deprecated.length} skills marked dead\n${result.deprecated.map((n) => `  - ${n}`).join('\n')}`,
+        }],
+      }
+    },
+  )
+
   // --- Tool: skill_decay ---
   server.tool(
     'skill_decay',

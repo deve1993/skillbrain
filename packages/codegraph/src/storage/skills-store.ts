@@ -521,6 +521,31 @@ export class SkillsStore {
     }
   }
 
+  gcDeadSkills(opts: { threshold: number; days: number; dryRun: boolean }): { deprecated: string[]; scanned: number } {
+    const sql = `
+      SELECT s.name,
+        SUM(CASE WHEN u.action = 'routed' THEN 1 ELSE 0 END) AS routed_count,
+        SUM(CASE WHEN u.action = 'loaded' THEN 1 ELSE 0 END) AS loaded_count
+      FROM skills s
+      LEFT JOIN skill_usage u
+        ON u.skill_name = s.name
+        AND u.ts >= datetime('now', ?)
+      WHERE s.status = 'active'
+      GROUP BY s.name
+      HAVING routed_count >= ? AND loaded_count = 0
+    `
+    const rows = this.db.prepare(sql).all(`-${opts.days} days`, opts.threshold) as any[]
+    const dead = rows.map((r) => r.name as string)
+
+    if (!opts.dryRun && dead.length > 0) {
+      const update = this.db.prepare(`UPDATE skills SET status = 'deprecated', updated_at = datetime('now') WHERE name = ?`)
+      const tx = this.db.transaction((names: string[]) => { for (const n of names) update.run(n) })
+      tx(dead)
+    }
+
+    return { deprecated: dead, scanned: rows.length }
+  }
+
   recordCooccurrence(skillA: string, skillB: string): void {
     if (!skillA || !skillB || skillA === skillB) return
     const [a, b] = [skillA, skillB].sort()
