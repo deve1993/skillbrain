@@ -405,4 +405,24 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
       return { content: [{ type: 'text', text: JSON.stringify(formatted, null, 2) }] }
     },
   )
+
+  // --- Tool: session_cleanup ---
+  server.tool(
+    'session_cleanup',
+    'Delete orphaned paused sessions older than N days that have no memories and no meaningful summary',
+    {
+      olderThanDays: z.number().optional().default(7).describe('Delete paused sessions older than this many days (default 7)'),
+      repo: z.string().optional(),
+    },
+    async ({ olderThanDays, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      const deleted = withMemoryStore(resolved.path, (store) =>
+        store.cleanupOrphanedSessions(olderThanDays),
+      )
+
+      return { content: [{ type: 'text', text: `Cleaned up ${deleted} orphaned paused session(s) older than ${olderThanDays} days.` }] }
+    },
+  )
 }

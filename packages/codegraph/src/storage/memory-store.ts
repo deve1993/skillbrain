@@ -1146,6 +1146,18 @@ export class MemoryStore {
 
   // ── Delete/Update Sessions ────────────────────────
 
+  cleanupOrphanedSessions(olderThanDays = 7): number {
+    const threshold = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString()
+    const result = this.db.prepare(`
+      DELETE FROM session_log
+      WHERE status = 'paused'
+        AND ended_at < ?
+        AND (summary IS NULL OR summary LIKE 'Session ended (no activity%' OR summary LIKE 'Auto-closed%')
+        AND memories_created = 0
+    `).run(threshold)
+    return result.changes
+  }
+
   deleteSession(id: string): void {
     this.db.prepare('DELETE FROM session_log WHERE id = ?').run(id)
   }
