@@ -158,6 +158,24 @@ export interface DecayResult {
 
 // ── Store ──────────────────────────────────────────────
 
+const INITIAL_CONFIDENCE_CAPS: Partial<Record<MemoryType, number>> = {
+  Pattern: 8,
+  Preference: 8,
+  BugFix: 8,
+  Goal: 8,
+  Todo: 8,
+  Fact: 6,
+  AntiPattern: 10,
+  Decision: 10,
+}
+
+const DEFAULT_INITIAL_CAP = 8
+
+function capInitialConfidence(type: MemoryType, requested: number): number {
+  const cap = INITIAL_CONFIDENCE_CAPS[type] ?? DEFAULT_INITIAL_CAP
+  return Math.min(requested, cap)
+}
+
 export class MemoryStore {
   private stmts: ReturnType<typeof this.prepareStatements>
 
@@ -264,7 +282,7 @@ export class MemoryStore {
       problem: input.problem,
       solution: input.solution,
       reason: input.reason,
-      confidence: input.confidence ?? 1,
+      confidence: capInitialConfidence(input.type, input.confidence ?? 1),
       importance: input.importance ?? 5,
       tags: input.tags,
       createdAt: now,
