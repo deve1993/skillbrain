@@ -29,6 +29,7 @@ import crypto from 'node:crypto'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import nodemailer from 'nodemailer'
+import { startDecayScheduler } from '../storage/decay-scheduler.js'
 import { createMcpServer } from './server.js'
 import { createOAuthRouter, verifyOAuthBearer } from './oauth-router.js'
 import { loadRegistry, upsertRegistry } from '../storage/registry.js'
@@ -686,6 +687,15 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   API:        http://localhost:${port}/api/health
   Auth:       ${authToken ? 'Bearer token required for /mcp + /sse' : 'disabled'}
 `)
+    if (process.env.SKILLBRAIN_DECAY_DISABLED !== '1') {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const memStore = new MemoryStore(db)
+      startDecayScheduler({
+        runner: () => { memStore.autoDecayIfDue() },
+        intervalMs: 24 * 60 * 60 * 1000, // 24h
+      })
+      console.log('[http-server] decay scheduler started (interval: 24h)')
+    }
   })
 }
 
