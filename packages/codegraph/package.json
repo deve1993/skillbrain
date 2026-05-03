@@ -15,7 +15,8 @@
     "analyze": "node dist/cli.js analyze",
     "mcp": "node dist/cli.js mcp",
     "import:skills": "tsx scripts/bulk-import-skills.ts",
-    "backfill:edges": "tsx scripts/backfill-edges.ts"
+    "backfill:edges": "tsx scripts/backfill-edges.ts",
+    "recategorize:other": "tsx scripts/recategorize-other-skills.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
@@ -34,6 +35,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^22.0.0",
     "@types/nodemailer": "^8.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "vitest": "^3.2.1"
   },
