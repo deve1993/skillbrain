@@ -272,6 +272,15 @@ export class MemoryStore {
       allDismissalCounts: this.db.prepare(
         `SELECT memory_id, COUNT(*) as c FROM memory_dismissals GROUP BY memory_id`
       ),
+      insertMemoryUsage: this.db.prepare(
+        `INSERT INTO memory_usage (memory_id, session_id, project, action, user_id) VALUES (?, ?, ?, ?, ?)`
+      ),
+      getUsageBySession: this.db.prepare(
+        `SELECT memory_id as memoryId, action, ts FROM memory_usage WHERE session_id = ? ORDER BY ts ASC`
+      ),
+      getUsageBySessionAction: this.db.prepare(
+        `SELECT memory_id as memoryId, action, ts FROM memory_usage WHERE session_id = ? AND action = ? ORDER BY ts ASC`
+      ),
     }
   }
 
@@ -396,6 +405,19 @@ export class MemoryStore {
   private dismissalPenalty(memoryId: string): number {
     const c = this.dismissalCount(memoryId)
     return Math.min(c * 0.05, 0.30)
+  }
+
+  // ── Usage Tracking ────────────────────────────────
+
+  logMemoryUsage(memoryId: string, sessionId: string | undefined, action: 'loaded' | 'applied', project?: string, userId?: string): void {
+    this.stmts.insertMemoryUsage.run(memoryId, sessionId ?? null, project ?? null, action, userId ?? null)
+  }
+
+  getMemoryUsageInSession(sessionId: string, action?: 'loaded' | 'applied'): Array<{ memoryId: string; action: string; ts: string }> {
+    const rows = action
+      ? this.stmts.getUsageBySessionAction.all(sessionId, action) as any[]
+      : this.stmts.getUsageBySession.all(sessionId) as any[]
+    return rows.map((r) => ({ memoryId: r.memoryId, action: r.action, ts: r.ts }))
   }
 
   // ── Query ─────────────────────────────────────────
