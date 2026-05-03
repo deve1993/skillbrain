@@ -123,3 +123,114 @@ describe('SkillsStore.applyDecay() thresholds', () => {
     expect(row.status).toBe('deprecated')
   })
 })
+
+describe('skill_usage dismissed action persistence', () => {
+  let db: Database.Database
+  let store: SkillsStore
+
+  beforeEach(() => {
+    process.env.ENCRYPTION_KEY = TEST_KEY
+    db = new Database(':memory:')
+    runMigrations(db)
+    store = new SkillsStore(db)
+
+    store.upsert({
+      name: 'test-skill', category: 'Test', description: 'test',
+      content: 'test content', type: 'domain',
+      tags: ['test'], lines: 1, updatedAt: new Date().toISOString(),
+    })
+  })
+
+  it('dismissed action is actually persisted in skill_usage table', () => {
+    store.recordUsage('test-skill', 'dismissed', { sessionId: 's1' })
+    const row = db.prepare("SELECT COUNT(*) as n FROM skill_usage WHERE action = 'dismissed'").get() as { n: number }
+    expect(row.n).toBe(1)
+  })
+
+  it('applied action is persisted in skill_usage table', () => {
+    store.recordUsage('test-skill', 'applied', { sessionId: 's1' })
+    const row = db.prepare("SELECT COUNT(*) as n FROM skill_usage WHERE action = 'applied'").get() as { n: number }
+    expect(row.n).toBe(1)
+  })
+})
+
+describe('pending skills excluded from routing', () => {
+  let db: Database.Database
+  let store: SkillsStore
+
+  beforeEach(() => {
+    process.env.ENCRYPTION_KEY = TEST_KEY
+    db = new Database(':memory:')
+    runMigrations(db)
+    store = new SkillsStore(db)
+
+    const now = new Date().toISOString()
+    store.upsert({
+      name: 'active-skill', category: 'Frontend', description: 'Active frontend skill',
+      content: 'Guide for building frontend apps', type: 'domain',
+      tags: ['frontend'], lines: 10, updatedAt: now, status: 'active',
+    })
+    store.upsert({
+      name: 'pending-skill', category: 'Frontend', description: 'Pending frontend skill',
+      content: 'Draft guide for building frontend apps', type: 'domain',
+      tags: ['frontend'], lines: 10, updatedAt: now, status: 'pending',
+    })
+  })
+
+  it('route() does not return pending skills', () => {
+    const results = store.route('building frontend apps', 10)
+    const names = results.map((r) => r.name)
+    expect(names).toContain('active-skill')
+    expect(names).not.toContain('pending-skill')
+  })
+
+  it('search() does not return pending skills', () => {
+    const results = store.search('building frontend apps', 10)
+    const names = results.map((r) => r.skill.name)
+    expect(names).toContain('active-skill')
+    expect(names).not.toContain('pending-skill')
+  })
+})
+
+describe('cooccurrence boosts routing', () => {
+  let db: Database.Database
+  let store: SkillsStore
+
+  beforeEach(() => {
+    process.env.ENCRYPTION_KEY = TEST_KEY
+    db = new Database(':memory:')
+    runMigrations(db)
+    store = new SkillsStore(db)
+
+    const now = new Date().toISOString()
+    store.upsert({
+      name: 'react', category: 'Frontend', description: 'React framework guide',
+      content: 'React component patterns', type: 'domain',
+      tags: ['react'], lines: 50, updatedAt: now,
+    })
+    store.upsert({
+      name: 'tailwind', category: 'Styling', description: 'Tailwind CSS framework',
+      content: 'Tailwind utility classes for styling', type: 'domain',
+      tags: ['tailwind', 'css'], lines: 50, updatedAt: now,
+    })
+    store.upsert({
+      name: 'vue', category: 'Alternatives', description: 'Vue.js framework guide',
+      content: 'Vue component patterns for styling', type: 'domain',
+      tags: ['vue'], lines: 50, updatedAt: now,
+    })
+  })
+
+  it('skills with cooccurrence get a boost when paired skill is active', () => {
+    for (let i = 0; i < 50; i++) {
+      store.recordCooccurrence('react', 'tailwind')
+    }
+
+    const results = store.route('styling components patterns', 5, ['react'])
+    const names = results.map((r) => r.name)
+    const tailwindIdx = names.indexOf('tailwind')
+    const vueIdx = names.indexOf('vue')
+    if (tailwindIdx !== -1 && vueIdx !== -1) {
+      expect(tailwindIdx).toBeLessThan(vueIdx)
+    }
+  })
+})

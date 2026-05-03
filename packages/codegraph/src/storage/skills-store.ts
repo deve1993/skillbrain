@@ -103,7 +103,7 @@ export class SkillsStore {
         SELECT s.*, fts.rank
         FROM skills_fts fts
         JOIN skills s ON s.rowid = fts.rowid
-        WHERE skills_fts MATCH ?
+        WHERE skills_fts MATCH ? AND s.status = 'active'
         ORDER BY fts.rank
         LIMIT ?
       `),

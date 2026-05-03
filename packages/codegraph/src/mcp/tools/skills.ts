@@ -248,6 +248,29 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
     },
   )
 
+  // --- Tool: skill_apply ---
+  server.tool(
+    'skill_apply',
+    'Record that a loaded skill was actually applied and useful for the current task. Call this after following guidance from a skill to improve future routing.',
+    {
+      name: z.string().describe('Skill name that was applied'),
+      sessionId: z.string().optional(),
+      project: z.string().optional(),
+      task: z.string().optional().describe('Task description for context'),
+      repo: z.string().optional(),
+    },
+    async ({ name, sessionId, project, task, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      withSkillsStore(resolved.path, (store) => {
+        store.recordUsage(name, 'applied', { sessionId, project, task, userId: ctx.userId })
+      })
+
+      return { content: [{ type: 'text', text: `Recorded: "${name}" applied successfully.` }] }
+    },
+  )
+
   // --- Tool: agent_list ---
   server.tool(
     'agent_list',

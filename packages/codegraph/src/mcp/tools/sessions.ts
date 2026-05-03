@@ -181,6 +181,14 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
         return created
       })
 
+      // Build skill cooccurrences from usage data in this session
+      try {
+        const db2 = openDb(resolved.path)
+        const skillStore = new SkillsStore(db2)
+        skillStore.buildCooccurrences()
+        closeDb(db2)
+      } catch { /* cooccurrence table may not exist yet */ }
+
       let text = `Session ${sessionId} ended (${status}).${deliverables ? `\nDelivered: ${deliverables}` : ''}${nextSteps ? `\nNext steps: ${nextSteps}` : ''}`
       if (skillProposals.length > 0) {
         text += `\n\n💡 Skill update proposals created for: ${skillProposals.join(', ')} — review at ${dashboardUrl()}/#/review`
