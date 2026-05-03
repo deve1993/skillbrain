@@ -263,6 +263,12 @@ export class MemoryStore {
           updated_at = ?
         WHERE sessions_since_validation >= 30 AND status = 'pending-review'
       `),
+      insertDismissal: this.db.prepare(
+        `INSERT INTO memory_dismissals (memory_id, reason, user_id) VALUES (?, ?, ?)`
+      ),
+      countDismissals: this.db.prepare(
+        `SELECT COUNT(*) as c FROM memory_dismissals WHERE memory_id = ?`
+      ),
     }
   }
 
@@ -366,6 +372,22 @@ export class MemoryStore {
 
   delete(id: string): void {
     this.stmts.deleteMemory.run(id)
+  }
+
+  // ── Dismissals ────────────────────────────────────
+
+  dismissMemory(memoryId: string, reason?: string, userId?: string): void {
+    this.stmts.insertDismissal.run(memoryId, reason ?? null, userId ?? null)
+  }
+
+  dismissalCount(memoryId: string): number {
+    const row = this.stmts.countDismissals.get(memoryId) as { c: number } | undefined
+    return row?.c ?? 0
+  }
+
+  private dismissalPenalty(memoryId: string): number {
+    const c = this.dismissalCount(memoryId)
+    return Math.min(c * 0.05, 0.30)
   }
 
   // ── Query ─────────────────────────────────────────
@@ -488,7 +510,11 @@ export class MemoryStore {
     if (rows.length === 0) return []
 
     const reranked = this.bm25Rerank(rows.map((r) => this.rowToMemory(r)), tokens)
-    const boosted = this.closetBoost(reranked.sort((a, b) => b.score - a.score), project, activeSkills)
+    const penalized = reranked.map(({ memory, score }) => ({
+      memory,
+      score: score * (1 - this.dismissalPenalty(memory.id)),
+    }))
+    const boosted = this.closetBoost(penalized.sort((a, b) => b.score - a.score), project, activeSkills)
 
     return boosted
       .sort((a, b) => b.finalScore - a.finalScore)
@@ -599,6 +625,7 @@ export class MemoryStore {
         if (activeSkills?.includes(m.skill ?? '')) score += 2
         score += m.importance * 0.5
         score *= (TYPE_WEIGHTS[m.type] ?? 1.0)
+        score -= this.dismissalPenalty(m.id) * 10
         return { memory: m, rank: score, edges: this.getEdges(m.id) }
       })
       .sort((a, b) => b.rank - a.rank)

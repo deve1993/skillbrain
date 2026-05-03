@@ -404,4 +404,30 @@ Only save what would SAVE FUTURE TIME. Quality over quantity.`
       return { content: [{ type: 'text', text: `Logged: ${type} ${accepted ? 'accepted' : 'rejected'}` }] }
     },
   )
+
+  // --- Tool: memory_dismiss ---
+  server.tool(
+    'memory_dismiss',
+    'Mark a memory as wrong/outdated. Each dismissal lowers retrieval rank (cap -30%). Reversible by deleting the row.',
+    {
+      memoryId: z.string(),
+      reason: z.string().optional(),
+      repo: z.string().optional(),
+    },
+    async ({ memoryId, reason, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found. Run codegraph_list_repos.' }] }
+
+      const result = withMemoryStore(resolved.path, (store) => {
+        store.dismissMemory(memoryId, reason)
+        return store.dismissalCount(memoryId)
+      })
+      return {
+        content: [{
+          type: 'text',
+          text: `memory_dismiss: ${memoryId} (total dismissals: ${result})`,
+        }],
+      }
+    },
+  )
 }
