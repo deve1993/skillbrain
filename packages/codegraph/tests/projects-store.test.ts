@@ -93,3 +93,73 @@ describe('ProjectsStore.merge', () => {
     expect(store.get('alias')).toBeUndefined()
   })
 })
+
+describe('ProjectsStore.sanitizeNotes', () => {
+  it('redacts notes containing API key patterns', () => {
+    expect(ProjectsStore.sanitizeNotes('sk-ant-api03-XXXXXXXXXXXXXXXXXXXXXXXX'))
+      .toBe('[REDACTED — contains secrets]')
+  })
+
+  it('redacts notes containing JWT tokens', () => {
+    expect(ProjectsStore.sanitizeNotes('token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxx'))
+      .toBe('[REDACTED — contains secrets]')
+  })
+
+  it('redacts notes with KEY=value patterns', () => {
+    const cases = [
+      'ANTHROPIC_API_KEY=sk-ant-xxx',
+      'SMTP_PASS = mypassword123',
+      'JWT_SECRET=super-secret-key',
+      'API_KEY=abc123',
+      'PASSWORD=hunter2',
+    ]
+    for (const note of cases) {
+      expect(ProjectsStore.sanitizeNotes(note)).toBe('[REDACTED — contains secrets]')
+    }
+  })
+
+  it('passes through safe notes unchanged', () => {
+    expect(ProjectsStore.sanitizeNotes('This is a normal project note')).toBe('This is a normal project note')
+    expect(ProjectsStore.sanitizeNotes('Build failed on CI, needs debugging')).toBe('Build failed on CI, needs debugging')
+  })
+
+  it('returns undefined/empty for empty input', () => {
+    expect(ProjectsStore.sanitizeNotes(undefined)).toBeUndefined()
+    expect(ProjectsStore.sanitizeNotes('')).toBe('')
+  })
+})
+
+describe('ProjectsStore.listSanitized / getSanitized', () => {
+  let db: Database.Database
+  let store: ProjectsStore
+
+  beforeEach(() => {
+    process.env.ENCRYPTION_KEY = TEST_KEY
+    db = new Database(':memory:')
+    runMigrations(db)
+    store = new ProjectsStore(db)
+  })
+
+  it('listSanitized redacts notes with secrets', () => {
+    store.upsert({ name: 'safe-proj', notes: 'Normal notes' })
+    store.upsert({ name: 'leaked-proj', notes: 'ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxx' })
+
+    const projects = store.listSanitized()
+    const safe = projects.find((p) => p.name === 'safe-proj')
+    const leaked = projects.find((p) => p.name === 'leaked-proj')
+
+    expect(safe?.notes).toBe('Normal notes')
+    expect(leaked?.notes).toBe('[REDACTED — contains secrets]')
+  })
+
+  it('getSanitized redacts notes with secrets', () => {
+    store.upsert({ name: 'secret-proj', notes: 'JWT_SECRET=my-secret-value' })
+
+    const project = store.getSanitized('secret-proj')
+    expect(project?.notes).toBe('[REDACTED — contains secrets]')
+  })
+
+  it('getSanitized returns undefined for nonexistent project', () => {
+    expect(store.getSanitized('nonexistent')).toBeUndefined()
+  })
+})
