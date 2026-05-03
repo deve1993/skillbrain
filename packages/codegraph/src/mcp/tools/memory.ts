@@ -471,4 +471,24 @@ Top decay candidates: ${decayPreview || '(none)'}`,
       }
     },
   )
+
+  // --- Tool: memory_apply ---
+  server.tool(
+    'memory_apply',
+    'Mark a memory as actually used in a session. Logged as applied action; memories applied/loaded in a session that ends with status=completed are auto-reinforced.',
+    {
+      memoryId: z.string(),
+      sessionId: z.string().optional(),
+      project: z.string().optional(),
+      repo: z.string().optional(),
+    },
+    async ({ memoryId, sessionId, project, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+      withMemoryStore(resolved.path, (store) => {
+        store.logMemoryUsage(memoryId, sessionId, 'applied', project)
+      })
+      return { content: [{ type: 'text', text: `memory_apply: ${memoryId} (session: ${sessionId ?? 'n/a'})` }] }
+    },
+  )
 }
