@@ -89,6 +89,31 @@ export function createSkillsRouter(ctx: RouteContext): Router {
     }
   })
 
+  // Skill health dashboard
+  router.get('/api/skills/health', (_req, res) => {
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new SkillsStore(db)
+      const health = {
+        confidenceStats: store.confidenceStats(),
+        topCooccurrences: store.topCooccurrences(20),
+        topRouted: store.topRouted(168, 20),
+        topLoaded: store.topLoaded(168, 20),
+        topApplied: store.topApplied(168, 20),
+        deadSkills: store.deadSkills(30, 20),
+        atRiskSkills: store.atRiskSkills(),
+      }
+      closeDb(db)
+      res.json(health)
+    } catch {
+      res.json({
+        confidenceStats: { growing: [], declining: [], usefulRate: [] },
+        topCooccurrences: [], topRouted: [], topLoaded: [],
+        topApplied: [], deadSkills: [], atRiskSkills: [],
+      })
+    }
+  })
+
   // Telemetry: client-side Skill tool usage
   router.post('/telemetry/skill-usage', json({ limit: '8kb' }), (req, res) => {
     if (!ctx.isLocalhost(req)) { res.status(403).json({ error: 'localhost only' }); return }

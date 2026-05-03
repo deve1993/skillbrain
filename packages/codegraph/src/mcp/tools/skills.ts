@@ -472,6 +472,55 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
     },
   )
 
+  // --- Tool: skill_health ---
+  server.tool(
+    'skill_health',
+    'Get skill health report: confidence trends, at-risk skills, usage analytics, dead skills, and cooccurrence patterns',
+    { repo: z.string().optional() },
+    async ({ repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+
+      const health = withSkillsStore(resolved.path, (store) => ({
+        confidenceStats: store.confidenceStats(),
+        topCooccurrences: store.topCooccurrences(10),
+        topRouted: store.topRouted(168, 10),
+        topLoaded: store.topLoaded(168, 10),
+        topApplied: store.topApplied(168, 10),
+        deadSkills: store.deadSkills(30, 10),
+        atRiskSkills: store.atRiskSkills(10),
+      }))
+
+      const sections: string[] = []
+
+      if (health.atRiskSkills.length > 0) {
+        sections.push(`⚠️ AT RISK (confidence ≤ 4, stale ≥ 3 sessions):\n${health.atRiskSkills.map((s) => `  - ${s.name} (conf: ${s.confidence}, stale: ${s.sessionsStale} sessions)`).join('\n')}`)
+      }
+
+      if (health.confidenceStats.growing.length > 0) {
+        sections.push(`📈 Growing (confidence ≥ 7):\n${health.confidenceStats.growing.map((s) => `  - ${s.name} (${s.confidence})`).join('\n')}`)
+      }
+
+      if (health.confidenceStats.declining.length > 0) {
+        sections.push(`📉 Declining (confidence ≤ 3):\n${health.confidenceStats.declining.map((s) => `  - ${s.name} (conf: ${s.confidence}, stale: ${s.sessionsStale})`).join('\n')}`)
+      }
+
+      if (health.deadSkills.length > 0) {
+        sections.push(`💀 Dead skills (routed but never loaded, 30d):\n${health.deadSkills.map((s) => `  - ${s.skillName} (${s.count}× routed)`).join('\n')}`)
+      }
+
+      if (health.topApplied.length > 0) {
+        sections.push(`✅ Most applied (7d):\n${health.topApplied.map((s) => `  - ${s.skillName} (${s.count}×)`).join('\n')}`)
+      }
+
+      if (health.topCooccurrences.length > 0) {
+        sections.push(`🔗 Top cooccurrences:\n${health.topCooccurrences.map((c) => `  - ${c.skillA} + ${c.skillB} (${c.count}×)`).join('\n')}`)
+      }
+
+      return { content: [{ type: 'text', text: sections.length > 0 ? sections.join('\n\n') : 'No skill health data available yet.' }] }
+    },
+  )
+
   // --- Tool: skill_decay ---
   server.tool(
     'skill_decay',

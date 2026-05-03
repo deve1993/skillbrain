@@ -599,6 +599,24 @@ export class SkillsStore {
     }
   }
 
+  atRiskSkills(limit = 20): { name: string; confidence: number; sessionsStale: number; category: string }[] {
+    try {
+      return (this.db.prepare(`
+        SELECT name, COALESCE(confidence, 5) as confidence,
+               COALESCE(sessions_since_validation, 0) as sessionsStale,
+               category
+        FROM skills
+        WHERE COALESCE(confidence, 5) <= 4
+          AND COALESCE(sessions_since_validation, 0) >= 3
+          AND status = 'active'
+        ORDER BY confidence ASC, sessions_since_validation DESC
+        LIMIT ?
+      `).all(limit) as any[]).map((r) => ({
+        name: r.name, confidence: r.confidence, sessionsStale: r.sessionsStale, category: r.category,
+      }))
+    } catch { return [] }
+  }
+
   private getCooccurrenceCount(skillA: string, activeSkills: string[]): number {
     if (!activeSkills.length) return 0
     let max = 0
