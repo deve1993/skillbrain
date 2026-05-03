@@ -656,6 +656,9 @@ export class MemoryStore {
       (this.stmts.allDismissalCounts.all() as Array<{ memory_id: string; c: number }>).map((r) => [r.memory_id, r.c])
     )
 
+    // Pre-fetch suggest preferences to apply type-bias
+    const prefs = this.suggestPreferences()
+
     const scored = active
       .filter((m) => {
         if ((m.scope === 'project-specific' || m.scope === 'project') && project && m.project !== project) return false
@@ -671,6 +674,9 @@ export class MemoryStore {
         const dismissCount = dismissalMap.get(m.id) ?? 0
         const dismissPenalty = Math.min(dismissCount * 0.05, 0.30)
         score -= dismissPenalty * 10  // ~3.0 max — drops 3x-dismissed below undisputed peer
+        // Suggest preference type-bias: 0.8 (rate 0) → 1.2 (rate 1), neutral 1.0 (no history)
+        const prefRate = prefs[m.type]?.rate ?? 0.5
+        score *= 0.8 + 0.4 * prefRate
         return { memory: m, rank: score, edges: this.getEdges(m.id) }
       })
       .sort((a, b) => b.rank - a.rank)
