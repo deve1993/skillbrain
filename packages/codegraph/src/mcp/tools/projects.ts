@@ -143,7 +143,7 @@ export function registerProjectTools(server: McpServer, _ctx: ToolContext): void
     async ({ repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
-      const projects = withProjectsStore(resolved.path, (store) => store.list())
+      const projects = withProjectsStore(resolved.path, (store) => store.listSanitized())
       return { content: [{ type: 'text', text: JSON.stringify(projects, null, 2) }] }
     },
   )
@@ -156,7 +156,7 @@ export function registerProjectTools(server: McpServer, _ctx: ToolContext): void
     async ({ name, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
-      const project = withProjectsStore(resolved.path, (store) => store.get(name))
+      const project = withProjectsStore(resolved.path, (store) => store.getSanitized(name))
       if (!project) return { content: [{ type: 'text', text: `Project "${name}" not found. Use project_scan to create it.` }] }
       return { content: [{ type: 'text', text: JSON.stringify(project, null, 2) }] }
     },

@@ -322,6 +322,35 @@ export class ProjectsStore {
     return lines.join('\n')
   }
 
+  static sanitizeNotes(notes?: string): string | undefined {
+    if (!notes) return notes
+    const secretPatterns = [
+      /sk-[a-zA-Z0-9_-]{20,}/,
+      /eyJ[a-zA-Z0-9_-]{20,}/,
+      /ANTHROPIC_API_KEY\s*=\s*\S+/i,
+      /SUPABASE_SERVICE_ROLE_KEY\s*=\s*\S+/i,
+      /JWT_SECRET\s*=\s*\S+/i,
+      /SMTP_PASS\s*=\s*\S+/i,
+      /ADMIN_TOKEN\s*=\s*\S+/i,
+      /API_KEY\s*=\s*\S+/i,
+      /SECRET\s*=\s*\S+/i,
+      /PASSWORD\s*=\s*\S+/i,
+    ]
+    for (const pattern of secretPatterns) {
+      if (pattern.test(notes)) return '[REDACTED — contains secrets]'
+    }
+    return notes
+  }
+
+  listSanitized(): Project[] {
+    return this.list().map((p) => ({ ...p, notes: ProjectsStore.sanitizeNotes(p.notes) }))
+  }
+
+  getSanitized(name: string): Project | undefined {
+    const p = this.get(name)
+    return p ? { ...p, notes: ProjectsStore.sanitizeNotes(p.notes) } : undefined
+  }
+
   private rowToProject(row: any): Project {
     let teamMembers: TeamMember[] = []
     try { teamMembers = JSON.parse(row.team_members || '[]') } catch {}
