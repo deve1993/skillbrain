@@ -13,6 +13,7 @@ import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import { randomId } from '../utils/hash.js'
 import { MEMORY_DECAY_INTERVAL_HOURS, SESSION_STALE_THRESHOLD_MS } from '../constants.js'
+import { deriveEdgeCandidates } from './memory-edge-derivation.js'
 
 // ── Session & Notification Types ───────────────────────
 
@@ -301,7 +302,34 @@ export class MemoryStore {
     // Populate FTS
     this.populateFts(memory)
 
+    // Auto-derive edges (best-effort, never throws)
+    try {
+      const candidates = this.queryRecentForDerivation(memory)
+      const edges = deriveEdgeCandidates(memory, candidates)
+      for (const e of edges) {
+        this.addEdge(memory.id, e.targetId, e.type, e.reason)
+      }
+    } catch (err) {
+      // log only — never block memory_add on edge derivation failure
+      console.error('[memory-store] edge derivation failed', err)
+    }
+
     return memory
+  }
+
+  private queryRecentForDerivation(subject: Memory): Memory[] {
+    // Pull a bounded candidate set: same project (if any) OR tag-overlap candidates from last 200 memories.
+    const sql = `
+      SELECT * FROM memories
+      WHERE status = 'active' AND id != ?
+        AND (project = ? OR tags LIKE ? OR tags LIKE ?)
+      ORDER BY updated_at DESC
+      LIMIT 200
+    `
+    const tagLike1 = subject.tags[0] ? `%"${subject.tags[0]}"%` : '%'
+    const tagLike2 = subject.tags[1] ? `%"${subject.tags[1]}"%` : '%'
+    const rows = this.db.prepare(sql).all(subject.id, subject.project ?? '', tagLike1, tagLike2) as any[]
+    return rows.map((r) => this.rowToMemory(r))
   }
 
   addEdge(sourceId: string, targetId: string, type: MemoryEdgeType, reason?: string): MemoryEdge {

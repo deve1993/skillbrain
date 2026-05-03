@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Pixarts — contact daniel@pixarts.eu for commercial license
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { deriveEdgeCandidates } from '../src/storage/memory-edge-derivation.js'
+import { MemoryStore } from '../src/storage/memory-store.js'
+import { openDb, closeDb } from '../src/storage/db.js'
+import { runMigrations } from '../src/storage/migrator.js'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { Memory } from '../src/storage/memory-store.js'
 
 const mem = (over: Partial<Memory>): Memory => ({
@@ -74,5 +80,33 @@ describe('deriveEdgeCandidates', () => {
     const subject = mem({ id: 'm-1', project: 'A', tags: ['a', 'b'] })
     const others: Memory[] = [mem({ id: 'm-1', project: 'A', tags: ['a', 'b'] })]
     expect(deriveEdgeCandidates(subject, others)).toEqual([])
+  })
+})
+
+describe('MemoryStore.add — edge auto-derivation', () => {
+  let dir: string
+  let store: MemoryStore
+  let db: ReturnType<typeof openDb>
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'sb-edges-'))
+    db = openDb(dir)
+    runMigrations(db)
+    store = new MemoryStore(db)
+  })
+
+  afterEach(() => {
+    closeDb(db)
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('creates RelatedTo edges automatically when project + tags overlap', () => {
+    const a = store.add({ type: 'Pattern', context: 'A1', problem: '', solution: '', reason: '',
+      tags: ['nextjs', 'auth', 'session'], project: 'P' })
+    const b = store.add({ type: 'Pattern', context: 'A2', problem: '', solution: '', reason: '',
+      tags: ['nextjs', 'auth', 'csrf'], project: 'P' })
+
+    const edges = store.getEdges(b.id)
+    expect(edges.find((e) => e.targetId === a.id && e.type === 'RelatedTo')).toBeDefined()
   })
 })
