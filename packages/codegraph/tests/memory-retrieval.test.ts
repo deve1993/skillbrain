@@ -163,3 +163,124 @@ describe('MemoryStore.findDuplicate()', () => {
     expect(dupe).toBeNull()
   })
 })
+
+describe('session lifecycle', () => {
+  let db: Database.Database
+  let store: MemoryStore
+
+  beforeEach(() => {
+    process.env.ENCRYPTION_KEY = TEST_KEY
+    db = new Database(':memory:')
+    runMigrations(db)
+    store = new MemoryStore(db)
+  })
+
+  const getSession = (id: string) => {
+    const row = db.prepare('SELECT * FROM session_log WHERE id = ?').get(id) as any
+    return row ?? undefined
+  }
+
+  it('starts and ends a session with full lifecycle', () => {
+    const session = store.startSession('test-session', 'my-project', undefined, 'build feature')
+    expect(session.id).toBeDefined()
+    expect(session.status).toBe('in-progress')
+    expect(session.project).toBe('my-project')
+
+    store.endSession(session.id, 'Built the feature', 2, 1, ['src/a.ts'], 'Deploy next')
+    const ended = getSession(session.id)
+    expect(ended?.status).toBe('completed')
+    expect(ended?.summary).toBe('Built the feature')
+    expect(ended?.memories_created).toBe(2)
+  })
+
+  it('auto-closes stale in-progress sessions', () => {
+    const session = store.startSession('stale-session', 'proj')
+    const past = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    db.prepare('UPDATE session_log SET started_at = ?, last_heartbeat = NULL WHERE id = ?')
+      .run(past, session.id)
+
+    const closed = store.autoCloseStale(30)
+    expect(closed).toBe(1)
+
+    const updated = getSession(session.id)
+    expect(updated?.status).toBe('paused')
+  })
+
+  it('cleanupOrphanedSessions deletes old paused sessions with no memories', () => {
+    const session = store.startSession('orphan', 'proj')
+    const past = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+    db.prepare(`UPDATE session_log SET status = 'paused', ended_at = ?, summary = NULL, memories_created = 0 WHERE id = ?`)
+      .run(past, session.id)
+
+    const deleted = store.cleanupOrphanedSessions(7)
+    expect(deleted).toBe(1)
+    expect(getSession(session.id)).toBeUndefined()
+  })
+
+  it('cleanupOrphanedSessions preserves sessions with memories', () => {
+    const session = store.startSession('useful', 'proj')
+    const past = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+    db.prepare(`UPDATE session_log SET status = 'paused', ended_at = ?, summary = NULL, memories_created = 3 WHERE id = ?`)
+      .run(past, session.id)
+
+    const deleted = store.cleanupOrphanedSessions(7)
+    expect(deleted).toBe(0)
+    expect(getSession(session.id)).toBeDefined()
+  })
+})
+
+describe('memory CRUD', () => {
+  let db: Database.Database
+  let store: MemoryStore
+
+  beforeEach(() => {
+    process.env.ENCRYPTION_KEY = TEST_KEY
+    db = new Database(':memory:')
+    runMigrations(db)
+    store = new MemoryStore(db)
+  })
+
+  it('updates memory fields and syncs FTS', () => {
+    const mem = store.add({
+      type: 'BugFix', context: 'original context',
+      problem: 'original problem', solution: 'original solution',
+      reason: 'original reason', tags: ['tag1'],
+      scope: 'global',
+    })
+
+    store.updateMemory(mem.id, { solution: 'updated solution', tags: ['tag1', 'tag2'] })
+    const updated = store.get(mem.id)
+    expect(updated?.solution).toBe('updated solution')
+    expect(updated?.tags).toContain('tag2')
+
+    const results = store.search('updated solution', 5)
+    expect(results.some((r) => r.memory.id === mem.id)).toBe(true)
+  })
+
+  it('deletes memory', () => {
+    const mem = store.add({
+      type: 'Fact', context: 'ctx', problem: 'p',
+      solution: 's', reason: 'r', tags: [], scope: 'global',
+    })
+
+    store.delete(mem.id)
+    expect(store.get(mem.id)).toBeUndefined()
+  })
+
+  it('manages edges between memories', () => {
+    const m1 = store.add({
+      type: 'Fact', context: 'c1', problem: 'p1',
+      solution: 's1', reason: 'r1', tags: [], scope: 'global',
+    })
+    const m2 = store.add({
+      type: 'Fact', context: 'c2', problem: 'p2',
+      solution: 's2', reason: 'r2', tags: [], scope: 'global',
+    })
+
+    store.addEdge(m1.id, m2.id, 'RelatedTo')
+    const edges = store.getEdges(m1.id)
+    expect(edges.length).toBe(1)
+    expect(edges[0].targetId).toBe(m2.id)
+    expect(edges[0].type).toBe('RelatedTo')
+  })
+})
