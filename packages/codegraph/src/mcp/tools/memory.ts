@@ -196,9 +196,10 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       project: z.string().optional().describe('Current project name'),
       activeSkills: z.array(z.string()).optional().describe('Skills active in this session'),
       limit: z.number().optional().default(15),
+      sessionId: z.string().optional().describe('Session ID for usage tracking and auto-reinforce on session_end'),
       repo: z.string().optional(),
     },
-    async ({ project, activeSkills, limit, repo }) => {
+    async ({ project, activeSkills, limit, sessionId, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
@@ -220,6 +221,20 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
           tags: r.memory.tags,
         }
       })
+
+
+      // Best-effort usage logging — never fail the load
+      if (sessionId) {
+        try {
+          withMemoryStore(resolved.path, (store) => {
+            for (const r of results) {
+              store.logMemoryUsage(r.memory.id, sessionId, 'loaded', project)
+            }
+          })
+        } catch (err) {
+          console.error('[memory_load] usage logging failed', err)
+        }
+      }
 
       const summary = `📚 Loaded ${formatted.length} memories\n` +
         Object.entries(byType).map(([t, c]) => `   ${t}: ${c}`).join('\n')

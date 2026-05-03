@@ -54,4 +54,20 @@ describe('MemoryStore — memory_usage tracking', () => {
     const m = store.add({ type: 'Pattern', context: 'a', problem: '', solution: 's', reason: '', tags: [] })
     expect(() => store.logMemoryUsage(m.id, undefined, 'loaded')).not.toThrow()
   })
+
+  it('memory_load tool logs loaded usage when sessionId is provided (store-level simulation)', () => {
+    const m1 = store.add({ type: 'Pattern', context: 'a', problem: '', solution: 's', reason: '', tags: [], confidence: 8 })
+    const m2 = store.add({ type: 'Pattern', context: 'b', problem: '', solution: 's', reason: '', tags: [], confidence: 8 })
+    
+    // Simulate the tool's behavior: scored() then log each
+    const results = store.scored(undefined, [], 5)
+    expect(results.length).toBeGreaterThanOrEqual(2)
+    
+    for (const r of results) {
+      store.logMemoryUsage(r.memory.id, 'sess-load-test', 'loaded')
+    }
+    
+    const usage = store.getMemoryUsageInSession('sess-load-test', 'loaded')
+    expect(usage.length).toBe(results.length)
+  })
 })
