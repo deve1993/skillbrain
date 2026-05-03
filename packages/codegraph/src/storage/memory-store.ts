@@ -269,6 +269,9 @@ export class MemoryStore {
       countDismissals: this.db.prepare(
         `SELECT COUNT(*) as c FROM memory_dismissals WHERE memory_id = ?`
       ),
+      allDismissalCounts: this.db.prepare(
+        `SELECT memory_id, COUNT(*) as c FROM memory_dismissals GROUP BY memory_id`
+      ),
     }
   }
 
@@ -613,6 +616,11 @@ export class MemoryStore {
       .map(this.rowToMemory)
       .filter((m) => !m.id.startsWith('M-_system_'))
 
+    // Pre-fetch all dismissal counts in one query to avoid N+1
+    const dismissalMap = new Map<string, number>(
+      (this.stmts.allDismissalCounts.all() as Array<{ memory_id: string; c: number }>).map((r) => [r.memory_id, r.c])
+    )
+
     const scored = active
       .filter((m) => {
         if ((m.scope === 'project-specific' || m.scope === 'project') && project && m.project !== project) return false
@@ -625,7 +633,9 @@ export class MemoryStore {
         if (activeSkills?.includes(m.skill ?? '')) score += 2
         score += m.importance * 0.5
         score *= (TYPE_WEIGHTS[m.type] ?? 1.0)
-        score -= this.dismissalPenalty(m.id) * 10
+        const dismissCount = dismissalMap.get(m.id) ?? 0
+        const dismissPenalty = Math.min(dismissCount * 0.05, 0.30)
+        score -= dismissPenalty * 10  // ~3.0 max — drops 3x-dismissed below undisputed peer
         return { memory: m, rank: score, edges: this.getEdges(m.id) }
       })
       .sort((a, b) => b.rank - a.rank)
