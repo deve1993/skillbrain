@@ -355,7 +355,7 @@ export class SkillsStore {
     const maxBm25 = Math.abs(Math.min(...results.map((r) => r.rank)))
 
     const scored = results.map((r) => {
-      const bm25Norm = maxBm25 > 0 ? 1 - Math.abs(r.rank) / maxBm25 : 0.5
+      const bm25Norm = maxBm25 > 0 ? Math.abs(r.rank) / maxBm25 : 0.5
       const confidence = (() => {
         try {
           const row = this.db.prepare(`SELECT COALESCE(confidence, 5) as c FROM skills WHERE name = ?`).get(r.skill.name) as { c: number } | undefined

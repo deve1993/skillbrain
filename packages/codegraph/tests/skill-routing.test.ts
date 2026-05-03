@@ -204,18 +204,18 @@ describe('cooccurrence boosts routing', () => {
 
     const now = new Date().toISOString()
     store.upsert({
-      name: 'react', category: 'Frontend', description: 'React framework guide',
-      content: 'React component patterns', type: 'domain',
+      name: 'react', category: 'Frontend', description: 'generic framework guide for styling component patterns',
+      content: 'generic framework guide for styling component patterns', type: 'domain',
       tags: ['react'], lines: 50, updatedAt: now,
     })
     store.upsert({
-      name: 'tailwind', category: 'Styling', description: 'Tailwind CSS framework',
-      content: 'Tailwind utility classes for styling', type: 'domain',
+      name: 'tailwind', category: 'Styling', description: 'generic framework guide for styling component patterns',
+      content: 'generic framework guide for styling component patterns', type: 'domain',
       tags: ['tailwind', 'css'], lines: 50, updatedAt: now,
     })
     store.upsert({
-      name: 'vue', category: 'Alternatives', description: 'Vue.js framework guide',
-      content: 'Vue component patterns for styling', type: 'domain',
+      name: 'vue', category: 'Alternatives', description: 'generic framework guide for styling component patterns',
+      content: 'generic framework guide for styling component patterns', type: 'domain',
       tags: ['vue'], lines: 50, updatedAt: now,
     })
   })
