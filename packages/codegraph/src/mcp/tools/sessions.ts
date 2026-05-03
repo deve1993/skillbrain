@@ -147,6 +147,20 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
         // Index session content as verbatim searchable chunks (MemPalace pattern)
         const fullText = [summary, deliverables, nextSteps].filter(Boolean).join('\n\n')
         if (fullText.length > 50) store.indexSessionChunks(sessionId, fullText, undefined, new Date().toISOString())
+
+        // Auto-reinforce memories used in this session if it completed successfully
+        if (status === 'completed') {
+          try {
+            const usage = store.getMemoryUsageInSession(sessionId)
+            const memoryIds = Array.from(new Set(usage.map((u) => u.memoryId)))
+            if (memoryIds.length > 0) {
+              const today = new Date().toISOString().split('T')[0]
+              store.applyDecay(memoryIds, today)
+            }
+          } catch (err) {
+            console.error('[session_end] auto-reinforce failed', err)
+          }
+        }
       })
 
       // Skill proposal analysis: group memories from this session by skill tag
