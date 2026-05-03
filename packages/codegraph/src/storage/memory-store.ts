@@ -812,6 +812,52 @@ export class MemoryStore {
     }
   }
 
+  // ── Health ────────────────────────────────────────
+
+  memoryHealth(): {
+    totals: Record<string, number>
+    atRisk: Array<{ id: string; type: string; confidence: number; sessionsStale: number }>
+    contradictions: Array<{ id: string; sourceId: string; targetId: string; type: string; reason?: string }>
+    pendingReview: number
+    topDecayCandidates: Array<{ id: string; type: string; sessionsStale: number }>
+  } {
+    const totals: Record<string, number> = { active: 0, 'pending-review': 0, deprecated: 0 }
+    for (const row of this.db.prepare(`SELECT status, COUNT(*) as c FROM memories GROUP BY status`).all() as any[]) {
+      totals[row.status] = row.c
+    }
+
+    const atRisk = (this.db.prepare(`
+      SELECT id, type, confidence, sessions_since_validation as sessionsStale
+      FROM memories
+      WHERE status = 'active' AND confidence < 4 AND sessions_since_validation >= 5
+      ORDER BY confidence ASC, sessions_since_validation DESC
+      LIMIT 20
+    `).all() as any[]).map((r) => ({
+      id: r.id,
+      type: r.type,
+      confidence: r.confidence,
+      sessionsStale: r.sessionsStale,
+    }))
+
+    const contradictions = (this.db.prepare(`
+      SELECT id, source_id as sourceId, target_id as targetId, type, reason
+      FROM memory_edges WHERE type = 'Contradicts'
+      LIMIT 50
+    `).all() as any[])
+
+    const pendingReview = ((this.db.prepare(`SELECT COUNT(*) as c FROM memories WHERE status = 'pending-review'`).get() as any)?.c) ?? 0
+
+    const topDecayCandidates = (this.db.prepare(`
+      SELECT id, type, sessions_since_validation as sessionsStale
+      FROM memories
+      WHERE status = 'active' AND sessions_since_validation >= 5
+      ORDER BY sessions_since_validation DESC
+      LIMIT 10
+    `).all() as any[]).map((r) => ({ id: r.id, type: r.type, sessionsStale: r.sessionsStale }))
+
+    return { totals, atRisk, contradictions, pendingReview, topDecayCandidates }
+  }
+
   // ── Stats ─────────────────────────────────────────
 
   stats() {

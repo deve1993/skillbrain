@@ -405,6 +405,32 @@ Only save what would SAVE FUTURE TIME. Quality over quantity.`
     },
   )
 
+  // --- Tool: memory_health ---
+  server.tool(
+    'memory_health',
+    'Memory health report: counts by status, at-risk memories (low confidence + stale), contradictions, pending review queue, top decay candidates.',
+    { repo: z.string().optional() },
+    async ({ repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found. Run codegraph_list_repos.' }] }
+
+      const h = withMemoryStore(resolved.path, (store) => store.memoryHealth())
+      const decayPreview = h.topDecayCandidates.slice(0, 5).map((d) => `${d.id}(stale:${d.sessionsStale})`).join(', ')
+      return {
+        content: [{
+          type: 'text',
+          text:
+`📊 Memory Health
+Status: active=${h.totals.active ?? 0}, pending-review=${h.totals['pending-review'] ?? 0}, deprecated=${h.totals.deprecated ?? 0}
+At-risk: ${h.atRisk.length}
+Contradictions: ${h.contradictions.length}
+Pending review: ${h.pendingReview}
+Top decay candidates: ${decayPreview || '(none)'}`,
+        }],
+      }
+    },
+  )
+
   // --- Tool: memory_dismiss ---
   server.tool(
     'memory_dismiss',
