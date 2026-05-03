@@ -283,7 +283,7 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
       // Recommend skills based on last task or project name
       const skillStore = new SkillsStore(db)
       const taskHint = sessions[0]?.taskDescription || project
-      const recommendedSkills = taskHint ? skillStore.route(taskHint, 5) : []
+      const recommendedSkills = taskHint ? skillStore.route(taskHint, 5, [], project) : []
 
       closeDb(db)
 

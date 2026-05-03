@@ -234,3 +234,53 @@ describe('cooccurrence boosts routing', () => {
     }
   })
 })
+
+describe('project-aware routing', () => {
+  let db: Database.Database
+  let store: SkillsStore
+
+  beforeEach(() => {
+    process.env.ENCRYPTION_KEY = TEST_KEY
+    db = new Database(':memory:')
+    runMigrations(db)
+    store = new SkillsStore(db)
+
+    const now = new Date().toISOString()
+    store.upsert({
+      name: 'stripe', category: 'Payments', description: 'Stripe payments integration',
+      content: 'Stripe checkout sessions webhooks', type: 'domain',
+      tags: ['stripe', 'payments'], lines: 50, updatedAt: now,
+    })
+    store.upsert({
+      name: 'paypal', category: 'Payments', description: 'PayPal payments integration',
+      content: 'PayPal checkout sessions webhooks', type: 'domain',
+      tags: ['paypal', 'payments'], lines: 50, updatedAt: now,
+    })
+  })
+
+  it('skills used more in a project rank higher for that project', () => {
+    // Simulate stripe being used heavily in webshop project
+    for (let i = 0; i < 20; i++) {
+      store.recordUsage('stripe', 'applied', { project: 'webshop', sessionId: `s${i}` })
+    }
+
+    const results = store.route('payments checkout integration', 5, [], 'webshop')
+    const names = results.map((r) => r.name)
+    const stripeIdx = names.indexOf('stripe')
+    const paypalIdx = names.indexOf('paypal')
+    expect(stripeIdx).toBeLessThan(paypalIdx)
+  })
+
+  it('project affinity does not affect routing for other projects', () => {
+    for (let i = 0; i < 20; i++) {
+      store.recordUsage('stripe', 'applied', { project: 'webshop', sessionId: `s${i}` })
+    }
+
+    // When routing for a different project, both should be more equal
+    const resultsOther = store.route('payments checkout integration', 5, [], 'mobile-app')
+    const namesOther = resultsOther.map((r) => r.name)
+    // Both should appear (stripe doesn't get project boost for mobile-app)
+    expect(namesOther).toContain('stripe')
+    expect(namesOther).toContain('paypal')
+  })
+})

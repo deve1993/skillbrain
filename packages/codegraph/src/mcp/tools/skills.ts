@@ -205,7 +205,7 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
       const skills = withSkillsStore(resolved.path, (store) => {
-        const results = store.route(task, limit)
+        const results = store.route(task, limit, [], project)
         for (const s of results) {
           store.recordUsage(s.name, 'routed', { sessionId, project, task, userId: ctx.userId })
         }
@@ -405,7 +405,7 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
           }
         }
 
-        const routed = skillStore.route(task, 15)
+        const routed = skillStore.route(task, 15, [], project)
         for (const s of routed) {
           skillStore.recordUsage(s.name, 'routed', { sessionId, project, task, userId: ctx.userId })
         }

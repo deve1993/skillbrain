@@ -210,6 +210,12 @@ export class SkillsStore {
       getCooccurrence: this.db.prepare(`
         SELECT count FROM skill_cooccurrence WHERE skill_a = ? AND skill_b = ?
       `),
+      // Project affinity: how often a skill was loaded/applied in a specific project
+      projectAffinityCount: this.db.prepare(`
+        SELECT COUNT(*) as count FROM skill_usage
+        WHERE skill_name = ? AND project = ? AND action IN ('loaded','applied')
+        AND ts >= datetime('now', '-90 days')
+      `),
     }
   }
 
@@ -342,7 +348,7 @@ export class SkillsStore {
     }
   }
 
-  route(taskDescription: string, limit = 5, activeSkills: string[] = []): Skill[] {
+  route(taskDescription: string, limit = 5, activeSkills: string[] = [], project?: string): Skill[] {
     const results = this.search(taskDescription, limit * 3)
     if (results.length === 0) return []
 
@@ -385,7 +391,16 @@ export class SkillsStore {
         return activeCategories.has(r.skill.category) ? 0.15 : 0
       })()
 
-      const score = 0.45 * bm25Norm + 0.18 * confidence + 0.12 * recencyBoost + 0.10 * coocBoost + categoryBoost - dismissalPenalty
+      const projectAffinity = (() => {
+        if (!project) return 0
+        try {
+          const row = this.stmts.projectAffinityCount.get(r.skill.name, project) as { count: number } | undefined
+          const count = row?.count ?? 0
+          return Math.min(Math.log1p(count) / Math.log1p(50), 1.0)
+        } catch { return 0 }
+      })()
+
+      const score = 0.38 * bm25Norm + 0.15 * confidence + 0.12 * recencyBoost + 0.10 * coocBoost + 0.10 * projectAffinity + categoryBoost - dismissalPenalty
       return { skill: r.skill, score }
     })
 
