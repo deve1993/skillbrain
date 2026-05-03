@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "analyze": "node dist/cli.js analyze",
     "mcp": "node dist/cli.js mcp",
-    "import:skills": "tsx scripts/bulk-import-skills.ts"
+    "import:skills": "tsx scripts/bulk-import-skills.ts",
+    "backfill:edges": "tsx scripts/backfill-edges.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
