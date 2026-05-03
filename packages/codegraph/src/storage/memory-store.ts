@@ -519,10 +519,36 @@ export class MemoryStore {
     }))
     const boosted = this.closetBoost(penalized.sort((a, b) => b.score - a.score), project, activeSkills)
 
-    return boosted
+    const sorted = boosted.sort((a, b) => b.finalScore - a.finalScore)
+
+    // 1-hop edge expansion: pull RelatedTo / CausedBy targets that aren't in the result set
+    const seen = new Set(sorted.map((r) => r.memory.id))
+    const expanded: Array<{ memory: Memory; finalScore: number }> = []
+    const EXPANSION_TYPES = new Set<string>(['RelatedTo', 'CausedBy'])
+    const RANK_DECAY = 0.5
+
+    for (const r of sorted.slice(0, limit)) {
+      const edges = this.getEdges(r.memory.id)
+      for (const e of edges) {
+        if (!EXPANSION_TYPES.has(e.type)) continue
+        const targetId = e.sourceId === r.memory.id ? e.targetId : e.sourceId
+        if (seen.has(targetId)) continue
+        const target = this.get(targetId)
+        if (!target || target.status !== 'active') continue
+        seen.add(targetId)
+        expanded.push({ memory: target, finalScore: r.finalScore * RANK_DECAY })
+      }
+    }
+
+    const merged = [...sorted, ...expanded]
       .sort((a, b) => b.finalScore - a.finalScore)
-      .slice(0, limit)
-      .map(({ memory, finalScore }) => ({ memory, rank: finalScore, edges: this.getEdges(memory.id) }))
+      .slice(0, limit * 2)
+
+    return merged.map(({ memory, finalScore }) => ({
+      memory,
+      rank: finalScore,
+      edges: this.getEdges(memory.id),
+    }))
   }
 
   private bm25Rerank(candidates: Memory[], queryTokens: string[]): Array<{ memory: Memory; score: number }> {
