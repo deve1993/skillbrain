@@ -522,13 +522,18 @@ export class MemoryStore {
     const sorted = boosted.sort((a, b) => b.finalScore - a.finalScore)
 
     // 1-hop edge expansion: pull RelatedTo / CausedBy targets that aren't in the result set
+    // Cache edges for direct hits to avoid re-fetching in final return
     const seen = new Set(sorted.map((r) => r.memory.id))
-    const expanded: Array<{ memory: Memory; finalScore: number }> = []
+    const expandedWithEdges: Array<{ memory: Memory; finalScore: number; edges: MemoryEdge[] }> = []
+    const sortedWithEdges: Array<{ memory: Memory; finalScore: number; edges: MemoryEdge[] }> = []
     const EXPANSION_TYPES = new Set<string>(['RelatedTo', 'CausedBy'])
     const RANK_DECAY = 0.5
 
+    // Fetch edges only for top-limit direct hits
     for (const r of sorted.slice(0, limit)) {
       const edges = this.getEdges(r.memory.id)
+      sortedWithEdges.push({ memory: r.memory, finalScore: r.finalScore, edges })
+      // Expand from these edges
       for (const e of edges) {
         if (!EXPANSION_TYPES.has(e.type)) continue
         const targetId = e.sourceId === r.memory.id ? e.targetId : e.sourceId
@@ -536,18 +541,22 @@ export class MemoryStore {
         const target = this.get(targetId)
         if (!target || target.status !== 'active') continue
         seen.add(targetId)
-        expanded.push({ memory: target, finalScore: r.finalScore * RANK_DECAY })
+        expandedWithEdges.push({
+          memory: target,
+          finalScore: r.finalScore * RANK_DECAY,
+          edges: this.getEdges(targetId),
+        })
       }
     }
 
-    const merged = [...sorted, ...expanded]
+    const merged = [...sortedWithEdges, ...expandedWithEdges]
       .sort((a, b) => b.finalScore - a.finalScore)
       .slice(0, limit * 2)
 
-    return merged.map(({ memory, finalScore }) => ({
+    return merged.map(({ memory, finalScore, edges }) => ({
       memory,
       rank: finalScore,
-      edges: this.getEdges(memory.id),
+      edges,
     }))
   }
 
