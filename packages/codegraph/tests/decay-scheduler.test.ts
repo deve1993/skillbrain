@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Pixarts — contact daniel@pixarts.eu for commercial license
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { startDecayScheduler } from '../src/storage/decay-scheduler.js'
+import { startDecayScheduler } from '@skillbrain/storage'
 
 describe('startDecayScheduler', () => {
   beforeEach(() => { vi.useFakeTimers() })

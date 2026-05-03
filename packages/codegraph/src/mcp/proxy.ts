@@ -36,8 +36,8 @@ import path from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { HEARTBEAT_INTERVAL_MS, SESSION_REUSE_WINDOW_MS } from '../constants.js'
 import { analyzeCommand } from '../cli/commands/analyze.js'
-import { getDbPath } from '../storage/db.js'
-import { loadMeta } from '../storage/meta.js'
+import { getDbPath } from '@skillbrain/storage'
+import { loadMeta } from '@skillbrain/storage'
 
 // Default points to the author's public instance. Override via SKILLBRAIN_MCP_URL for your own deployment.
 const REMOTE_URL = process.env.SKILLBRAIN_MCP_URL || 'https://memory.fl1.it/mcp'

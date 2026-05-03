@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import Database from 'better-sqlite3'
 import crypto from 'node:crypto'
-import { runMigrations } from '../src/storage/migrator.js'
-import { OAuthStore } from '../src/storage/oauth-store.js'
+import { runMigrations } from '@skillbrain/storage'
+import { OAuthStore } from '@skillbrain/storage'
 
 const TEST_KEY = 'b'.repeat(64)
 

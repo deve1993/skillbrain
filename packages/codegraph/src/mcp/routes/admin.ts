@@ -11,9 +11,9 @@
 import { Router, json } from 'express'
 import { randomUUID } from 'node:crypto'
 import crypto from 'node:crypto'
-import { openDb, closeDb } from '../../storage/db.js'
-import { OAuthStore } from '../../storage/oauth-store.js'
-import { rotateKey } from '../../storage/crypto.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { OAuthStore } from '@skillbrain/storage'
+import { rotateKey } from '@skillbrain/storage'
 import type { RouteContext } from './index.js'
 
 function generateApiKey(): string {

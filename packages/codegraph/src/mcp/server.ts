@@ -9,10 +9,10 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { openDb, closeDb } from '../storage/db.js'
-import { GraphStore } from '../storage/graph-store.js'
-import { loadRegistry, getRegistryEntry } from '../storage/registry.js'
-import { loadMeta } from '../storage/meta.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { GraphStore } from '@skillbrain/storage'
+import { loadRegistry, getRegistryEntry } from '@skillbrain/storage'
+import { loadMeta } from '@skillbrain/storage'
 import { getHeadCommit } from '../utils/git.js'
 import { registerAllTools } from './tools/index.js'
 

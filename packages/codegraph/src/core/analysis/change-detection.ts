@@ -9,7 +9,7 @@
  */
 
 import type { ChangeDetectionResult, GraphNode } from '../graph/types.js'
-import { GraphStore } from '../../storage/graph-store.js'
+import { GraphStore } from '@skillbrain/storage'
 import { getStagedFiles, getChangedFiles, getDiffFiles } from '../../utils/git.js'
 import path from 'node:path'
 

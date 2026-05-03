@@ -27,8 +27,8 @@
 
 import express, { type Router, type Request, type Response } from 'express'
 import crypto from 'node:crypto'
-import { OAuthStore } from '../storage/oauth-store.js'
-import { openDb, closeDb } from '../storage/db.js'
+import { OAuthStore } from '@skillbrain/storage'
+import { openDb, closeDb } from '@skillbrain/storage'
 
 const AUTH_REQUEST_COOKIE = 'sb_auth_request'
 

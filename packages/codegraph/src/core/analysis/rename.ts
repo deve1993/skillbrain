@@ -9,7 +9,7 @@
  */
 
 import type { RenamePreview, RenameChange, RenameEdit } from '../graph/types.js'
-import { GraphStore } from '../../storage/graph-store.js'
+import { GraphStore } from '@skillbrain/storage'
 import fs from 'node:fs'
 import path from 'node:path'
 

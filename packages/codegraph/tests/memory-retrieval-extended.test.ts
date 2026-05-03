@@ -10,8 +10,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import Database from 'better-sqlite3'
-import { runMigrations } from '../src/storage/migrator.js'
-import { MemoryStore } from '../src/storage/memory-store.js'
+import { runMigrations } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
 
 const TEST_KEY = 'b'.repeat(64)
 

@@ -10,9 +10,9 @@
 
 import { Router } from 'express'
 import Anthropic from '@anthropic-ai/sdk'
-import { openDb, closeDb } from '../../storage/db.js'
-import { SkillsStore } from '../../storage/skills-store.js'
-import { AuditStore } from '../../storage/audit-store.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { SkillsStore } from '@skillbrain/storage'
+import { AuditStore } from '@skillbrain/storage'
 import type { RouteContext } from './index.js'
 
 export function createReviewRouter(ctx: RouteContext): Router {

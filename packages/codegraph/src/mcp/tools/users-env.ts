@@ -10,10 +10,10 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { openDb, closeDb } from '../../storage/db.js'
-import { UsersEnvStore } from '../../storage/users-env-store.js'
-import { ProjectsStore } from '../../storage/projects-store.js'
-import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { UsersEnvStore } from '@skillbrain/storage'
+import { ProjectsStore } from '@skillbrain/storage'
+import { getRegistryEntry, loadRegistry } from '@skillbrain/storage'
 import { ENV_TEMPLATES } from '../env-templates.js'
 import type { ToolContext } from './index.js'
 

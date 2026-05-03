@@ -10,7 +10,7 @@
 
 import type { GraphNode, GraphEdge } from './types.js'
 import { edgeId } from '../../utils/hash.js'
-import { GraphStore } from '../../storage/graph-store.js'
+import { GraphStore } from '@skillbrain/storage'
 
 /**
  * Detect execution flows (processes) by BFS from entry points.

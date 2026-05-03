@@ -12,9 +12,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { openDb, closeDb } from '../src/storage/db.js'
-import { runMigrations } from '../src/storage/migrator.js'
-import { SkillsStore } from '../src/storage/skills-store.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { runMigrations } from '@skillbrain/storage'
+import { SkillsStore } from '@skillbrain/storage'
 
 describe('SkillsStore.route — BM25 normalization regression', () => {
   let dir: string, db: any, store: SkillsStore

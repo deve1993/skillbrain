@@ -9,9 +9,9 @@
  */
 
 import { Router, json } from 'express'
-import { openDb, closeDb } from '../../storage/db.js'
-import { SkillsStore } from '../../storage/skills-store.js'
-import { AuditStore } from '../../storage/audit-store.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { SkillsStore } from '@skillbrain/storage'
+import { AuditStore } from '@skillbrain/storage'
 import type { RouteContext } from './index.js'
 
 export function createSkillsRouter(ctx: RouteContext): Router {

@@ -10,17 +10,17 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { openDb, closeDb } from '../../storage/db.js'
-import { ComponentsStore } from '../../storage/components-store.js'
-import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { ComponentsStore } from '@skillbrain/storage'
+import { getRegistryEntry, loadRegistry } from '@skillbrain/storage'
 import {
   detectDesignFiles,
   parseTailwindConfig, parseTailwindConfigFromContent,
   parseCSSVariables, parseCSSVariablesFromContent,
   parseTokensJson, parseTokensJsonFromContent,
   mergeTokenSources, type TokenSource,
-} from '../../storage/design-token-parser.js'
-import { parseComponentFile, extractUsedTokens } from '../../storage/component-parser.js'
+} from '@skillbrain/storage'
+import { parseComponentFile, extractUsedTokens } from '@skillbrain/storage'
 import { dashboardUrl } from '../../constants.js'
 import type { ToolContext } from './index.js'
 

@@ -2,14 +2,14 @@
 // Copyright (c) 2026 Pixarts — contact daniel@pixarts.eu for commercial license
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { deriveEdgeCandidates } from '../src/storage/memory-edge-derivation.js'
-import { MemoryStore } from '../src/storage/memory-store.js'
-import { openDb, closeDb } from '../src/storage/db.js'
-import { runMigrations } from '../src/storage/migrator.js'
+import { deriveEdgeCandidates } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { runMigrations } from '@skillbrain/storage'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Memory } from '../src/storage/memory-store.js'
+import type { Memory } from '@skillbrain/storage'
 
 const mem = (over: Partial<Memory>): Memory => ({
   id: over.id || 'm-x',

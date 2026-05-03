@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { openDb, closeDb } from '../src/storage/db.js'
-import { runMigrations } from '../src/storage/migrator.js'
-import { MemoryStore } from '../src/storage/memory-store.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { runMigrations } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
 
 describe('MemoryStore.search — edge expansion', () => {
   let dir: string

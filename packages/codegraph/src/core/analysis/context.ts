@@ -9,7 +9,7 @@
  */
 
 import type { ContextResult } from '../graph/types.js'
-import { GraphStore } from '../../storage/graph-store.js'
+import { GraphStore } from '@skillbrain/storage'
 
 export function getSymbolContext(store: GraphStore, symbolName: string): ContextResult | null {
   const symbol = store.getNodeByName(symbolName)

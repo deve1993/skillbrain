@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { encrypt, decrypt, isEncryptionAvailable, assertEncryptionUsable } from '../src/storage/crypto.js'
+import { encrypt, decrypt, isEncryptionAvailable, assertEncryptionUsable } from '@skillbrain/storage'
 
 const TEST_KEY = 'a'.repeat(64) // 32 bytes of 'a' in hex
 

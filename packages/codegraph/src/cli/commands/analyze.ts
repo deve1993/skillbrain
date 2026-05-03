@@ -9,10 +9,10 @@
  */
 
 import path from 'node:path'
-import { openDb, clearDb, closeDb } from '../../storage/db.js'
-import { GraphStore } from '../../storage/graph-store.js'
-import { upsertRegistry } from '../../storage/registry.js'
-import { saveMeta, loadMeta } from '../../storage/meta.js'
+import { openDb, clearDb, closeDb } from '@skillbrain/storage'
+import { GraphStore } from '@skillbrain/storage'
+import { upsertRegistry } from '@skillbrain/storage'
+import { saveMeta, loadMeta } from '@skillbrain/storage'
 import { walkFiles } from '../../utils/file-walker.js'
 import { getHeadCommit, getRepoName, isGitRepo } from '../../utils/git.js'
 import { createProject } from '../../core/parser/ts-parser.js'

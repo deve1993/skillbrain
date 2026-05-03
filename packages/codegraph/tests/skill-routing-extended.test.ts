@@ -22,8 +22,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import Database from 'better-sqlite3'
-import { runMigrations } from '../src/storage/migrator.js'
-import { SkillsStore } from '../src/storage/skills-store.js'
+import { runMigrations } from '@skillbrain/storage'
+import { SkillsStore } from '@skillbrain/storage'
 
 const TEST_KEY = 'b'.repeat(64)
 
