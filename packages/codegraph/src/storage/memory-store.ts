@@ -380,6 +380,11 @@ export class MemoryStore {
   // ── Dismissals ────────────────────────────────────
 
   dismissMemory(memoryId: string, reason?: string, userId?: string): void {
+    // Guard: FK constraint on memory_dismissals(memory_id) → memories(id).
+    // Silently no-op if the memory doesn't exist so callers (e.g. suggest dismissal
+    // after a memory was already deleted) don't surface an unexpected DB error.
+    const exists = this.stmts.getById.get(memoryId)
+    if (!exists) return
     this.stmts.insertDismissal.run(memoryId, reason ?? null, userId ?? null)
   }
 
