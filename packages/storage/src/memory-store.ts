@@ -608,18 +608,24 @@ export class MemoryStore {
     if (bm25Results.length === 0) return []
 
     // Step 2: query embedding
-    const qVec = await EmbeddingService.get().embed(query, 'query')
+    let qVec: Float32Array | null = null
+    try {
+      qVec = await EmbeddingService.get().embed(query, 'query')
+    } catch {
+      // model unavailable or threw — fall back to BM25-only
+    }
     if (!qVec) {
       // graceful degradation: no model → BM25-only
       return bm25Results.slice(0, limit)
     }
 
     // Step 3: hybrid scoring
+    // Normalize BM25 relative to the max score in this candidate set (avoids capping multi-term scores at 1)
+    const maxBm25 = Math.max(bm25Results.reduce((m, r) => Math.max(m, r.rank), 0), 1)
     const scored = bm25Results.map(({ memory, rank, edges }) => {
       const docVec = this.getEmbedding(memory.id)
       const cosineSim = docVec ? cosine(qVec, docVec) : 0
-      // Normalize BM25 rank to 0..1 (rank is already a score, cap at 1)
-      const bm25Norm = Math.min(rank, 1)
+      const bm25Norm = rank / maxBm25  // relative normalization, always 0..1
       const finalScore = 0.5 * bm25Norm + 0.5 * cosineSim
       return { memory, rank: finalScore, edges }
     })
