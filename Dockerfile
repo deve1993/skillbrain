@@ -33,11 +33,11 @@ COPY packages/codegraph/tsconfig.json ./packages/codegraph/
 # Build storage first (codegraph depends on it)
 RUN pnpm --filter @skillbrain/storage build
 
-# Build codegraph
-RUN pnpm --filter @skillbrain/codegraph build
+# Build codegraph (package name is "codegraph", not scoped)
+RUN pnpm --filter codegraph build
 
 # Deploy: resolve workspace deps into a self-contained folder
-RUN pnpm --filter @skillbrain/codegraph deploy --prod /deploy
+RUN pnpm --filter codegraph deploy --prod /deploy
 
 # Stage 2: Production
 FROM node:20-alpine AS runner
