@@ -43,6 +43,16 @@ function withMemoryStore<T>(repoPath: string, fn: (store: MemoryStore) => T): T 
   }
 }
 
+async function withMemoryStoreAsync<T>(repoPath: string, fn: (store: MemoryStore) => Promise<T>): Promise<T> {
+  const db = openDb(repoPath)
+  const store = new MemoryStore(db)
+  try {
+    return await fn(store)
+  } finally {
+    closeDb(db)
+  }
+}
+
 function withSkillsStore<T>(repoPath: string, fn: (store: SkillsStore) => T): T {
   const db = openDb(repoPath)
   const store = new SkillsStore(db)
@@ -139,7 +149,7 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
-      const results = withMemoryStore(resolved.path, (store) => store.search(query, limit, project, activeSkills))
+      const results = await withMemoryStoreAsync(resolved.path, (store) => store.searchAsync(query, limit, project, activeSkills))
 
       const formatted = results.map((r) => ({
         id: r.memory.id,

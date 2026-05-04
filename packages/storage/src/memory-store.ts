@@ -14,7 +14,7 @@ import fs from 'node:fs'
 import { randomId } from './utils/hash.js'
 import { MEMORY_DECAY_INTERVAL_HOURS, SESSION_STALE_THRESHOLD_MS } from './constants.js'
 import { deriveEdgeCandidates } from './memory-edge-derivation.js'
-import { EmbeddingService, vectorToBlob } from './embedding-service.js'
+import { EmbeddingService, vectorToBlob, blobToVector, cosine } from './embedding-service.js'
 
 // ── Session & Notification Types ───────────────────────
 
@@ -595,6 +595,37 @@ export class MemoryStore {
       rank: finalScore,
       edges,
     }))
+  }
+
+  private getEmbedding(memoryId: string): Float32Array | null {
+    const row = this.db.prepare('SELECT embedding FROM memory_embeddings WHERE memory_id = ?').get(memoryId) as { embedding: Buffer } | undefined
+    return row ? blobToVector(row.embedding) : null
+  }
+
+  async searchAsync(query: string, limit = 15, project?: string, activeSkills?: string[]): Promise<MemorySearchResult[]> {
+    // Step 1: BM25 candidates (top limit*3)
+    const bm25Results = this.search(query, limit * 3, project, activeSkills)
+    if (bm25Results.length === 0) return []
+
+    // Step 2: query embedding
+    const qVec = await EmbeddingService.get().embed(query, 'query')
+    if (!qVec) {
+      // graceful degradation: no model → BM25-only
+      return bm25Results.slice(0, limit)
+    }
+
+    // Step 3: hybrid scoring
+    const scored = bm25Results.map(({ memory, rank, edges }) => {
+      const docVec = this.getEmbedding(memory.id)
+      const cosineSim = docVec ? cosine(qVec, docVec) : 0
+      // Normalize BM25 rank to 0..1 (rank is already a score, cap at 1)
+      const bm25Norm = Math.min(rank, 1)
+      const finalScore = 0.5 * bm25Norm + 0.5 * cosineSim
+      return { memory, rank: finalScore, edges }
+    })
+
+    // Step 4: sort desc, slice to limit
+    return scored.sort((a, b) => b.rank - a.rank).slice(0, limit)
   }
 
   private bm25Rerank(candidates: Memory[], queryTokens: string[]): Array<{ memory: Memory; score: number }> {
