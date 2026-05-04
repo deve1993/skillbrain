@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.5.0",
     "better-sqlite3": "^11.8.1"
   },
   "devDependencies": {

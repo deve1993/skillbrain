@@ -80,3 +80,6 @@ export type { TokenSource } from './design-token-parser.js'
 
 // ── Graph types (re-exported for graph-store consumers) ──
 export type { GraphNode, GraphEdge, FileRecord, RepoMeta, NodeLabel, EdgeType } from './types/graph.js'
+
+// ── Embeddings ────────────────────────────────────────
+export { EmbeddingService, cosine, vectorToBlob, blobToVector } from './embedding-service.js'
