@@ -26,4 +26,5 @@ export { parseComponentFile, extractUsedTokens } from './component-parser.js';
 export { detectDesignFiles, parseTailwindConfig, parseTailwindConfigFromContent, parseCSSVariables, parseCSSVariablesFromContent, parseTokensJson, parseTokensJsonFromContent, mergeTokenSources, } from './design-token-parser.js';
 export type { TokenSource } from './design-token-parser.js';
 export type { GraphNode, GraphEdge, FileRecord, RepoMeta, NodeLabel, EdgeType } from './types/graph.js';
+export { EmbeddingService, cosine, vectorToBlob, blobToVector } from './embedding-service.js';
 //# sourceMappingURL=index.d.ts.map

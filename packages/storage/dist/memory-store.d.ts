@@ -131,6 +131,8 @@ export declare class MemoryStore {
     }>;
     query(q: MemoryQuery): Memory[];
     search(query: string, limit?: number, project?: string, activeSkills?: string[]): MemorySearchResult[];
+    private getEmbedding;
+    searchAsync(query: string, limit?: number, project?: string, activeSkills?: string[]): Promise<MemorySearchResult[]>;
     private bm25Rerank;
     private closetBoost;
     getEdges(memoryId: string): MemoryEdge[];
@@ -183,6 +185,7 @@ export declare class MemoryStore {
     };
     private stripSystemNoise;
     private populateFts;
+    private upsertEmbedding;
     private rowToMemory;
     private rowToEdge;
     startSession(sessionName: string, project?: string, workspacePath?: string, taskDescription?: string, branch?: string): SessionLog;

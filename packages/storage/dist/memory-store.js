@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import { randomId } from './utils/hash.js';
 import { MEMORY_DECAY_INTERVAL_HOURS, SESSION_STALE_THRESHOLD_MS } from './constants.js';
 import { deriveEdgeCandidates } from './memory-edge-derivation.js';
+import { EmbeddingService, vectorToBlob, blobToVector, cosine } from './embedding-service.js';
 // ── Store ──────────────────────────────────────────────
 const INITIAL_CONFIDENCE_CAPS = {
     Pattern: 8,
@@ -175,6 +176,16 @@ export class MemoryStore {
             // log only — never block memory_add on edge derivation failure
             console.error('[memory-store] edge derivation failed', err);
         }
+        // async fire-and-forget — never blocks add() return
+        try {
+            const svc = EmbeddingService.get();
+            const text = `${memory.context}\n${memory.solution ?? ''}`.slice(0, 2000);
+            svc.embed(text, 'passage').then((vec) => {
+                if (vec)
+                    this.upsertEmbedding(memory.id, vec);
+            }).catch((err) => console.error('[memory-store] embed on-add failed', err));
+        }
+        catch { /* swallow */ }
         return memory;
     }
     queryRecentForDerivation(subject) {
@@ -388,6 +399,40 @@ export class MemoryStore {
             rank: finalScore,
             edges,
         }));
+    }
+    getEmbedding(memoryId) {
+        const row = this.db.prepare('SELECT embedding FROM memory_embeddings WHERE memory_id = ?').get(memoryId);
+        return row ? blobToVector(row.embedding) : null;
+    }
+    async searchAsync(query, limit = 15, project, activeSkills) {
+        // Step 1: BM25 candidates (top limit*3)
+        const bm25Results = this.search(query, limit * 3, project, activeSkills);
+        if (bm25Results.length === 0)
+            return [];
+        // Step 2: query embedding
+        let qVec = null;
+        try {
+            qVec = await EmbeddingService.get().embed(query, 'query');
+        }
+        catch {
+            // model unavailable or threw — fall back to BM25-only
+        }
+        if (!qVec) {
+            // graceful degradation: no model → BM25-only
+            return bm25Results.slice(0, limit);
+        }
+        // Step 3: hybrid scoring
+        // Normalize BM25 relative to the max score in this candidate set (avoids capping multi-term scores at 1)
+        const maxBm25 = Math.max(bm25Results.reduce((m, r) => Math.max(m, r.rank), 0), 1);
+        const scored = bm25Results.map(({ memory, rank, edges }) => {
+            const docVec = this.getEmbedding(memory.id);
+            const cosineSim = docVec ? cosine(qVec, docVec) : 0;
+            const bm25Norm = rank / maxBm25; // relative normalization, always 0..1
+            const finalScore = 0.5 * bm25Norm + 0.5 * cosineSim;
+            return { memory, rank: finalScore, edges };
+        });
+        // Step 4: sort desc, slice to limit
+        return scored.sort((a, b) => b.rank - a.rank).slice(0, limit);
     }
     bm25Rerank(candidates, queryTokens) {
         if (candidates.length === 0)
@@ -681,6 +726,12 @@ export class MemoryStore {
         catch {
             // Table may not exist on old DBs — silently skip
         }
+    }
+    upsertEmbedding(memoryId, vec) {
+        this.db.prepare(`
+      INSERT INTO memory_embeddings (memory_id, embedding) VALUES (?, ?)
+      ON CONFLICT(memory_id) DO UPDATE SET embedding = excluded.embedding, created_at = datetime('now')
+    `).run(memoryId, vectorToBlob(vec));
     }
     // ── Row Mappers ───────────────────────────────────
     rowToMemory(row) {

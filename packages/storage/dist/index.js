@@ -31,4 +31,6 @@ export { startDecayScheduler } from './decay-scheduler.js';
 export { scanProject } from './project-scanner.js';
 export { parseComponentFile, extractUsedTokens } from './component-parser.js';
 export { detectDesignFiles, parseTailwindConfig, parseTailwindConfigFromContent, parseCSSVariables, parseCSSVariablesFromContent, parseTokensJson, parseTokensJsonFromContent, mergeTokenSources, } from './design-token-parser.js';
+// ── Embeddings ────────────────────────────────────────
+export { EmbeddingService, cosine, vectorToBlob, blobToVector } from './embedding-service.js';
 //# sourceMappingURL=index.js.map

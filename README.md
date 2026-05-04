@@ -108,6 +108,15 @@ Each team member rotates their own MCP access token from the **Profile** page. N
 
 ---
 
+## What's New — May 2026
+
+- **Semantic search (vector embeddings)** — `memory_search` now uses hybrid retrieval: `0.5 × BM25 + 0.5 × cosine similarity` via `Xenova/multilingual-e5-small` (384-dim, CPU-only, IT+EN). Memories that share meaning surface even without keyword overlap.
+- **Embed-on-add** — every new memory is embedded in the background automatically (fire-and-forget, never blocks `memory_add`). First call downloads the model (~118 MB) to the local cache.
+- **Graceful degradation** — if the model is unavailable, retrieval falls back to BM25-only. No breaking changes.
+- **Backfill script** — `pnpm backfill:embeddings` re-embeds all existing memories in batches of 32 (idempotent, safe to re-run after deploy).
+
+---
+
 ## What's New — April 2026
 
 The last wave of releases turned SkillBrain from a single-user tool into a team platform. Everything below ships in the current build:
@@ -161,7 +170,7 @@ skill_update(name)   → update a skill, history kept in skill_versions
 ```
 
 ### 🧠 2. Memory Graph
-Typed knowledge graph with 8 memory types, 5 relationship types, and 3 scopes, stored in SQLite. Retrieval uses **BM25 re-ranking** over FTS5 trigram candidates (partial/prefix match), plus **closet boost** for project-context relevance.
+Typed knowledge graph with 8 memory types, 5 relationship types, and 3 scopes, stored in SQLite. Retrieval uses **hybrid scoring** (`0.5 × BM25 + 0.5 × cosine similarity`) via `multilingual-e5-small` (384-dim, CPU-only, IT+EN) over FTS5 trigram candidates (partial/prefix match: "serv" → "server"), plus **closet boost** for project-context relevance. Falls back to BM25-only when the model is unavailable.
 
 **Memory types:** Fact, Preference, Decision, Pattern, AntiPattern, BugFix, Goal, Todo
 **Edge types:** RelatedTo, Updates, Contradicts, CausedBy, PartOf
@@ -266,7 +275,7 @@ The proxy auto-detects your project (from `package.json` or folder name), git br
 | Tool | Purpose |
 |------|---------|
 | `memory_add` | Save a memory (auto-detects contradictions, supports `scope` and `draft`) |
-| `memory_search` | Full-text search across all memory fields |
+| `memory_search` | Hybrid search (BM25 + vector cosine) across all memory fields |
 | `memory_query` | Filter by type, project, scope, author, skill, confidence |
 | `memory_load` | Load top-scored memories for current session |
 | `memory_add_edge` | Create relationships between memories |
@@ -363,7 +372,7 @@ flowchart TB
         Projects["📁 Projects + Work Log + Merge"]
         Components["🧩 Components + Design Systems"]
         Audit["🧾 Audit log<br/><sub>review_audit · skill_versions</sub>"]
-        Migrations["⚙️ 19 migrations · 000 → 018"]
+        Migrations["⚙️ 24 migrations · 000 → 023"]
     end
 
     CC -- stdio --> Proxy
@@ -467,7 +476,7 @@ Each team member gets their own API key from the dashboard and configures:
 | Feature | CLAUDE.md | Mem0 / Zep | Spacebot | **SkillBrain** |
 |---------|-----------|------------|----------|----------------|
 | Memory | Manual text | Vector DB | Typed graph (Rust) | **Typed graph (SQLite + MCP)** |
-| Retrieval | None | Cosine similarity | Keyword | **BM25 + trigram FTS5 + closet boost** |
+| Retrieval | None | Cosine similarity | Keyword | **BM25 + vector embeddings + trigram FTS5 + closet boost** |
 | Cross-session | No | API calls | Chat channels | **Shared SQLite via proxy** |
 | Memory types | None | Key-value | 8 types | **8 types + 5 edge types + 3 scopes** |
 | Contradiction detection | No | No | No | **Auto on save** |
