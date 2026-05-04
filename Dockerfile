@@ -36,8 +36,8 @@ RUN pnpm --filter @skillbrain/storage build
 # Build codegraph (package name is "codegraph", not scoped)
 RUN pnpm --filter codegraph build
 
-# Deploy: resolve workspace deps into a self-contained folder
-RUN pnpm --filter codegraph deploy --prod /deploy
+# Deploy: resolve workspace deps into a self-contained folder (--legacy required by pnpm v10)
+RUN pnpm --filter codegraph deploy --prod --legacy /deploy
 
 # Stage 2: Production
 FROM node:20-alpine AS runner
@@ -62,7 +62,7 @@ COPY packages/codegraph/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 # Persistent data volume
-RUN mkdir -p /data/.codegraph && chown -R codegraph:codegraph /data
+RUN mkdir -p /data/.codegraph /data/.hf-cache && chown -R codegraph:codegraph /data
 
 ARG CODEGRAPH_AUTH_TOKEN
 ARG ANTHROPIC_API_KEY
@@ -73,6 +73,7 @@ ARG LEGACY_TOKEN_USER_EMAIL
 ENV NODE_ENV=production
 ENV PORT=3737
 ENV SKILLBRAIN_ROOT=/data
+ENV TRANSFORMERS_CACHE=/data/.hf-cache
 ENV CODEGRAPH_AUTH_TOKEN=${CODEGRAPH_AUTH_TOKEN}
 ENV ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 ENV DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
