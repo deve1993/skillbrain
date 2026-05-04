@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import { randomId } from './utils/hash.js'
 import { MEMORY_DECAY_INTERVAL_HOURS, SESSION_STALE_THRESHOLD_MS } from './constants.js'
 import { deriveEdgeCandidates } from './memory-edge-derivation.js'
+import { EmbeddingService, vectorToBlob } from './embedding-service.js'
 
 // ── Session & Notification Types ───────────────────────
 
@@ -349,6 +350,15 @@ export class MemoryStore {
       // log only — never block memory_add on edge derivation failure
       console.error('[memory-store] edge derivation failed', err)
     }
+
+    // async fire-and-forget — never blocks add() return
+    try {
+      const svc = EmbeddingService.get()
+      const text = `${memory.context}\n${memory.solution ?? ''}`.slice(0, 2000)
+      svc.embed(text, 'passage').then((vec) => {
+        if (vec) this.upsertEmbedding(memory.id, vec)
+      }).catch((err) => console.error('[memory-store] embed on-add failed', err))
+    } catch { /* swallow */ }
 
     return memory
   }
@@ -936,6 +946,13 @@ export class MemoryStore {
     } catch {
       // Table may not exist on old DBs — silently skip
     }
+  }
+
+  private upsertEmbedding(memoryId: string, vec: Float32Array): void {
+    this.db.prepare(`
+      INSERT INTO memory_embeddings (memory_id, embedding) VALUES (?, ?)
+      ON CONFLICT(memory_id) DO UPDATE SET embedding = excluded.embedding, created_at = datetime('now')
+    `).run(memoryId, vectorToBlob(vec))
   }
 
   // ── Row Mappers ───────────────────────────────────
