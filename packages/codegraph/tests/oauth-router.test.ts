@@ -3,9 +3,9 @@ import express from 'express'
 import http from 'node:http'
 import crypto from 'node:crypto'
 import Database from 'better-sqlite3'
-import { runMigrations } from '../src/storage/migrator.js'
+import { runMigrations } from '@skillbrain/storage'
 import { createOAuthRouter, verifyOAuthBearer, type OAuthRouterDeps } from '../src/mcp/oauth-router.js'
-import { OAuthStore } from '../src/storage/oauth-store.js'
+import { OAuthStore } from '@skillbrain/storage'
 
 const TEST_KEY = 'd'.repeat(64)
 

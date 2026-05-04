@@ -71,7 +71,7 @@ program
   .argument('[path]', 'Path to workspace root', '.')
   .action(async (targetPath: string) => {
     try {
-      const { migrate } = await import('./storage/migrate-learnings.js')
+      const { migrate } = await import('@skillbrain/storage')
       const result = migrate(targetPath)
       console.log(`✅ Migration complete:`)
       console.log(`   Migrated: ${result.migrated}`)
@@ -90,7 +90,7 @@ program
   .argument('[path]', 'Path to workspace root', '.')
   .action(async (targetPath: string) => {
     try {
-      const { importSkills } = await import('./storage/import-skills.js')
+      const { importSkills } = await import('@skillbrain/storage')
       const result = importSkills(targetPath)
       console.log(`✅ Import complete:`)
       console.log(`   Skills: ${result.skills}`)

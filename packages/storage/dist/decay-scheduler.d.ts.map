@@ -1,0 +1,1 @@
+{"version":3,"file":"decay-scheduler.d.ts","sourceRoot":"","sources":["../src/decay-scheduler.ts"],"names":[],"mappings":"AAGA,MAAM,WAAW,kBAAkB;IACjC,MAAM,EAAE,MAAM,IAAI,GAAG,OAAO,CAAC,IAAI,CAAC,CAAA;IAClC,UAAU,EAAE,MAAM,CAAA;CACnB;AAED,wBAAgB,mBAAmB,CAAC,IAAI,EAAE,kBAAkB,GAAG,MAAM,IAAI,CAYxE"}

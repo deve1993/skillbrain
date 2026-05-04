@@ -9,7 +9,7 @@
  */
 
 import path from 'node:path'
-import { loadMeta } from '../../storage/meta.js'
+import { loadMeta } from '@skillbrain/storage'
 import { getHeadCommit, getRepoName } from '../../utils/git.js'
 import { info, warn, success } from '../../utils/logger.js'
 

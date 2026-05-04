@@ -1,0 +1,14 @@
+{
+  "name": "skillbrain-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SkillBrain — Self-hosted AI memory platform (monorepo root)",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "backfill:embeddings": "pnpm --filter @skillbrain/storage backfill:embeddings"
+  },
+  "author": "Daniel De Vecchi",
+  "license": "AGPL-3.0-or-later"
+}

@@ -9,7 +9,7 @@
  */
 
 import type { GraphNode, ImpactResult, ImpactItem } from '../graph/types.js'
-import { GraphStore } from '../../storage/graph-store.js'
+import { GraphStore } from '@skillbrain/storage'
 
 export function analyzeImpact(
   store: GraphStore,

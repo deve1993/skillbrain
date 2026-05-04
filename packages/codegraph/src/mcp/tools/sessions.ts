@@ -10,17 +10,17 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { openDb, closeDb } from '../../storage/db.js'
-import { MemoryStore } from '../../storage/memory-store.js'
-import { ComponentsStore } from '../../storage/components-store.js'
-import { ProjectsStore } from '../../storage/projects-store.js'
-import { UsersEnvStore } from '../../storage/users-env-store.js'
-import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
-import { SkillsStore } from '../../storage/skills-store.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
+import { ComponentsStore } from '@skillbrain/storage'
+import { ProjectsStore } from '@skillbrain/storage'
+import { UsersEnvStore } from '@skillbrain/storage'
+import { getRegistryEntry, loadRegistry } from '@skillbrain/storage'
+import { SkillsStore } from '@skillbrain/storage'
 import {
   detectDesignFiles, parseTailwindConfig, parseCSSVariables,
   parseTokensJson, mergeTokenSources, type TokenSource,
-} from '../../storage/design-token-parser.js'
+} from '@skillbrain/storage'
 import { dashboardUrl } from '../../constants.js'
 import type { ToolContext } from './index.js'
 
@@ -147,6 +147,20 @@ export function registerSessionTools(server: McpServer, ctx: ToolContext): void 
         // Index session content as verbatim searchable chunks (MemPalace pattern)
         const fullText = [summary, deliverables, nextSteps].filter(Boolean).join('\n\n')
         if (fullText.length > 50) store.indexSessionChunks(sessionId, fullText, undefined, new Date().toISOString())
+
+        // Auto-reinforce memories used in this session if it completed successfully
+        if (status === 'completed') {
+          try {
+            const usage = store.getMemoryUsageInSession(sessionId)
+            const memoryIds = Array.from(new Set(usage.map((u) => u.memoryId)))
+            if (memoryIds.length > 0) {
+              const today = new Date().toISOString().split('T')[0]
+              store.applyDecay(memoryIds, today)
+            }
+          } catch (err) {
+            console.error('[session_end] auto-reinforce failed', err)
+          }
+        }
       })
 
       // Skill proposal analysis: group memories from this session by skill tag

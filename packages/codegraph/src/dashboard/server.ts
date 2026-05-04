@@ -13,12 +13,12 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadRegistry } from '../storage/registry.js'
-import { openDb, closeDb } from '../storage/db.js'
-import { GraphStore } from '../storage/graph-store.js'
-import { MemoryStore } from '../storage/memory-store.js'
-import { ComponentsStore } from '../storage/components-store.js'
-import { SkillsStore } from '../storage/skills-store.js'
+import { loadRegistry } from '@skillbrain/storage'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { GraphStore } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
+import { ComponentsStore } from '@skillbrain/storage'
+import { SkillsStore } from '@skillbrain/storage'
 
 const PORT = parseInt(process.env.PORT || '3737', 10)
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || process.cwd()

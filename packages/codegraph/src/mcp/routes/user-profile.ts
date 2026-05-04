@@ -11,9 +11,9 @@
 import { Router, json } from 'express'
 import { randomUUID } from 'node:crypto'
 import crypto from 'node:crypto'
-import { openDb, closeDb } from '../../storage/db.js'
-import { UsersEnvStore } from '../../storage/users-env-store.js'
-import { AuditStore } from '../../storage/audit-store.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { UsersEnvStore } from '@skillbrain/storage'
+import { AuditStore } from '@skillbrain/storage'
 import { ENV_TEMPLATES } from '../env-templates.js'
 import type { RouteContext } from './index.js'
 

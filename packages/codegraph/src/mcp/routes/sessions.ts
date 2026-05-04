@@ -9,8 +9,8 @@
  */
 
 import { Router } from 'express'
-import { openDb, closeDb } from '../../storage/db.js'
-import { MemoryStore } from '../../storage/memory-store.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
 import type { RouteContext } from './index.js'
 
 export function createSessionsRouter(ctx: RouteContext): Router {

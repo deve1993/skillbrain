@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import Database from 'better-sqlite3'
 import crypto from 'node:crypto'
-import { runMigrations } from '../src/storage/migrator.js'
-import { encrypt, decrypt, rotateKey } from '../src/storage/crypto.js'
+import { runMigrations } from '@skillbrain/storage'
+import { encrypt, decrypt, rotateKey } from '@skillbrain/storage'
 
 const OLD_KEY = 'a'.repeat(64)
 const NEW_KEY = 'b'.repeat(64)

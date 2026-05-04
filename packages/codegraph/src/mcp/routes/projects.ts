@@ -9,12 +9,12 @@
  */
 
 import { Router, json } from 'express'
-import { openDb, closeDb } from '../../storage/db.js'
-import { MemoryStore } from '../../storage/memory-store.js'
-import { ProjectsStore } from '../../storage/projects-store.js'
-import { ComponentsStore } from '../../storage/components-store.js'
-import { AuditStore } from '../../storage/audit-store.js'
-import { decrypt } from '../../storage/crypto.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
+import { ProjectsStore } from '@skillbrain/storage'
+import { ComponentsStore } from '@skillbrain/storage'
+import { AuditStore } from '@skillbrain/storage'
+import { decrypt } from '@skillbrain/storage'
 import type { RouteContext } from './index.js'
 
 export function createProjectsRouter(ctx: RouteContext): Router {

@@ -10,10 +10,10 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { openDb, closeDb } from '../../storage/db.js'
-import { MemoryStore } from '../../storage/memory-store.js'
-import { SkillsStore } from '../../storage/skills-store.js'
-import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
+import { SkillsStore } from '@skillbrain/storage'
+import { getRegistryEntry, loadRegistry } from '@skillbrain/storage'
 import { dashboardUrl } from '../../constants.js'
 import type { ToolContext } from './index.js'
 
@@ -38,6 +38,16 @@ function withMemoryStore<T>(repoPath: string, fn: (store: MemoryStore) => T): T 
   const store = new MemoryStore(db)
   try {
     return fn(store)
+  } finally {
+    closeDb(db)
+  }
+}
+
+async function withMemoryStoreAsync<T>(repoPath: string, fn: (store: MemoryStore) => Promise<T>): Promise<T> {
+  const db = openDb(repoPath)
+  const store = new MemoryStore(db)
+  try {
+    return await fn(store)
   } finally {
     closeDb(db)
   }
@@ -139,7 +149,7 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
-      const results = withMemoryStore(resolved.path, (store) => store.search(query, limit, project, activeSkills))
+      const results = await withMemoryStoreAsync(resolved.path, (store) => store.searchAsync(query, limit, project, activeSkills))
 
       const formatted = results.map((r) => ({
         id: r.memory.id,
@@ -196,9 +206,10 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
       project: z.string().optional().describe('Current project name'),
       activeSkills: z.array(z.string()).optional().describe('Skills active in this session'),
       limit: z.number().optional().default(15),
+      sessionId: z.string().optional().describe('Session ID for usage tracking and auto-reinforce on session_end'),
       repo: z.string().optional(),
     },
-    async ({ project, activeSkills, limit, repo }) => {
+    async ({ project, activeSkills, limit, sessionId, repo }) => {
       const resolved = resolveMemoryRepo(repo)
       if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
 
@@ -220,6 +231,20 @@ export function registerMemoryTools(server: McpServer, _ctx: ToolContext): void 
           tags: r.memory.tags,
         }
       })
+
+
+      // Best-effort usage logging — never fail the load
+      if (sessionId) {
+        try {
+          withMemoryStore(resolved.path, (store) => {
+            for (const r of results) {
+              store.logMemoryUsage(r.memory.id, sessionId, 'loaded', project)
+            }
+          })
+        } catch (err) {
+          console.error('[memory_load] usage logging failed', err)
+        }
+      }
 
       const summary = `📚 Loaded ${formatted.length} memories\n` +
         Object.entries(byType).map(([t, c]) => `   ${t}: ${c}`).join('\n')
@@ -402,6 +427,78 @@ Only save what would SAVE FUTURE TIME. Quality over quantity.`
       })
 
       return { content: [{ type: 'text', text: `Logged: ${type} ${accepted ? 'accepted' : 'rejected'}` }] }
+    },
+  )
+
+  // --- Tool: memory_health ---
+  server.tool(
+    'memory_health',
+    'Memory health report: counts by status, at-risk memories (low confidence + stale), contradictions, pending review queue, top decay candidates.',
+    { repo: z.string().optional() },
+    async ({ repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found. Run codegraph_list_repos.' }] }
+
+      const h = withMemoryStore(resolved.path, (store) => store.memoryHealth())
+      const decayPreview = h.topDecayCandidates.slice(0, 5).map((d) => `${d.id}(stale:${d.sessionsStale})`).join(', ')
+      return {
+        content: [{
+          type: 'text',
+          text:
+`📊 Memory Health
+Status: active=${h.totals.active ?? 0}, pending-review=${h.totals['pending-review'] ?? 0}, deprecated=${h.totals.deprecated ?? 0}
+At-risk: ${h.atRisk.length}
+Contradictions: ${h.contradictions.length}
+Pending review: ${h.pendingReview}
+Top decay candidates: ${decayPreview || '(none)'}`,
+        }],
+      }
+    },
+  )
+
+  // --- Tool: memory_dismiss ---
+  server.tool(
+    'memory_dismiss',
+    'Mark a memory as wrong/outdated. Each dismissal lowers retrieval rank (cap -30%). Reversible by deleting the row.',
+    {
+      memoryId: z.string(),
+      reason: z.string().optional(),
+      repo: z.string().optional(),
+    },
+    async ({ memoryId, reason, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found. Run codegraph_list_repos.' }] }
+
+      const result = withMemoryStore(resolved.path, (store) => {
+        store.dismissMemory(memoryId, reason)
+        return store.dismissalCount(memoryId)
+      })
+      return {
+        content: [{
+          type: 'text',
+          text: `memory_dismiss: ${memoryId} (total dismissals: ${result})`,
+        }],
+      }
+    },
+  )
+
+  // --- Tool: memory_apply ---
+  server.tool(
+    'memory_apply',
+    'Mark a memory as actually used in a session. Logged as applied action; memories applied/loaded in a session that ends with status=completed are auto-reinforced.',
+    {
+      memoryId: z.string(),
+      sessionId: z.string().optional(),
+      project: z.string().optional(),
+      repo: z.string().optional(),
+    },
+    async ({ memoryId, sessionId, project, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+      withMemoryStore(resolved.path, (store) => {
+        store.logMemoryUsage(memoryId, sessionId, 'applied', project)
+      })
+      return { content: [{ type: 'text', text: `memory_apply: ${memoryId} (session: ${sessionId ?? 'n/a'})` }] }
     },
   )
 }

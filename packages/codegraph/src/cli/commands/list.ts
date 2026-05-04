@@ -8,7 +8,7 @@
  * Commercial license: daniel@pixarts.eu
  */
 
-import { loadRegistry } from '../../storage/registry.js'
+import { loadRegistry } from '@skillbrain/storage'
 
 export function listCommand(): void {
   const entries = loadRegistry()

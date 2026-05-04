@@ -10,8 +10,8 @@
 
 import path from 'node:path'
 import fs from 'node:fs'
-import { getCodegraphDir } from '../../storage/db.js'
-import { removeFromRegistry } from '../../storage/registry.js'
+import { getCodegraphDir } from '@skillbrain/storage'
+import { removeFromRegistry } from '@skillbrain/storage'
 import { getRepoName } from '../../utils/git.js'
 import { success, warn } from '../../utils/logger.js'
 

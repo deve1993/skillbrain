@@ -1,0 +1,24 @@
+/*
+ * SkillBrain — Self-hosted AI memory platform
+ * Copyright (c) 2026 Daniel De Vecchi
+ *
+ * Licensed under AGPL-3.0-or-later.
+ * See LICENSE for details.
+ *
+ * Commercial license: daniel@pixarts.eu
+ */
+
+const COLORS = {
+  reset: '\x1b[0m',
+  yellow: '\x1b[33m',
+}
+
+let quiet = false
+
+export function setQuiet(value: boolean): void {
+  quiet = value
+}
+
+export function warn(msg: string): void {
+  if (!quiet) console.log(`${COLORS.yellow}[skillbrain]${COLORS.reset} ${msg}`)
+}

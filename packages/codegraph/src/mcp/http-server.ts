@@ -29,12 +29,13 @@ import crypto from 'node:crypto'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import nodemailer from 'nodemailer'
+import { startDecayScheduler } from '@skillbrain/storage'
 import { createMcpServer } from './server.js'
 import { createOAuthRouter, verifyOAuthBearer } from './oauth-router.js'
-import { loadRegistry, upsertRegistry } from '../storage/registry.js'
-import { openDb, closeDb } from '../storage/db.js'
-import { MemoryStore } from '../storage/memory-store.js'
-import { assertEncryptionUsable, decrypt } from '../storage/crypto.js'
+import { loadRegistry, upsertRegistry } from '@skillbrain/storage'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
+import { assertEncryptionUsable, decrypt } from '@skillbrain/storage'
 import { dashboardUrl } from '../constants.js'
 import type { RouteContext } from './routes/index.js'
 import { createMemoriesRouter } from './routes/memories.js'
@@ -686,6 +687,15 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   API:        http://localhost:${port}/api/health
   Auth:       ${authToken ? 'Bearer token required for /mcp + /sse' : 'disabled'}
 `)
+    if (process.env.SKILLBRAIN_DECAY_DISABLED !== '1') {
+      const db = openDb(SKILLBRAIN_ROOT)
+      const memStore = new MemoryStore(db)
+      startDecayScheduler({
+        runner: () => { memStore.autoDecayIfDue() },
+        intervalMs: 24 * 60 * 60 * 1000, // 24h
+      })
+      console.log('[http-server] decay scheduler started (interval: 24h)')
+    }
   })
 }
 

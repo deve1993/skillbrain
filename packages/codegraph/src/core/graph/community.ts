@@ -10,7 +10,7 @@
 
 import type { GraphNode, GraphEdge } from './types.js'
 import { nodeId, edgeId, randomId } from '../../utils/hash.js'
-import { GraphStore } from '../../storage/graph-store.js'
+import { GraphStore } from '@skillbrain/storage'
 import path from 'node:path'
 
 /**

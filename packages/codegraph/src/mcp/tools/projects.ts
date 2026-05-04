@@ -10,11 +10,11 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { openDb, closeDb } from '../../storage/db.js'
-import { MemoryStore } from '../../storage/memory-store.js'
-import { ProjectsStore } from '../../storage/projects-store.js'
-import { scanProject } from '../../storage/project-scanner.js'
-import { getRegistryEntry, loadRegistry } from '../../storage/registry.js'
+import { openDb, closeDb } from '@skillbrain/storage'
+import { MemoryStore } from '@skillbrain/storage'
+import { ProjectsStore } from '@skillbrain/storage'
+import { scanProject } from '@skillbrain/storage'
+import { getRegistryEntry, loadRegistry } from '@skillbrain/storage'
 import type { ToolContext } from './index.js'
 
 const MEMORY_REPO_NAME = process.env.SKILLBRAIN_MEMORY_REPO || 'skillbrain'
