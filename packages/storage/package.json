@@ -15,7 +15,8 @@
     "build": "tsc && rm -rf dist/migrations && mkdir -p dist && cp -r src/migrations dist/migrations",
     "dev": "tsc --watch",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "backfill:embeddings": "tsx scripts/backfill-embeddings.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.5.0",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.7.0",
     "vitest": "^3.2.1"
   },

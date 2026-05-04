@@ -6,7 +6,8 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "backfill:embeddings": "pnpm --filter @skillbrain/storage backfill:embeddings"
   },
   "author": "Daniel De Vecchi",
   "license": "AGPL-3.0-or-later"
