@@ -75,3 +75,6 @@ skills-lock.json
 # Node modules at any depth (workspace setup)
 node_modules/
 **/node_modules/
+
+# Git worktrees
+.worktrees/
