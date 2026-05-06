@@ -13,14 +13,15 @@
 
 Your AI assistant forgets everything when you close the session. For your whole team, that's a productivity tax you pay every single day. SkillBrain fixes it — **permanently, collectively, with audit trails.**
 
-**50 MCP tools, 258 skills, multi-user authentication, 11-page dashboard, team-safe knowledge graph — served from a single self-hosted server.** Claude Code, Claude Desktop, or any MCP client connects and gets the full system.
+**55 MCP tools, 258 skills, multi-user authentication, 12-page dashboard, collaborative whiteboards, team-safe knowledge graph — served from a single self-hosted server.** Claude Code, Claude Desktop, or any MCP client connects and gets the full system.
 
-![MCP Tools](https://img.shields.io/badge/MCP%20tools-50-34d399)
+![MCP Tools](https://img.shields.io/badge/MCP%20tools-55-34d399)
 ![Skills](https://img.shields.io/badge/skills-258-blue)
 ![Multi-User](https://img.shields.io/badge/multi--user-teams%20%2B%20API%20keys-f97316)
 ![Memory Graph](https://img.shields.io/badge/Memory%20Graph-typed%20SQLite-8b5cf6)
+![Whiteboards](https://img.shields.io/badge/Whiteboards-FigJam--style-6366f1)
 ![Dual Mode](https://img.shields.io/badge/MCP-stdio%20%2B%20HTTP-f59e0b)
-![Dashboard](https://img.shields.io/badge/Dashboard-11%20pages-ec4899)
+![Dashboard](https://img.shields.io/badge/Dashboard-12%20pages-ec4899)
 ![Review System](https://img.shields.io/badge/review-draft%20%E2%86%92%20approve-06b6d4)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-blueviolet)
 ![Claude Desktop](https://img.shields.io/badge/Claude%20Desktop-compatible-blueviolet)
@@ -110,6 +111,7 @@ Each team member rotates their own MCP access token from the **Profile** page. N
 
 ## What's New — May 2026
 
+- **Whiteboards (FigJam-style, integrated with SkillBrain data)** — full collaborative whiteboard with infinite canvas, sticky notes, frames, shapes, code blocks, free-hand pen, images, emoji stamps, and connectors. **The killer feature**: drag SkillBrain memories/skills/sessions/projects directly onto the canvas as live cards, double-click to edit them inline, and run **14 deterministic generators** to auto-build boards from your data (by-tag, by-type, by-project, by-skill, by-author, recent, most-used, decisions-log, antipatterns, open-todos, session-timeline, skill-graph, project-overview, semantic-cluster). Includes async collaboration (comments + @mention email + in-app notification inbox + heartbeat presence avatars), 5 templates (Retro, Brainstorm, Kanban, OKR, Mind-map), undo/redo, snap-to-grid + alignment guides, multi-handle resize, group/ungroup, lock, dot voting, timer, color-by-author, markdown sticky, syntax-highlighted code, version snapshots auto-saved hourly, soft-delete trash, pin/favorites, tags + search, read-only public share links, full board export (PNG/JPG/PDF/JSON), MCP exposure (5 new tools), and Figma-style left vertical sidebar. Zero npm dependencies (vanilla JS, ~3000 LOC), MIT-only vendor libs (marked, Prism, html2canvas) self-hosted in `/vendor/`.
 - **Semantic search (vector embeddings)** — `memory_search` now uses hybrid retrieval: `0.5 × BM25 + 0.5 × cosine similarity` via `Xenova/multilingual-e5-small` (384-dim, CPU-only, IT+EN). Memories that share meaning surface even without keyword overlap.
 - **Embed-on-add** — every new memory is embedded in the background automatically (fire-and-forget, never blocks `memory_add`). First call downloads the model (~118 MB) to the local cache.
 - **Graceful degradation** — if the model is unavailable, retrieval falls back to BM25-only. No breaking changes.
@@ -151,12 +153,14 @@ The last wave of releases turned SkillBrain from a single-user tool into a team 
 | **Team collaboration** | Isolated inboxes / Slack | Shared DB, `team` scope, per-user ownership |
 | **Access control** | Trust everyone | Per-user API keys + audit log |
 | **Knowledge curation** | Everything auto-merged | `draft` status + approval queue |
+| **Brainstorm / planning meeting** | Miro/FigJam disconnected from your data | Whiteboard with 14 generators that pull memories/decisions/sessions live |
+| **Visual project handoff** | Slides + 5 stale wikis | Project overview board · share read-only link · auto-extract memories from retro |
 
 ---
 
 ## What Is SkillBrain?
 
-A **self-improving AI brain** deployed on your server, with multi-user authentication and team-safe storage. Twelve integrated systems:
+A **self-improving AI brain** deployed on your server, with multi-user authentication and team-safe storage. Thirteen integrated systems:
 
 ### 📚 1. Skills-as-a-Service (258 skills)
 Domain knowledge served via MCP: Next.js, Stripe, SEO, CRO, Payload CMS, Docker, React Native, design systems, and more. Loaded on demand.
@@ -215,7 +219,7 @@ session_resume({ project })   → full context to continue work
 ```
 
 ### 📊 11. Hub Dashboard
-Web dashboard served on the same port as the MCP HTTP server. Bearer-token auth shared with MCP. **Eleven pages:**
+Web dashboard served on the same port as the MCP HTTP server. Bearer-token auth shared with MCP. **Twelve pages:**
 
 - **Home** — stats, recent memories, sessions
 - **Projects** — all projects with status and context
@@ -223,6 +227,7 @@ Web dashboard served on the same port as the MCP HTTP server. Bearer-token auth 
 - **Skills** — browse/search 258 skills, edit & version
 - **Memories** — explore memories with scope / type / project / author filters
 - **Sessions** — timeline of all sessions across the team
+- **Whiteboards** — list, search, pin, tag, multi-select, trash + restore
 - **Components** — component catalog with design-token linking
 - **Design Systems** — scan, merge and inspect design tokens
 - **Team** — invite users, assign roles, manage members
@@ -231,6 +236,17 @@ Web dashboard served on the same port as the MCP HTTP server. Bearer-token auth 
 
 ### ⚡ 12. Auto-Session Tracking
 The proxy auto-detects your project (from `package.json` or folder name), git branch, and client type (Code vs Desktop). Sessions are created, heart-beated and closed automatically.
+
+### 🎨 13. Whiteboards **(NEW — May 2026)**
+A FigJam-style infinite canvas, but **wired to your SkillBrain data**. Drag any memory / skill / session / project onto the board as a live card and edit it in place. Run **14 generators** to auto-build boards from your knowledge graph (by tag, by type, by project, by skill, by author, recent, most-used, decisions log, antipatterns, open todos, session timeline, skill graph, project overview, semantic cluster via K-means + embeddings). Sticky notes with markdown, code blocks with syntax highlighting, frames, free-hand pen, shapes (rect/ellipse/triangle), images (drag-drop, base64 inline), emoji stamps, connectors with 4 kinds (related/depends-on/blocks/leads-to). Full async collaboration: comments threading, `@email` mentions (email + in-app inbox), heartbeat-based presence avatars, dot voting, timer, color-by-author. 5 templates (Retro, Brainstorm 3-step, Kanban, OKR, Mind-map). Auto-snapshots hourly, soft-delete trash + restore, pin/favorites, tags, search across boards, read-only public share links, export PNG/JPG/PDF/JSON. Zero JS dependencies (vanilla, ~3000 LOC); only 3 MIT vendor libs self-hosted (marked, Prism, html2canvas).
+
+```
+whiteboard_list({ scope, projectName, tag, pinned, search }) → boards
+whiteboard_create({ name, scope, nodes, tags, description })  → new board
+whiteboard_add_nodes({ id, nodes, connectors })               → append
+whiteboard_read({ id })                                        → full state
+whiteboard_search({ q })                                       → matches
+```
 
 ---
 
@@ -269,7 +285,7 @@ The proxy auto-detects your project (from `package.json` or folder name), git br
 
 ---
 
-## 50 MCP Tools
+## 55 MCP Tools
 
 ### Memory (8)
 | Tool | Purpose |
@@ -345,6 +361,15 @@ The proxy auto-detects your project (from `package.json` or folder name), git br
 | `design_system_get` | Read the design system for a project |
 | `design_system_set` | Overwrite the design system manually |
 
+### Whiteboards (5) **(NEW)**
+| Tool | Purpose |
+|------|---------|
+| `whiteboard_list` | List boards with filters (scope, project, tag, pinned, search) |
+| `whiteboard_read` | Read a board (metadata + nodes + connectors) |
+| `whiteboard_create` | Create a new board (with optional seed nodes/tags/description) |
+| `whiteboard_add_nodes` | Append nodes/connectors to an existing board |
+| `whiteboard_search` | Full-text search across all boards |
+
 ---
 
 ## Architecture
@@ -361,9 +386,10 @@ flowchart TB
 
     subgraph Server["your-server.com · Coolify / Docker"]
         Auth["🔐 Auth layer<br/>email+password · API keys · roles"]
-        Tools["🛠 50 MCP tools<br/>memory · skills · sessions · projects · codegraph · components"]
+        Tools["🛠 55 MCP tools<br/>memory · skills · sessions · projects · codegraph · components · whiteboards"]
         Review["📝 Review / approval queue"]
-        Hub["📊 Hub Dashboard · 11 pages"]
+        Hub["📊 Hub Dashboard · 12 pages"]
+        Whiteboards["🎨 Whiteboards<br/><sub>FigJam-style · 14 generators · share links</sub>"]
     end
 
     subgraph Storage["SQLite · single source of truth"]
@@ -371,8 +397,9 @@ flowchart TB
         Memory["🧠 Memory Graph<br/><sub>8 types · 5 edges · 3 scopes</sub>"]
         Projects["📁 Projects + Work Log + Merge"]
         Components["🧩 Components + Design Systems"]
+        Boards["🖼 Whiteboards<br/><sub>state · snapshots · activity · presence</sub>"]
         Audit["🧾 Audit log<br/><sub>review_audit · skill_versions</sub>"]
-        Migrations["⚙️ 24 migrations · 000 → 023"]
+        Migrations["⚙️ 27 migrations · 000 → 026"]
     end
 
     CC -- stdio --> Proxy
@@ -381,17 +408,22 @@ flowchart TB
     Proxy -- "HTTPS + Bearer (per-user API key)" --> Auth
     Auth --> Tools
     Auth --> Hub
+    Auth --> Whiteboards
     Tools --> Review
     Tools --> Skills
     Tools --> Memory
     Tools --> Projects
     Tools --> Components
+    Tools --> Boards
     Review --> Audit
     Hub --> Skills
     Hub --> Memory
     Hub --> Projects
     Hub --> Components
+    Hub --> Boards
     Hub --> Audit
+    Whiteboards --> Boards
+    Whiteboards --> Memory
 
     classDef server fill:#0f172a,stroke:#334155,color:#f1f5f9
     classDef store fill:#1e1b4b,stroke:#4338ca,color:#e0e7ff
