@@ -45,6 +45,7 @@ import { createSkillsRouter } from './routes/skills.js'
 import { createAdminRouter } from './routes/admin.js'
 import { createReviewRouter } from './routes/review.js'
 import { createUserProfileRouter } from './routes/user-profile.js'
+import { createWhiteboardsRouter } from './routes/whiteboards.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -150,9 +151,11 @@ function getMemoryGraphStats() {
 
 export async function startHttpServer(port: number, authToken?: string): Promise<void> {
   const app = express()
-  // Skip global json parser for /api/codegraph/upload — it has its own with a higher limit
+  // Whiteboards can include base64-embedded images in state_json; allow up to 10MB.
+  // The /api/codegraph/upload endpoint manages its own (much larger) limit.
   app.use((req, res, next) => {
     if (req.path === '/api/codegraph/upload') return next()
+    if (req.path.startsWith('/api/whiteboards')) return express.json({ limit: '10mb' })(req, res, next)
     express.json()(req, res, next)
   })
 
@@ -334,11 +337,15 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     p === '/oauth/token' ||
     p === '/oauth/revoke' ||
     p.startsWith('/.well-known/') ||
-    p.startsWith('/telemetry/')
+    p.startsWith('/telemetry/') ||
+    p.startsWith('/api/whiteboards/shared/')
 
   if (authEnabled) {
     app.use((req, res, next) => {
       if (isPublicPath(req.path)) { next(); return }
+      // Allow public access to whiteboard.html when a ?share=TOKEN is present;
+      // the page itself fetches read-only via /api/whiteboards/shared/:token.
+      if (req.path === '/whiteboard.html' && (req.query as any)?.share) { next(); return }
 
       const userId = getUserIdFromRequest(req)
       if (userId) {
@@ -625,6 +632,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   app.use(createAdminRouter(routeCtx))
   app.use(createReviewRouter(routeCtx))
   app.use(createUserProfileRouter(routeCtx))
+  app.use(createWhiteboardsRouter(routeCtx))
 
   // ── Static files (dashboard SPA) ──
   const publicDir = path.resolve(__dirname, '..', '..', 'public')

@@ -30,6 +30,7 @@ import { registerSkillTools } from './skills.js'
 import { registerCodegraphTools } from './codegraph.js'
 import { registerComponentTools } from './components.js'
 import { registerUserEnvTools } from './users-env.js'
+import { registerWhiteboardTools } from './whiteboards.js'
 
 export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   registerMemoryTools(server, ctx)
@@ -39,4 +40,5 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   registerCodegraphTools(server, ctx)
   registerComponentTools(server, ctx)
   registerUserEnvTools(server, ctx)
+  registerWhiteboardTools(server, ctx)
 }

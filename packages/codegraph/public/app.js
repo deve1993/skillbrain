@@ -17,6 +17,7 @@ import {
   renderComponents, openComponentDetail,
   renderDesignSystems, openDesignSystemDetail, renderScanReview,
   renderReview,
+  renderWhiteboards,
   escHtml,
 } from './js/render.js'
 
@@ -46,6 +47,7 @@ function route() {
     case 'skills': renderSkills(); break
     case 'memories': renderMemories(); break
     case 'sessions': renderSessions(); break
+    case 'whiteboards': renderWhiteboards(); break
     case 'components': renderComponents(); break
     case 'design-systems': renderDesignSystems(); break
     case 'team': renderTeam(); break
@@ -190,6 +192,22 @@ window.renderMemories = renderMemories
 window.openSkillDetail = (name) => openSkillDetail(name, openDetail)
 window.openMemoryDetail = (id) => openMemoryDetail(id, openDetail)
 window.openProjectDetail = openProjectDetail
+window.openProjectBoard = async function(projectName) {
+  try {
+    const r = await fetch(`/api/whiteboards/projects/${encodeURIComponent(projectName)}/home`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    if (!r.ok) throw new Error((await r.text()) || r.statusText)
+    const { board, created } = await r.json()
+    if (created) console.log(`Created new home board for ${projectName}`)
+    location.href = '/whiteboard.html?id=' + encodeURIComponent(board.id)
+  } catch (err) {
+    alert('Open project board failed: ' + err.message)
+  }
+}
 window.renderProjects = renderProjects
 window.switchProjectTab = switchProjectTab
 window.openEditProjectModal = openEditProjectModal

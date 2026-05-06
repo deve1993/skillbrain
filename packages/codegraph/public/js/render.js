@@ -397,6 +397,7 @@ export async function renderProjectDetail(name, openDetailFn) {
         <button class="proj-tab" data-tab="activity" onclick="switchProjectTab('activity','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Activity</button>
       </div>
       <div style="display:flex;gap:6px;margin-left:8px">
+        <button onclick="openProjectBoard('${name}')" title="Open or create the project's home whiteboard (auto-populated with Memorie + Sessioni + Skills)" style="padding:6px 12px;border-radius:6px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;font-size:12px;font-weight:600;cursor:pointer">🗂 Project board</button>
         <button onclick="openEditProjectModal('${name}')" style="padding:6px 12px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Edit</button>
         <button onclick="showMergeDialog('${name}')" style="padding:6px 12px;border-radius:6px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer">Merge</button>
       </div>
@@ -1132,4 +1133,330 @@ function renderProposalSection(containerId, proposals) {
           </div>
         </div>`
     }).join('')}`
+}
+
+// ── Whiteboards ──
+
+let _wbSelected = new Set()
+let _wbCurrentScope = ''
+let _wbCurrentTab = 'all'  // 'all' | 'pinned' | 'trash'
+let _wbCurrentSearch = ''
+let _wbCurrentTag = ''
+
+export async function renderWhiteboards() {
+  const page = document.getElementById('page')
+  page.innerHTML = `
+    <div class="page-header">
+      <h1>Whiteboards</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="wb-search" type="search" placeholder="Search by name/description..." style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-size:13px;min-width:240px">
+        <select id="wb-filter-scope" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-size:13px">
+          <option value="">All scopes</option>
+          <option value="team">Team</option>
+          <option value="project">Per-project</option>
+        </select>
+        <button id="wb-new" style="padding:8px 16px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-weight:600;cursor:pointer;font-size:13px">+ New Whiteboard</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-top:16px;margin-bottom:14px">
+      <button class="wb-tab" data-tab="all"    style="padding:8px 16px;background:none;border:none;color:var(--accent);border-bottom:2px solid var(--accent);font-size:13px;cursor:pointer;font-weight:600">All</button>
+      <button class="wb-tab" data-tab="pinned" style="padding:8px 16px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">📌 Pinned</button>
+      <button class="wb-tab" data-tab="trash"  style="padding:8px 16px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">🗑 Trash</button>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 8px">
+        <span id="wb-tag-filter-active" style="font-size:11px;color:var(--text-muted);display:none"></span>
+        <span id="wb-bulk-bar" style="display:none;font-size:12px;color:var(--accent)"></span>
+      </div>
+    </div>
+
+    <!-- Content area: tag sidebar + grid -->
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:18px;align-items:start">
+      <aside id="wb-tag-cloud" style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px">
+        <div style="color:var(--text-muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px;margin-bottom:6px">Tags</div>
+        <div id="wb-tag-cloud-list" style="display:flex;flex-direction:column;gap:3px"></div>
+      </aside>
+      <div>
+        <div id="wb-recent-section" style="margin-bottom:18px;display:none">
+          <h3 style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Recent</h3>
+          <div id="wb-recent-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px"></div>
+        </div>
+        <div id="wb-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+          <div style="color:var(--text-muted)">Loading...</div>
+        </div>
+      </div>
+    </div>
+  `
+  document.getElementById('wb-new').onclick = newWhiteboardPrompt
+  document.getElementById('wb-filter-scope').onchange = (e) => { _wbCurrentScope = e.target.value; loadList() }
+  let searchTimer
+  document.getElementById('wb-search').oninput = (e) => {
+    clearTimeout(searchTimer)
+    searchTimer = setTimeout(() => { _wbCurrentSearch = e.target.value.trim(); loadList() }, 250)
+  }
+  document.querySelectorAll('.wb-tab[data-tab]').forEach(t => {
+    t.onclick = () => {
+      _wbCurrentTab = t.dataset.tab
+      _wbSelected = new Set()
+      document.querySelectorAll('.wb-tab[data-tab]').forEach(b => {
+        const active = b.dataset.tab === _wbCurrentTab
+        b.style.color = active ? 'var(--accent)' : 'var(--text-muted)'
+        b.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent'
+        b.style.fontWeight = active ? '600' : '400'
+      })
+      loadList()
+    }
+  })
+  loadTagCloud()
+  loadRecent()
+  loadList()
+
+  async function loadTagCloud() {
+    try {
+      const { tags } = await fetch('/api/whiteboards/tags', { credentials: 'include' }).then(r => r.json())
+      const list = document.getElementById('wb-tag-cloud-list')
+      if (!tags.length) { list.innerHTML = '<div style="color:var(--text-muted)">No tags yet</div>'; return }
+      list.innerHTML = `
+        <button class="wb-tag-pill" data-tag="" style="padding:4px 8px;background:transparent;border:none;border-radius:4px;color:var(--text);text-align:left;cursor:pointer;font-size:12px">All</button>
+        ${tags.map(t => `<button class="wb-tag-pill" data-tag="${escHtml(t.tag)}" style="padding:4px 8px;background:transparent;border:none;border-radius:4px;color:var(--text);text-align:left;cursor:pointer;font-size:12px">${escHtml(t.tag)} <span style="color:var(--text-muted);font-size:10px">${t.count}</span></button>`).join('')}
+      `
+      list.querySelectorAll('[data-tag]').forEach(b => {
+        b.onclick = () => {
+          _wbCurrentTag = b.dataset.tag
+          list.querySelectorAll('[data-tag]').forEach(x => x.style.background = 'transparent')
+          b.style.background = 'rgba(99,102,241,.2)'
+          const lbl = document.getElementById('wb-tag-filter-active')
+          if (_wbCurrentTag) { lbl.style.display = 'inline'; lbl.textContent = `Tag: ${_wbCurrentTag}` }
+          else lbl.style.display = 'none'
+          loadList()
+        }
+      })
+    } catch (err) { /* ignore — tag cloud is optional */ }
+  }
+
+  async function loadRecent() {
+    if (_wbCurrentTab !== 'all' || _wbCurrentSearch || _wbCurrentTag) {
+      document.getElementById('wb-recent-section').style.display = 'none'
+      return
+    }
+    try {
+      const { boards } = await fetch('/api/whiteboards/recent?limit=5', { credentials: 'include' }).then(r => r.json())
+      const sec = document.getElementById('wb-recent-section')
+      if (!boards.length) { sec.style.display = 'none'; return }
+      sec.style.display = 'block'
+      const grid2 = document.getElementById('wb-recent-grid')
+      grid2.innerHTML = boards.map(b => `
+        <a href="/whiteboard.html?id=${encodeURIComponent(b.id)}" style="text-decoration:none;color:inherit">
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px">
+            <div style="font-weight:600;font-size:13px;color:var(--text)">${b.pinnedAt ? '📌 ' : ''}${escHtml(b.name)}</div>
+            <div style="font-size:10px;color:var(--text-muted)">${b.scope === 'team' ? 'team' : escHtml(b.projectName || 'project')} · ${(b.lastOpenedAt || b.updatedAt).split('T')[0]}</div>
+          </div>
+        </a>
+      `).join('')
+    } catch {}
+  }
+
+  async function loadList() {
+    const grid = document.getElementById('wb-grid')
+    grid.innerHTML = `<div style="color:var(--text-muted);grid-column:1/-1;padding:20px">Loading...</div>`
+    try {
+      const params = new URLSearchParams()
+      if (_wbCurrentScope) params.set('scope', _wbCurrentScope)
+      if (_wbCurrentSearch) params.set('search', _wbCurrentSearch)
+      if (_wbCurrentTag) params.set('tag', _wbCurrentTag)
+      if (_wbCurrentTab === 'pinned') params.set('pinned', '1')
+      if (_wbCurrentTab === 'trash') params.set('trashed', '1')
+      const qs = params.toString() ? `?${params}` : ''
+      const data = await api.get('/api/whiteboards' + qs)
+      const boards = data.boards || []
+      loadRecent()
+      if (!boards.length) {
+        const emptyMsg = _wbCurrentTab === 'trash' ? 'Trash is empty.'
+          : _wbCurrentTab === 'pinned' ? 'No pinned whiteboards. Hover a card and click 📌 to pin.'
+          : (_wbCurrentSearch || _wbCurrentTag) ? 'No matches with current filters.'
+          : 'No whiteboards yet. Click <strong>+ New Whiteboard</strong> to create one.'
+        grid.innerHTML = `<div style="color:var(--text-muted);grid-column:1/-1;padding:20px;text-align:center">${emptyMsg}</div>`
+        return
+      }
+      const isTrash = _wbCurrentTab === 'trash'
+      grid.innerHTML = boards.map(b => `
+        <div class="wb-list-card" data-id="${escHtml(b.id)}" style="position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;transition:border-color .15s">
+          <input type="checkbox" class="wb-card-check" data-check="${escHtml(b.id)}" style="position:absolute;top:8px;left:8px;z-index:3;width:16px;height:16px;cursor:pointer;${_wbSelected.has(b.id) ? '' : 'opacity:0;'}transition:opacity .15s">
+          <div class="wb-card-actions" style="position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity .15s;z-index:2">
+            ${isTrash ? `
+              <button class="wb-restore-btn" data-id="${escHtml(b.id)}" title="Restore" style="width:28px;height:28px;background:rgba(34,197,94,.85);border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:14px">↶</button>
+              <button class="wb-perm-del-btn" data-id="${escHtml(b.id)}" data-name="${escHtml(b.name)}" title="Delete forever" style="width:28px;height:28px;background:rgba(220,38,38,.95);border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:14px">×</button>
+            ` : `
+              <button class="wb-pin-btn" data-id="${escHtml(b.id)}" title="${b.pinnedAt ? 'Unpin' : 'Pin'}" style="width:28px;height:28px;background:rgba(99,102,241,.85);border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:14px">${b.pinnedAt ? '📍' : '📌'}</button>
+              <button class="wb-dup-btn" data-id="${escHtml(b.id)}" data-name="${escHtml(b.name)}" title="Duplicate" style="width:28px;height:28px;background:rgba(99,102,241,.85);border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:14px">⎘</button>
+              <button class="wb-merge-btn" data-merge-id="${escHtml(b.id)}" data-merge-name="${escHtml(b.name)}" title="Merge another board into this one" style="width:28px;height:28px;background:rgba(99,102,241,.85);border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:14px">⇋</button>
+              <button class="wb-delete-btn" data-del-id="${escHtml(b.id)}" data-del-name="${escHtml(b.name)}" title="Move to trash" style="width:28px;height:28px;background:rgba(220,38,38,.85);border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:14px">🗑</button>
+            `}
+          </div>
+          <a href="/whiteboard.html?id=${encodeURIComponent(b.id)}" style="text-decoration:none;color:inherit;display:block">
+            <div style="aspect-ratio:16/9;background:var(--bg-surface,#0d0d14);border-radius:6px;margin-bottom:10px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+              ${b.thumbnailDataUrl ? `<img src="${b.thumbnailDataUrl}" style="width:100%;height:100%;object-fit:cover">` : `<span style="color:var(--text-muted);font-size:12px">No preview</span>`}
+            </div>
+            <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:6px">${b.pinnedAt ? '<span style="font-size:11px">📌</span>' : ''}${escHtml(b.name)}</div>
+            ${b.description ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">${escHtml(b.description)}</div>` : ''}
+            ${b.tags && b.tags.length ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:4px">${b.tags.map(t => `<span style="font-size:9px;background:rgba(99,102,241,.15);color:#a5b4fc;padding:1px 5px;border-radius:3px">${escHtml(t)}</span>`).join('')}</div>` : ''}
+            <div style="font-size:11px;color:var(--text-muted);display:flex;gap:8px;align-items:center">
+              <span style="padding:1px 7px;border-radius:8px;background:${b.scope === 'team' ? 'rgba(99,102,241,.15)' : 'rgba(168,85,247,.15)'};color:${b.scope === 'team' ? '#a5b4fc' : '#c4b5fd'}">${b.scope === 'team' ? 'team' : escHtml(b.projectName || 'project')}</span>
+              <span>${escHtml((b.createdBy || '').split('@')[0])}</span>
+              <span style="margin-left:auto">${b.updatedAt.split('T')[0]}</span>
+            </div>
+          </a>
+        </div>
+      `).join('')
+      wireCardEvents(grid, boards)
+      updateBulkBar()
+    } catch (err) {
+      grid.innerHTML = `<div style="color:#f87171;grid-column:1/-1;padding:20px">Error: ${escHtml(err.message)}</div>`
+    }
+  }
+
+  function wireCardEvents(grid, boards) {
+    const isTrash = _wbCurrentTab === 'trash'
+    grid.querySelectorAll('.wb-list-card').forEach(card => {
+      const actions = card.querySelector('.wb-card-actions')
+      const check = card.querySelector('.wb-card-check')
+      card.addEventListener('mouseenter', () => { actions.style.opacity = '1'; if (!check.checked) check.style.opacity = '0.5' })
+      card.addEventListener('mouseleave', () => { actions.style.opacity = '0'; if (!check.checked) check.style.opacity = '0' })
+      check.addEventListener('change', () => {
+        if (check.checked) { _wbSelected.add(card.dataset.id); check.style.opacity = '1' }
+        else { _wbSelected.delete(card.dataset.id); check.style.opacity = '0' }
+        updateBulkBar()
+      })
+      check.addEventListener('click', e => e.stopPropagation())
+    })
+    grid.querySelectorAll('.wb-pin-btn').forEach(btn => btn.onclick = async e => {
+      e.preventDefault(); e.stopPropagation()
+      try { await api.post('/api/whiteboards/' + encodeURIComponent(btn.dataset.id) + '/pin', {}); loadList() } catch (err) { alert(err.message) }
+    })
+    grid.querySelectorAll('.wb-dup-btn').forEach(btn => btn.onclick = async e => {
+      e.preventDefault(); e.stopPropagation()
+      const newName = prompt('New name:', btn.dataset.name + ' (copy)')
+      if (!newName) return
+      try { await api.post('/api/whiteboards/' + encodeURIComponent(btn.dataset.id) + '/duplicate', { newName }); loadList() } catch (err) { alert(err.message) }
+    })
+    grid.querySelectorAll('.wb-delete-btn').forEach(btn => btn.onclick = async e => {
+      e.preventDefault(); e.stopPropagation()
+      if (!confirm(`Move "${btn.dataset.delName}" to trash?`)) return
+      try { await api.del('/api/whiteboards/' + encodeURIComponent(btn.dataset.delId)); loadList() } catch (err) { alert(err.message) }
+    })
+    grid.querySelectorAll('.wb-restore-btn').forEach(btn => btn.onclick = async e => {
+      e.preventDefault(); e.stopPropagation()
+      try { await api.post('/api/whiteboards/' + encodeURIComponent(btn.dataset.id) + '/restore', {}); loadList() } catch (err) { alert(err.message) }
+    })
+    grid.querySelectorAll('.wb-perm-del-btn').forEach(btn => btn.onclick = async e => {
+      e.preventDefault(); e.stopPropagation()
+      if (!confirm(`Permanently delete "${btn.dataset.name}"? This CANNOT be undone.`)) return
+      try { await api.del('/api/whiteboards/' + encodeURIComponent(btn.dataset.id) + '?permanent=true'); loadList() } catch (err) { alert(err.message) }
+    })
+    grid.querySelectorAll('.wb-merge-btn').forEach(btn => btn.onclick = async e => {
+      e.preventDefault(); e.stopPropagation()
+      const targetId = btn.dataset.mergeId, targetName = btn.dataset.mergeName
+      const others = boards.filter(b => b.id !== targetId)
+      if (!others.length) { alert('No other whiteboards to merge.'); return }
+      const choices = others.map((b, i) => `${i + 1}. ${b.name} (${b.scope})`).join('\n')
+      const pick = prompt(`Merge ANOTHER board INTO "${targetName}".\nPick by number:\n\n${choices}`)
+      if (!pick) return
+      const idx = parseInt(pick, 10) - 1
+      if (isNaN(idx) || idx < 0 || idx >= others.length) return
+      const source = others[idx]
+      const del = confirm(`Merge "${source.name}" → "${targetName}".\n\nDelete source after?\nOK = delete · Cancel = keep`)
+      try {
+        await mergeBoards(source.id, targetId)
+        if (del) await api.del('/api/whiteboards/' + encodeURIComponent(source.id))
+        loadList()
+      } catch (err) { alert(err.message) }
+    })
+  }
+
+  function updateBulkBar() {
+    const bar = document.getElementById('wb-bulk-bar')
+    if (!bar) return
+    if (_wbSelected.size === 0) { bar.style.display = 'none'; return }
+    const isTrash = _wbCurrentTab === 'trash'
+    bar.style.display = 'inline-flex'
+    bar.innerHTML = `
+      <strong>${_wbSelected.size} selected</strong>
+      ${isTrash
+        ? `<button onclick="window.wbBulkAction('restore')" style="margin-left:8px;padding:2px 10px;background:rgba(34,197,94,.2);border:1px solid #22c55e;color:#34d399;border-radius:4px;cursor:pointer;font-size:11px">Restore</button>
+           <button onclick="window.wbBulkAction('permanent-delete')" style="margin-left:4px;padding:2px 10px;background:rgba(220,38,38,.2);border:1px solid #dc2626;color:#f87171;border-radius:4px;cursor:pointer;font-size:11px">Delete forever</button>`
+        : `<button onclick="window.wbBulkAction('pin')" style="margin-left:8px;padding:2px 10px;background:rgba(99,102,241,.2);border:1px solid #6366f1;color:#a5b4fc;border-radius:4px;cursor:pointer;font-size:11px">Pin</button>
+           <button onclick="window.wbBulkAction('unpin')" style="margin-left:4px;padding:2px 10px;background:rgba(99,102,241,.1);border:1px solid #6366f1;color:#a5b4fc;border-radius:4px;cursor:pointer;font-size:11px">Unpin</button>
+           <button onclick="window.wbBulkAction('delete')" style="margin-left:4px;padding:2px 10px;background:rgba(220,38,38,.2);border:1px solid #dc2626;color:#f87171;border-radius:4px;cursor:pointer;font-size:11px">Trash</button>`
+      }
+      <button onclick="window.wbBulkClear()" style="margin-left:4px;padding:2px 10px;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:4px;cursor:pointer;font-size:11px">Clear</button>
+    `
+  }
+
+  // Expose bulk action handlers globally so the inline onclick attributes work
+  window.wbBulkAction = async (action) => {
+    if (!_wbSelected.size) return
+    try {
+      await api.post('/api/whiteboards/bulk', { ids: [..._wbSelected], action })
+      _wbSelected = new Set()
+      loadList()
+    } catch (err) { alert(err.message) }
+  }
+  window.wbBulkClear = () => {
+    _wbSelected = new Set()
+    document.querySelectorAll('.wb-card-check').forEach(c => { c.checked = false; c.style.opacity = '0' })
+    updateBulkBar()
+  }
+
+  /** Merge source board's nodes/connectors into target. Offsets x/y to avoid overlap. */
+  async function mergeBoards(sourceId, targetId) {
+    const [{ board: src }, { board: tgt }] = await Promise.all([
+      api.get('/api/whiteboards/' + encodeURIComponent(sourceId)),
+      api.get('/api/whiteboards/' + encodeURIComponent(targetId)),
+    ])
+    const srcState = JSON.parse(src.stateJson || '{}')
+    const tgtState = JSON.parse(tgt.stateJson || '{"nodes":[],"connectors":[],"viewport":{"x":0,"y":0,"zoom":1}}')
+    // Offset: place merged content to the right of the target's existing content
+    let maxX = 0
+    for (const n of (tgtState.nodes || [])) maxX = Math.max(maxX, (n.x || 0) + (n.w || 0))
+    const offsetX = maxX > 0 ? maxX + 80 : 0
+    // Re-id all source nodes & connectors to avoid collisions
+    const idMap = {}
+    const newNodes = (srcState.nodes || []).map(n => {
+      const newId = (n.type || 'n') + '-' + Math.random().toString(36).slice(2, 8)
+      idMap[n.id] = newId
+      return { ...n, id: newId, x: (n.x || 0) + offsetX }
+    })
+    const newConnectors = (srcState.connectors || []).map(c => ({
+      ...c,
+      id: 'conn-' + Math.random().toString(36).slice(2, 8),
+      from: idMap[c.from] || c.from,
+      to: idMap[c.to] || c.to,
+    }))
+    const merged = {
+      nodes: [...(tgtState.nodes || []), ...newNodes],
+      connectors: [...(tgtState.connectors || []), ...newConnectors],
+      viewport: tgtState.viewport || { x: 0, y: 0, zoom: 1 },
+    }
+    await api.put('/api/whiteboards/' + encodeURIComponent(targetId), {
+      stateJson: JSON.stringify(merged),
+      expectedVersion: tgt.stateVersion,
+    })
+  }
+
+  async function newWhiteboardPrompt() {
+    const name = prompt('Whiteboard name:')
+    if (!name) return
+    const scope = confirm('Make this a TEAM-wide whiteboard?\n\nClick OK for "team", Cancel to attach to a project.') ? 'team' : 'project'
+    let projectName = null
+    if (scope === 'project') {
+      projectName = prompt('Project name (must exist in SkillBrain):')
+      if (!projectName) return
+    }
+    try {
+      const { board } = await api.post('/api/whiteboards', { name, scope, projectName })
+      location.href = '/whiteboard.html?id=' + encodeURIComponent(board.id)
+    } catch (err) {
+      alert('Create failed: ' + err.message)
+    }
+  }
 }

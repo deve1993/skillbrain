@@ -23,7 +23,16 @@ export function createUserProfileRouter(ctx: RouteContext): Router {
   // Self-service profile
   router.get('/api/me', (req, res) => {
     const userId = (req as any).userId
-    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return }
+    if (!userId) {
+      // No auth configured (local dev): return an anonymous local user so the
+      // SPA boots without redirecting to /login.html. In production ADMIN_EMAIL
+      // is set and this branch never fires.
+      if (!process.env.ADMIN_EMAIL) {
+        res.json({ user: { id: 'anonymous', name: 'Local', email: 'anonymous@local', role: 'admin', created_at: new Date().toISOString() } })
+        return
+      }
+      res.status(401).json({ error: 'Unauthorized' }); return
+    }
     try {
       const db = openDb(ctx.skillbrainRoot)
       const user = db.prepare('SELECT id, name, email, role, created_at FROM users WHERE id = ?').get(userId) as any

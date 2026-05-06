@@ -57,6 +57,14 @@ export { ComponentsStore } from './components-store.js'
 export { AuditStore } from './audit-store.js'
 export { GraphStore } from './graph-store.js'
 
+export { WhiteboardsStore, WhiteboardConcurrencyError } from './whiteboards-store.js'
+export type {
+  Whiteboard,
+  WhiteboardSummary,
+  WhiteboardScope,
+  WhiteboardComment,
+} from './whiteboards-store.js'
+
 // ── Helpers ───────────────────────────────────────────
 export { deriveEdgeCandidates } from './memory-edge-derivation.js'
 export type { EdgeCandidate } from './memory-edge-derivation.js'

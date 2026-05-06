@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkillBrain Whiteboard</title>
+  <link rel="stylesheet" href="/whiteboard/whiteboard.css">
+</head>
+<body>
+  <header id="wb-topbar">
+    <div class="wb-left">
+      <a href="/#/whiteboards" class="wb-back" title="Back">←</a>
+      <input id="wb-name" class="wb-name" type="text" placeholder="Untitled">
+      <span id="wb-meta" class="wb-meta"></span>
+      <span id="wb-savestate" class="wb-savestate" title="Auto-save status">Idle</span>
+    </div>
+    <div class="wb-right">
+      <div id="wb-vote-counter" class="wb-vote-counter" style="display:none">Votes: <span id="wb-votes-left">5</span></div>
+      <div id="wb-author-legend" class="wb-author-legend"></div>
+      <div id="wb-presence" class="wb-presence" style="display:none;align-items:center"></div>
+      <button id="btn-export" class="wb-btn" title="Export the board as PNG / JPG / PDF (includes images)">⤓ Export</button>
+      <button id="btn-share" class="wb-btn" title="Get a read-only share link">↗ Share</button>
+      <button id="btn-fullscreen" class="wb-btn" title="Fullscreen (F11)" aria-label="Fullscreen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+      </button>
+      <button id="btn-help" class="wb-btn" title="Keyboard shortcuts (?)" aria-label="Help">?</button>
+    </div>
+  </header>
+
+  <!-- Left sidebar: actions grouped by purpose -->
+  <aside id="wb-sidebar" class="wb-sidebar">
+    <div class="wb-sidebar-section">
+      <div class="wb-sidebar-section-title">Insert</div>
+      <button id="btn-link" class="wb-side-btn" title="+ Link · Drop a SkillBrain memory/skill/session/project as a card">
+        <span class="i">🔗</span><span class="lbl">+ Link</span>
+      </button>
+      <button id="btn-templates" class="wb-side-btn" title="Templates · Insert a layout (Retro, Kanban, Mind Map, OKR…)">
+        <span class="i">📐</span><span class="lbl">Templates</span>
+      </button>
+      <button id="btn-generate" class="wb-side-btn" title="Generate · Auto-build the board from your data">
+        <span class="i">⚡</span><span class="lbl">Generate</span>
+      </button>
+    </div>
+
+    <div class="wb-sidebar-section">
+      <div class="wb-sidebar-section-title">Selection</div>
+      <button id="btn-comments" class="wb-side-btn" title="Comments on the selected node">
+        <span class="i">💬</span><span class="lbl">Comments</span>
+      </button>
+      <button id="btn-export-mem" class="wb-side-btn" title="Save the selected nodes as a SkillBrain memory">
+        <span class="i">💡</span><span class="lbl">Save as memory</span>
+      </button>
+    </div>
+
+    <div class="wb-sidebar-section">
+      <div class="wb-sidebar-section-title">Navigate</div>
+      <button id="btn-search" class="wb-side-btn" title="Find inside this board (⌘F)">
+        <span class="i">🔍</span><span class="lbl">Search</span>
+      </button>
+      <button id="btn-fit" class="wb-side-btn" title="Fit all nodes to viewport (0)">
+        <span class="i">⛶</span><span class="lbl">Fit to view</span>
+      </button>
+      <button id="btn-timer" class="wb-side-btn" title="Countdown timer for time-boxed sessions">
+        <span class="i">⏱</span><span class="lbl">Timer</span>
+      </button>
+    </div>
+
+    <div class="wb-sidebar-section">
+      <div class="wb-sidebar-section-title">Activity</div>
+      <button id="btn-activity" class="wb-side-btn" title="Activity log (who changed what when)">
+        <span class="i">📜</span><span class="lbl">Activity</span>
+      </button>
+      <button id="btn-notifications" class="wb-side-btn" title="Notifications" style="position:relative">
+        <span class="i">🔔</span><span class="lbl">Notifications</span>
+        <span id="wb-notif-badge" style="display:none;position:absolute;top:4px;left:30px;background:#dc2626;color:#fff;border-radius:9px;font-size:9px;padding:1px 5px;font-weight:700">0</span>
+      </button>
+    </div>
+
+    <div class="wb-sidebar-collapse-toggle">
+      <button id="btn-sidebar-toggle" title="Collapse sidebar">‹</button>
+    </div>
+  </aside>
+
+  <!-- Help modal: keyboard shortcuts -->
+  <div id="wb-help-modal" class="wb-modal" style="display:none">
+    <div class="wb-modal-card" style="max-width:640px;text-align:left">
+      <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="font-size:18px;margin:0">Keyboard shortcuts</h3>
+        <button class="wb-close" data-close="wb-help-modal" style="font-size:24px;background:none;border:none;cursor:pointer;color:#94a3b8">×</button>
+      </header>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;font-size:13px">
+        <div>
+          <h4 style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Tools</h4>
+          <div class="wb-help-row"><kbd>V</kbd> Select</div>
+          <div class="wb-help-row"><kbd>S</kbd> Sticky note</div>
+          <div class="wb-help-row"><kbd>F</kbd> Frame</div>
+          <div class="wb-help-row"><kbd>C</kbd> Code</div>
+          <div class="wb-help-row"><kbd>A</kbd> Connector</div>
+          <div class="wb-help-row"><kbd>L</kbd> Line</div>
+          <div class="wb-help-row"><kbd>P</kbd> Pen</div>
+          <div class="wb-help-row"><kbd>R</kbd>/<kbd>E</kbd>/<kbd>T</kbd> Rect / Ellipse / Triangle</div>
+        </div>
+        <div>
+          <h4 style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Edit</h4>
+          <div class="wb-help-row"><kbd>⌘Z</kbd> Undo</div>
+          <div class="wb-help-row"><kbd>⌘⇧Z</kbd> Redo</div>
+          <div class="wb-help-row"><kbd>⌘C</kbd> Copy</div>
+          <div class="wb-help-row"><kbd>⌘V</kbd> Paste</div>
+          <div class="wb-help-row"><kbd>⌘D</kbd> Duplicate</div>
+          <div class="wb-help-row"><kbd>⌘A</kbd> Select all</div>
+          <div class="wb-help-row"><kbd>⌘G</kbd> Group / Ungroup</div>
+          <div class="wb-help-row"><kbd>Del</kbd> Delete</div>
+        </div>
+        <div>
+          <h4 style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Navigate</h4>
+          <div class="wb-help-row"><kbd>Space</kbd> + drag → Pan</div>
+          <div class="wb-help-row"><kbd>Wheel</kbd> Zoom</div>
+          <div class="wb-help-row"><kbd>0</kbd> Fit to view</div>
+          <div class="wb-help-row"><kbd>⌘F</kbd> Search in board</div>
+          <div class="wb-help-row"><kbd>F11</kbd> Fullscreen</div>
+        </div>
+        <div>
+          <h4 style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Z-order &amp; layout</h4>
+          <div class="wb-help-row"><kbd>]</kbd> / <kbd>[</kbd> Bring forward / Send backward</div>
+          <div class="wb-help-row"><kbd>⌘]</kbd> / <kbd>⌘[</kbd> To front / To back</div>
+          <div class="wb-help-row"><kbd>↑↓←→</kbd> Nudge 1px (<kbd>⇧</kbd> 10px)</div>
+          <div class="wb-help-row"><kbd>G</kbd> Toggle snap to grid</div>
+          <div class="wb-help-row"><kbd>L</kbd> Lock / unlock (with selection)</div>
+          <div class="wb-help-row"><kbd>Esc</kbd> Cancel mode / close</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mini-map -->
+  <div id="wb-minimap" class="wb-minimap" style="display:none">
+    <svg id="wb-minimap-svg" viewBox="0 0 200 140" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+
+  <!-- Floating tool dock (FigJam-style, bottom center) -->
+  <div id="wb-tooldock" class="wb-tooldock">
+    <button class="wb-tool" data-tool="select" title="Select (V)" aria-label="Select">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 2 L5 18 L9 14 L11 19 L13 18 L11 13 L17 13 Z"/></svg>
+    </button>
+    <button class="wb-tool" data-tool="sticky" title="Sticky note (S)" aria-label="Sticky">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="14" y2="13"/></svg>
+    </button>
+    <button class="wb-tool" data-tool="frame" title="Frame (F)" aria-label="Frame">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3,2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+    </button>
+    <button class="wb-tool" data-tool="code" title="Code node (C)" aria-label="Code">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="8 6 2 12 8 18"/><polyline points="16 6 22 12 16 18"/></svg>
+    </button>
+    <span class="wb-tooldock-divider"></span>
+    <button class="wb-tool" data-tool="connector" title="Connector between nodes (A)" aria-label="Connector">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="2"/><line x1="7" y1="12" x2="16" y2="12"/><polyline points="14 7 19 12 14 17"/></svg>
+    </button>
+    <button class="wb-tool" data-tool="line" title="Line / arrow (L)" aria-label="Line">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="20" x2="16" y2="8"/><polyline points="14 4 20 4 20 10"/></svg>
+    </button>
+    <button class="wb-tool" data-tool="pen" title="Pen / free-hand (P)" aria-label="Pen">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+    </button>
+    <span class="wb-tooldock-divider"></span>
+    <button class="wb-tool" data-tool="shape-rect" title="Rectangle (R)" aria-label="Rectangle">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>
+    </button>
+    <button class="wb-tool" data-tool="shape-ellipse" title="Ellipse (E)" aria-label="Ellipse">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
+    </button>
+    <button class="wb-tool" data-tool="shape-triangle" title="Triangle (T)" aria-label="Triangle">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12,4 21,20 3,20"/></svg>
+    </button>
+    <span class="wb-tooldock-divider"></span>
+    <button id="btn-image" class="wb-tool" title="Insert image (I)" aria-label="Image">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><polyline points="21 15 16 10 5 21"/></svg>
+    </button>
+    <input type="file" id="wb-image-input" accept="image/*" style="display:none">
+    <button class="wb-tool" data-tool="emoji" title="Emoji stamp (M)" aria-label="Emoji stamp">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+    </button>
+    <button class="wb-tool" data-tool="vote" title="Dot voting" aria-label="Vote">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>
+    </button>
+  </div>
+
+  <!-- Emoji palette popover -->
+  <div id="wb-emoji-palette" class="wb-emoji-palette" style="display:none">
+    <div class="wb-emoji-section">
+      <h5>Reactions</h5>
+      <div class="wb-emoji-grid">
+        <button data-emoji="👍" title="Thumbs up">👍</button>
+        <button data-emoji="❤️" title="Heart">❤️</button>
+        <button data-emoji="🔥" title="Fire">🔥</button>
+        <button data-emoji="🎉" title="Party">🎉</button>
+        <button data-emoji="✅" title="Check">✅</button>
+        <button data-emoji="❌" title="Cross">❌</button>
+        <button data-emoji="⚠️" title="Warning">⚠️</button>
+        <button data-emoji="💡" title="Idea">💡</button>
+        <button data-emoji="🚀" title="Rocket">🚀</button>
+        <button data-emoji="⭐" title="Star">⭐</button>
+        <button data-emoji="🤔" title="Thinking">🤔</button>
+        <button data-emoji="👀" title="Eyes">👀</button>
+      </div>
+    </div>
+    <div class="wb-emoji-section">
+      <h5>Status</h5>
+      <div class="wb-emoji-grid">
+        <button data-emoji="🟢" title="Green">🟢</button>
+        <button data-emoji="🟡" title="Yellow">🟡</button>
+        <button data-emoji="🔴" title="Red">🔴</button>
+        <button data-emoji="🔵" title="Blue">🔵</button>
+        <button data-emoji="⏳" title="Loading">⏳</button>
+        <button data-emoji="⏰" title="Clock">⏰</button>
+        <button data-emoji="🔒" title="Lock">🔒</button>
+        <button data-emoji="🔓" title="Unlock">🔓</button>
+      </div>
+    </div>
+    <div class="wb-emoji-section">
+      <h5>Misc</h5>
+      <div class="wb-emoji-grid">
+        <button data-emoji="📌" title="Pin">📌</button>
+        <button data-emoji="📊" title="Chart">📊</button>
+        <button data-emoji="🐛" title="Bug">🐛</button>
+        <button data-emoji="🎯" title="Target">🎯</button>
+        <button data-emoji="💬" title="Speech">💬</button>
+        <button data-emoji="🤖" title="Robot">🤖</button>
+        <button data-emoji="📁" title="Folder">📁</button>
+        <button data-emoji="🛠️" title="Tools">🛠️</button>
+      </div>
+    </div>
+    <div class="wb-emoji-custom">
+      <input id="wb-emoji-custom-input" type="text" placeholder="Type any emoji or character..." maxlength="4">
+    </div>
+    <div class="wb-emoji-hint">Click an emoji, then click on the canvas to place it. Hold Shift to place multiple.</div>
+  </div>
+
+
+  <main id="wb-canvas-container">
+    <div id="wb-canvas">
+      <svg id="wb-edges" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="wb-nodes"></div>
+      <svg id="wb-pending-edge" style="display:none;position:absolute;left:0;top:0;overflow:visible;pointer-events:none">
+        <path stroke="#6366f1" stroke-width="2" stroke-dasharray="6,4" fill="none"></path>
+      </svg>
+    </div>
+    <!-- Marquee lives OUTSIDE #wb-canvas so its coords stay in screen space, unaffected by pan/zoom -->
+    <div id="wb-marquee" class="wb-marquee" style="display:none"></div>
+    <div id="wb-grid"></div>
+
+    <!-- Empty state -->
+    <div id="wb-empty-state" class="wb-empty-state" style="display:none">
+      <div class="wb-empty-card">
+        <h2>Empty whiteboard</h2>
+        <p>Get started:</p>
+        <ul>
+          <li><strong>Double-click</strong> anywhere to add a sticky note</li>
+          <li>Use the floating toolbar at the bottom for shapes, pen, connectors, etc.</li>
+          <li><strong>Drag</strong> on empty area → marquee select · <strong>Hold Space</strong> + drag → pan</li>
+          <li>Click <strong>+ Link</strong> to drop SkillBrain memories/skills as cards</li>
+          <li>Press <strong>?</strong> for the full keyboard shortcuts list</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Connector mode banner -->
+    <div id="wb-connector-banner" class="wb-mode-banner" style="display:none">
+      <strong>Connector mode</strong> — click the <em>source</em> node, then the <em>target</em>. Press Esc to cancel.
+    </div>
+  </main>
+
+  <!-- Linkable sidebar -->
+  <aside id="wb-link-panel" class="wb-panel" style="display:none">
+    <header>
+      <h3>Link from SkillBrain</h3>
+      <button class="wb-close" data-close="wb-link-panel">×</button>
+    </header>
+    <div class="wb-tabs">
+      <button class="wb-tab active" data-link-type="memory">Memory</button>
+      <button class="wb-tab" data-link-type="skill">Skills</button>
+      <button class="wb-tab" data-link-type="session">Sessions</button>
+      <button class="wb-tab" data-link-type="project">Projects</button>
+    </div>
+    <input id="wb-link-search" type="text" placeholder="Search...">
+    <div id="wb-link-results" class="wb-link-results"></div>
+    <div class="wb-hint">Drag an item onto the canvas to create a card.</div>
+  </aside>
+
+  <!-- Templates panel -->
+  <aside id="wb-templates-panel" class="wb-panel" style="display:none">
+    <header>
+      <h3>Templates</h3>
+      <button class="wb-close" data-close="wb-templates-panel">×</button>
+    </header>
+    <div id="wb-templates-list"></div>
+  </aside>
+
+  <!-- Generate panel -->
+  <aside id="wb-generate-panel" class="wb-panel" style="display:none">
+    <header>
+      <h3>Generate from data</h3>
+      <button class="wb-close" data-close="wb-generate-panel">×</button>
+    </header>
+    <div class="wb-form">
+      <label>Project filter (optional for most, required for ⚠ marked)</label>
+      <select id="wb-gen-project" class="wb-gen-select">
+        <option value="">— All projects —</option>
+      </select>
+
+      <div class="wb-gen-section">
+        <h4>📦 Combined</h4>
+        <button class="wb-gen-btn" data-gen="project-overview" data-needs-project="1" title="Memorie + Sessioni + Skills filtrate per progetto. Richiede di selezionare un progetto sopra.">📊 Project overview <span class="wb-needs-tag">⚠ project</span></button>
+      </div>
+
+      <div class="wb-gen-section">
+        <h4>🗂 Browse memories by…</h4>
+        <button class="wb-gen-btn" data-gen="memory-cluster" data-needs-project="1" title="Frame per top tag (cluster). Richiede progetto.">By tag <span class="wb-needs-tag">⚠ project</span></button>
+        <button class="wb-gen-btn" data-gen="by-type" title="Frame per Pattern / Decision / BugFix / ...">By type</button>
+        <button class="wb-gen-btn" data-gen="by-project" title="Frame per progetto SkillBrain">By project</button>
+        <button class="wb-gen-btn" data-gen="by-skill" title="Frame per skill referenziata">By skill</button>
+        <button class="wb-gen-btn" data-gen="by-author" title="Frame per utente che ha creato">By author</button>
+      </div>
+
+      <div class="wb-gen-section">
+        <h4>⏱ Time-based</h4>
+        <button class="wb-gen-btn" data-gen="recent-memories" title="Memorie ultimi 30 giorni in griglia">Recent memories</button>
+        <button class="wb-gen-btn" data-gen="session-timeline" title="Timeline cronologica sessioni">Session timeline</button>
+        <button class="wb-gen-btn" data-gen="most-used-memories" title="Top memorie per importance × confidence">Most-used memories</button>
+      </div>
+
+      <div class="wb-gen-section">
+        <h4>🎯 Specific types</h4>
+        <button class="wb-gen-btn" data-gen="decisions-log" title="Solo type=Decision in timeline">Decisions log</button>
+        <button class="wb-gen-btn" data-gen="antipatterns" title="Solo type=AntiPattern in mind-map radiale">AntiPatterns</button>
+        <button class="wb-gen-btn" data-gen="open-todos" title="Solo type=Todo + status=active in griglia">Open todos</button>
+      </div>
+
+      <div class="wb-gen-section">
+        <h4>🌐 Network</h4>
+        <button class="wb-gen-btn" data-gen="skill-graph" title="Skills + co-occurrence force-directed">Skill graph</button>
+      </div>
+
+      <div class="wb-gen-section">
+        <h4>🤖 AI-powered (uses embeddings, no Claude API)</h4>
+        <button class="wb-gen-btn" data-gen="semantic-cluster" title="K-means clustering by semantic similarity (vector embeddings or tag vectors)">🧠 Semantic cluster</button>
+      </div>
+
+      <div class="wb-hint">Tutti i risultati vengono inseriti nella board corrente al centro del viewport.</div>
+    </div>
+  </aside>
+
+  <!-- Activity panel -->
+  <aside id="wb-activity-panel" class="wb-panel" style="display:none">
+    <header>
+      <h3>Activity</h3>
+      <button class="wb-close" data-close="wb-activity-panel">×</button>
+    </header>
+    <div id="wb-activity-list" class="wb-activity-list"></div>
+  </aside>
+
+  <!-- Notifications panel -->
+  <aside id="wb-notif-panel" class="wb-panel" style="display:none">
+    <header>
+      <h3>Notifications</h3>
+      <button class="wb-close" data-close="wb-notif-panel">×</button>
+    </header>
+    <div style="padding:8px 12px;border-bottom:1px solid #f1f5f9">
+      <button id="wb-notif-mark-all" class="wb-btn" style="font-size:12px">Mark all read</button>
+    </div>
+    <div id="wb-notif-list" class="wb-notif-list"></div>
+  </aside>
+
+  <!-- Entity detail panel (sb-card click) -->
+  <aside id="wb-entity-panel" class="wb-panel" style="display:none">
+    <header>
+      <h3 id="wb-entity-title">Detail</h3>
+      <button class="wb-close" data-close="wb-entity-panel">×</button>
+    </header>
+    <div id="wb-entity-body" class="wb-entity-body"></div>
+  </aside>
+
+  <!-- Comments panel -->
+  <aside id="wb-comments-panel" class="wb-panel" style="display:none">
+    <header>
+      <h3>Comments <span id="wb-comments-target" class="wb-meta"></span></h3>
+      <button class="wb-close" data-close="wb-comments-panel">×</button>
+    </header>
+    <div id="wb-comments-list"></div>
+    <div class="wb-comment-form">
+      <textarea id="wb-comment-body" placeholder="Add a comment… use @email to notify"></textarea>
+      <button id="wb-comment-send" class="wb-btn wb-btn-primary">Send</button>
+    </div>
+  </aside>
+
+  <!-- Search / Find & replace overlay -->
+  <div id="wb-search-overlay" class="wb-search-overlay" style="display:none">
+    <input id="wb-search-input" type="text" placeholder="Find in board...">
+    <input id="wb-replace-input" type="text" placeholder="Replace with..." style="display:none">
+    <span id="wb-search-count" class="wb-meta"></span>
+    <button id="wb-search-prev" title="Previous match (↑)">↑</button>
+    <button id="wb-search-next" title="Next match (↓)">↓</button>
+    <button id="wb-toggle-replace" title="Toggle replace mode">⇄</button>
+    <button id="wb-replace-one" title="Replace current" style="display:none">Replace</button>
+    <button id="wb-replace-all" title="Replace all matches" style="display:none">All</button>
+    <button class="wb-close" data-close="wb-search-overlay">×</button>
+  </div>
+
+  <!-- Timer widget -->
+  <div id="wb-timer" class="wb-timer" style="display:none">
+    <input id="wb-timer-input" type="number" min="1" max="180" value="5">
+    <span>min</span>
+    <button id="wb-timer-start">Start</button>
+    <button id="wb-timer-reset">Reset</button>
+    <span id="wb-timer-display">5:00</span>
+    <button class="wb-close" data-close="wb-timer">×</button>
+  </div>
+
+  <!-- Conflict modal (409 on save) -->
+  <div id="wb-conflict-modal" class="wb-modal" style="display:none">
+    <div class="wb-modal-card">
+      <h3>This whiteboard was updated</h3>
+      <p>Someone else saved a newer version while you were editing. Reload to see their changes (your unsaved work will be lost).</p>
+      <button id="wb-conflict-reload" class="wb-btn wb-btn-primary">Reload</button>
+    </div>
+  </div>
+
+  <!-- Export modal -->
+  <div id="wb-export-modal" class="wb-modal" style="display:none">
+    <div class="wb-modal-card" style="max-width:480px;text-align:left">
+      <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:16px">Export board</h3>
+        <button class="wb-close" data-close="wb-export-modal">×</button>
+      </header>
+      <p style="font-size:13px;color:#64748b;margin-bottom:14px">Cattura tutto il contenuto della board (anche i nodi fuori dal viewport corrente).</p>
+      <div class="wb-export-options">
+        <button class="wb-export-opt" data-export="png">
+          <span class="i">🖼</span>
+          <div><strong>PNG</strong><div class="d">Immagine raster, sfondo trasparente</div></div>
+        </button>
+        <button class="wb-export-opt" data-export="jpg">
+          <span class="i">📷</span>
+          <div><strong>JPG</strong><div class="d">Immagine compressa, sfondo bianco</div></div>
+        </button>
+        <button class="wb-export-opt" data-export="pdf">
+          <span class="i">📄</span>
+          <div><strong>PDF</strong><div class="d">Apre la stampa del browser → Salva come PDF</div></div>
+        </button>
+        <button class="wb-export-opt" data-export="json">
+          <span class="i">📋</span>
+          <div><strong>JSON</strong><div class="d">Backup raw del state (re-importabile in futuro)</div></div>
+        </button>
+      </div>
+      <div id="wb-export-status" class="wb-hint" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- Generate preview modal (filters + live preview before applying) -->
+  <div id="wb-preview-modal" class="wb-modal" style="display:none">
+    <div class="wb-modal-card wb-preview-card">
+      <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="wb-preview-title" style="margin:0;font-size:16px"></h3>
+        <button class="wb-close" data-close="wb-preview-modal">×</button>
+      </header>
+      <div class="wb-preview-body">
+        <div class="wb-preview-filters" id="wb-preview-filters"></div>
+        <div class="wb-preview-summary">
+          <div class="wb-preview-stat"><span class="n" id="wb-preview-nodes">—</span><span class="l">nodes</span></div>
+          <div class="wb-preview-stat"><span class="n" id="wb-preview-frames">—</span><span class="l">frames</span></div>
+          <div class="wb-preview-stat"><span class="n" id="wb-preview-conn">—</span><span class="l">connectors</span></div>
+        </div>
+        <div class="wb-preview-list" id="wb-preview-list"></div>
+        <div id="wb-preview-status" class="wb-hint"></div>
+      </div>
+      <div class="wb-preview-actions">
+        <button class="wb-btn" data-close="wb-preview-modal">Cancel</button>
+        <button id="wb-preview-apply" class="wb-btn wb-btn-primary" disabled>Apply to board</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="wb-toast-container"></div>
+
+  <!-- Vendor (MIT, self-hosted, no CDN) -->
+  <script src="/vendor/marked.min.js"></script>
+  <script src="/vendor/prism.min.js"></script>
+  <script src="/vendor/prism-extra.min.js"></script>
+  <script src="/vendor/html2canvas.min.js"></script>
+
+  <!-- App (ES modules) -->
+  <script type="module" src="/whiteboard/main.js"></script>
+</body>
+</html>
