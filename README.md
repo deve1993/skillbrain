@@ -281,6 +281,20 @@ whiteboard_search({ q })                                       → matches
       <p align="center"><b>📝 Work Log</b><br/><sub>deliverables timeline across 14 projects</sub></p>
     </td>
   </tr>
+  <tr>
+    <td width="33%" valign="top">
+      <a href="docs/images/dashboard-whiteboards.png"><img src="docs/images/dashboard-whiteboards.png" alt="Whiteboards list — search, tags, pinned, recent, trash"/></a>
+      <p align="center"><b>🗂 Whiteboards list</b><br/><sub>search · tags sidebar · recent · pinned · trash</sub></p>
+    </td>
+    <td width="33%" valign="top">
+      <a href="docs/images/dashboard-whiteboard-canvas.png"><img src="docs/images/dashboard-whiteboard-canvas.png" alt="Whiteboard canvas with frames, sticky notes, code blocks, and connectors"/></a>
+      <p align="center"><b>🎨 Whiteboard canvas</b><br/><sub>frames · sticky · code · shapes · connectors · sb-cards</sub></p>
+    </td>
+    <td width="33%" valign="top">
+      <a href="docs/images/dashboard-whiteboard-generate.png"><img src="docs/images/dashboard-whiteboard-generate.png" alt="Generate panel with filters and live preview modal"/></a>
+      <p align="center"><b>⚡ Generators</b><br/><sub>14 deterministic recipes · filters · live preview</sub></p>
+    </td>
+  </tr>
 </table>
 
 ---
