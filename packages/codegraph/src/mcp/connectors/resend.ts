@@ -28,7 +28,7 @@ export async function sendPreviewEmail(
 ): Promise<ResendEmailResult> {
   const apiKey = getConnectorEnv('RESEND_API_KEY', ctx)
 
-  let from = 'SkillBrain Studio <noreply@dvesolutions.eu>'
+  let from = 'Synapse <noreply@dvesolutions.eu>'
   try { from = getConnectorEnv('RESEND_FROM', ctx) } catch { /* use default */ }
 
   const subject = `[Studio Preview] ${params.convTitle}`
@@ -36,7 +36,7 @@ export async function sendPreviewEmail(
   const bodyHtml = buildPreviewEmail({
     convTitle: params.convTitle,
     previewUrl: params.previewUrl,
-    senderName: params.senderName ?? 'SkillBrain Studio',
+    senderName: params.senderName ?? 'Synapse',
   })
 
   const payload: Record<string, unknown> = {
@@ -86,7 +86,7 @@ function buildPreviewEmail(params: {
 <body style="font-family:Inter,sans-serif;background:#f5f5f5;padding:40px 0;margin:0">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
     <div style="background:#08080d;padding:24px 32px">
-      <h1 style="color:#a78bfa;font-size:18px;margin:0">SkillBrain Studio</h1>
+      <h1 style="color:#a78bfa;font-size:18px;margin:0">Studio</h1>
     </div>
     <div style="padding:32px">
       <h2 style="font-size:20px;color:#111;margin:0 0 8px">${params.convTitle}</h2>
