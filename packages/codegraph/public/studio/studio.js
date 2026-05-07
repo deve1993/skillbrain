@@ -20,6 +20,18 @@ const state = {
   previewState: 'empty',
 }
 
+// ── Pipeline constants ──
+const PIPELINE_STEPS = [
+  { id: 'brief',     label: 'Brief analizzato' },
+  { id: 'context',   label: 'Contesto SkillBrain caricato' },
+  { id: 'skill',     label: 'Skill applicata' },
+  { id: 'html',      label: 'Generazione HTML…' },
+  { id: 'critique',  label: 'Critique' },
+  { id: 'done',      label: 'Completato' },
+]
+
+let pipelineEl = null
+
 // Exposed for connectors.js
 window.studioState = state
 
@@ -451,10 +463,221 @@ function updatePromptPlaceholder() {
     : 'Itera sul risultato…'
 }
 function renderChatFromMessages(messages) { /* Task 6 */ }
+function appendChatMessage(role, text) { /* Task 6 */ }
+function clearChatEmptyState() { /* Task 6 */ }
+function renderCritique(json) { /* Task 6 */ }
 function clearChat() {
   const area = $('#chat-area')
   if (!area) return
   area.innerHTML = '<div class="chat-empty" id="chat-empty"><div class="chat-empty-icon">💬</div><div style="font-size:11px">La chat apparirà qui dopo la generazione</div></div>'
+}
+
+// ══════════════════════════════════
+// PIPELINE
+// ══════════════════════════════════
+
+function createPipelineBlock() {
+  const el = document.createElement('div')
+  el.className = 'pipeline-block'
+  el.id = 'pipeline-block'
+  PIPELINE_STEPS.forEach(step => {
+    const row = document.createElement('div')
+    row.className = 'pipe-step'
+    row.id = `pipe-${step.id}`
+    row.innerHTML = `
+      <div class="pipe-icon pending" id="pipe-icon-${step.id}">○</div>
+      <span class="pipe-label pending" id="pipe-label-${step.id}">${esc(step.label)}</span>
+    `
+    el.appendChild(row)
+  })
+  return el
+}
+
+function setPipelineStep(stepId, status, extra = '') {
+  const icon  = $(`#pipe-icon-${stepId}`)
+  const label = $(`#pipe-label-${stepId}`)
+  if (!icon || !label) return
+
+  icon.className = `pipe-icon ${status}`
+  icon.textContent = status === 'done' ? '✓' : status === 'error' ? '✕' : status === 'active' ? '' : '○'
+
+  label.className = `pipe-label ${status}`
+
+  const existing = $(`#pipe-${stepId} .pipe-skill`)
+  if (existing) existing.remove()
+
+  if (extra) {
+    const badge = document.createElement('span')
+    badge.className = 'pipe-skill'
+    badge.textContent = extra
+    $(`#pipe-${stepId}`)?.appendChild(badge)
+  }
+}
+
+function collapsePipeline() {
+  const block = $('#pipeline-block')
+  if (!block) return
+  const skillName = state.pickers.skills.find(s => s.id === state.selected.skillId)?.name ?? ''
+  const conv = state.activeConv
+  const critiqueJson = conv?.critiqueJson ?? null
+  let score = '—'
+  if (critiqueJson) {
+    try {
+      const c = typeof critiqueJson === 'string' ? JSON.parse(critiqueJson) : critiqueJson
+      if (c.overall != null) score = `${c.overall}/10`
+    } catch { /* ignore */ }
+  }
+  const summary = document.createElement('div')
+  summary.className = 'pipeline-summary'
+  summary.textContent = `✓ Completato${skillName ? ` con ${skillName}` : ''} · ${score}`
+  block.replaceWith(summary)
+  pipelineEl = null
+}
+
+// ══════════════════════════════════
+// GENERATION FLOW
+// ══════════════════════════════════
+
+async function generate() {
+  if (!state.activeConvId) { toast('Seleziona o crea una conversazione', 'error'); return }
+  if (state.previewState === 'generating') return
+
+  const btn = $('#btn-generate')
+  if (btn) { btn.disabled = true }
+
+  const promptText = $('#prompt-textarea')?.value?.trim() ?? ''
+  if (promptText) {
+    appendChatMessage('user', promptText)
+    if ($('#prompt-textarea')) $('#prompt-textarea').value = ''
+    autoGrow()
+  }
+
+  if (promptText && state.activeConvId) {
+    try {
+      await api.post(`/api/studio/conversations/${state.activeConvId}/messages`, {
+        role: 'user', content: promptText,
+      })
+    } catch { /* non-blocking */ }
+  }
+
+  clearChatEmptyState()
+  pipelineEl = createPipelineBlock()
+  $('#chat-area')?.appendChild(pipelineEl)
+  setPipelineStep('brief', 'done')
+  setPipelineStep('context', 'active')
+
+  state.previewState = 'generating'
+  state.artifactHtml = null
+  applyPreviewState()
+  updateToolbarButtons()
+  updatePromptPlaceholder()
+
+  try {
+    const brief = state.selected.briefData
+    const res = await api.post(
+      `/api/studio/conversations/${state.activeConvId}/generate`,
+      {
+        agentModel:    state.selected.agentModel,
+        critiqueModel: state.selected.critiqueModel,
+        skillId:       state.selected.skillId   ?? undefined,
+        dsId:          state.selected.dsId       ?? undefined,
+        directionId:   state.selected.directionId ?? undefined,
+        brief:         brief ?? undefined,
+      }
+    )
+    state.activeJobId = res.jobId
+    connectSSE(res.jobId)
+  } catch (e) {
+    toast(`Generate failed: ${e.message}`, 'error')
+    onGenerationError(e.message)
+  }
+}
+
+function connectSSE(jobId) {
+  if (state.sseConn) { state.sseConn.close(); state.sseConn = null }
+  const sse = new EventSource(`/api/studio/jobs/${jobId}/stream`)
+  state.sseConn = sse
+  sse.onmessage = (e) => {
+    try { handleSseEvent(JSON.parse(e.data)) } catch { /* ignore parse errors */ }
+  }
+  sse.onerror = () => {
+    onGenerationError('SSE disconnected')
+    state.sseConn = null
+  }
+}
+
+function handleSseEvent(event) {
+  switch (event.type) {
+    case 'start': {
+      setPipelineStep('context', 'done')
+      const skillName = state.pickers.skills.find(s => s.id === state.selected.skillId)?.name ?? null
+      setPipelineStep('skill', 'done', skillName ?? '')
+      setPipelineStep('html', 'active')
+      break
+    }
+    case 'status':
+      if (event.job?.status === 'running') {
+        setPipelineStep('context', 'done')
+      }
+      break
+
+    case 'chunk':
+      // text chunk — no UI update needed
+      break
+
+    case 'artifact':
+      state.artifactHtml = event.html
+      setPipelineStep('html', 'done')
+      setPipelineStep('critique', 'active')
+      break
+
+    case 'critique':
+      setPipelineStep('critique', 'done')
+      setPipelineStep('done', 'active')
+      renderCritique(event.json)
+      break
+
+    case 'slop':
+      if (event.html) { state.artifactHtml = event.html }
+      if (event.json) renderCritique(event.json)
+      toast(`⚠ Qualità bassa rilevata — generazione completata comunque`, 'info')
+      onGenerationDone()
+      break
+
+    case 'done':
+      onGenerationDone()
+      break
+
+    case 'error': {
+      const msg = (event.message ?? '').includes('ANTHROPIC_API_KEY')
+        ? 'ANTHROPIC_API_KEY non configurata sul server'
+        : `Errore: ${event.message}`
+      onGenerationError(msg)
+      break
+    }
+  }
+}
+
+function onGenerationDone() {
+  if (state.sseConn) { state.sseConn.close(); state.sseConn = null }
+  setPipelineStep('done', 'done')
+  state.previewState = 'done'
+  applyPreviewState()
+  updateToolbarButtons()
+  updateGenerateButton()
+  updatePromptPlaceholder()
+  appendChatMessage('ai', 'Generazione completata. Puoi iterare nel prompt qui sotto o esportare dal toolbar.')
+  setTimeout(collapsePipeline, 2000)
+}
+
+function onGenerationError(msg) {
+  if (state.sseConn) { state.sseConn.close(); state.sseConn = null }
+  setPipelineStep('html', 'error')
+  state.previewState = 'empty'
+  applyPreviewState()
+  updateToolbarButtons()
+  updateGenerateButton()
+  toast(msg, 'error')
 }
 
 // ══════════════════════════════════
@@ -506,6 +729,5 @@ function autoGrow() {
 }
 
 function handleSend() { /* Task 7 */ }
-function generate() { /* Task 5 */ }
 
 init()
