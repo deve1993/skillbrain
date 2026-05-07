@@ -1,4 +1,4 @@
-// SkillBrain Whiteboard — DOM rendering
+// Synapse Whiteboard — DOM rendering
 // Reads from state and produces nodes + edge SVG. Idempotent: full re-render
 // on each subscribe-tick. The board is small enough (<200 nodes typical) that
 // vanilla DOM diffing isn't necessary.

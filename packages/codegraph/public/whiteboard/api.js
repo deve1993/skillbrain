@@ -1,4 +1,4 @@
-// SkillBrain Whiteboard — API client
+// Synapse Whiteboard — API client
 // Same-origin, uses session cookie. Throws on non-OK with server-provided detail.
 
 async function req(path, options = {}) {

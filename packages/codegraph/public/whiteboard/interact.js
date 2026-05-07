@@ -1,4 +1,4 @@
-// SkillBrain Whiteboard — interaction layer
+// Synapse Whiteboard — interaction layer
 // Pan, zoom, select, drag, resize, marquee, tool dispatch.
 
 import {

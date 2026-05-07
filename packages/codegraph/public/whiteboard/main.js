@@ -1,4 +1,4 @@
-// SkillBrain Whiteboard — orchestrator
+// Synapse Whiteboard — orchestrator
 // Wires everything together: load board, render, interact, save, panels.
 
 import { wb } from './api.js'
@@ -44,7 +44,7 @@ if (!boardId && !shareToken) {
     $('#wb-name').value = board.name
     if (isReadOnly) $('#wb-name').readOnly = true
     $('#wb-meta').textContent = (isReadOnly ? '👁 Read-only · ' : '') + (board.scope === 'project' ? `Project · ${board.projectName}` : 'Team')
-    document.title = `SkillBrain · ${board.name}` + (isReadOnly ? ' (read-only)' : '')
+    document.title = `Synapse · ${board.name}` + (isReadOnly ? ' (read-only)' : '')
     if (isReadOnly) document.body.classList.add('wb-readonly')
     renderAuthorLegend(authors)
     if (!isReadOnly) await refreshCommentCounts()
@@ -580,7 +580,7 @@ function formatRelative(iso) {
 const ONBOARDING_STEPS = [
   { selector: '#wb-canvas-container', title: 'Welcome!', body: '<strong>Double-click anywhere</strong> on the empty canvas to add a sticky note. Drag stickies, frames, and shapes from the bottom toolbar.', position: 'center' },
   { selector: '#wb-tooldock', title: 'Tools dock', body: 'Switch tool with the icons here, or by pressing single-letter shortcuts: <kbd>S</kbd> sticky · <kbd>F</kbd> frame · <kbd>A</kbd> connector · <kbd>P</kbd> pen · <kbd>R</kbd>/<kbd>E</kbd>/<kbd>T</kbd> shapes · <kbd>M</kbd> emoji.', position: 'top' },
-  { selector: '#btn-link', title: '+ Link', body: 'Drop SkillBrain memories, skills, sessions or projects directly onto the canvas as live cards.', position: 'bottom' },
+  { selector: '#btn-link', title: '+ Link', body: 'Drop Synapse memories, skills, sessions or projects directly onto the canvas as live cards.', position: 'bottom' },
   { selector: '#btn-generate', title: 'Generate', body: 'Auto-build the board from your data: by-type, by-project, semantic clusters, decisions log, etc. — all with filters and live preview.', position: 'bottom' },
   { selector: '#btn-templates', title: 'Templates', body: 'Insert ready-made layouts: Retro, Brainstorm, Kanban, OKR, Mind Map.', position: 'bottom' },
   { selector: '#btn-help', title: 'Help & shortcuts', body: 'Press <kbd>?</kbd> at any time for the full keyboard cheatsheet. <strong>Drag</strong> on empty area = marquee select · <strong>Space + drag</strong> = pan.', position: 'bottom' },
@@ -888,7 +888,7 @@ window.addEventListener('beforeunload', () => {
 function bindUI() {
   // Name editing
   $('#wb-name').addEventListener('change', async (e) => {
-    try { await wb.patch(boardId, { name: e.target.value }); update({ name: e.target.value }); document.title = 'SkillBrain · ' + e.target.value }
+    try { await wb.patch(boardId, { name: e.target.value }); update({ name: e.target.value }); document.title = 'Synapse · ' + e.target.value }
     catch (err) { toast('Rename failed: ' + err.message, 'error') }
   })
 

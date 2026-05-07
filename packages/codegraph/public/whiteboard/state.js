@@ -1,4 +1,4 @@
-// SkillBrain Whiteboard — state management
+// Synapse Whiteboard — state management
 // Single source of truth for board state. UI re-reads from here on render.
 // `nodes` and `connectors` mirror the JSON persisted on the server.
 
