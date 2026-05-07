@@ -94,7 +94,7 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
   const router = express.Router()
   const { issuer, skillbrainRoot, getUserIdFromRequest } = deps
 
-  // Prevent clickjacking on the consent page
+  // Prevent clickjacking on OAuth endpoints
   router.use((_req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY')
     next()
