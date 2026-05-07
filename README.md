@@ -1,17 +1,17 @@
 <p align="center">
-  <img src="docs/images/logo.svg" alt="SkillBrain" width="720"/>
+  <img src="docs/images/logo.svg" alt="Synapse" width="720"/>
 </p>
 
 <p align="center">
-  <b>Self-hosted AI memory platform for teams.</b><br/>
+  <b>The intelligence layer for AI workflows.</b><br/>
   One MCP connection. Collective knowledge. Multi-user auth. Zero local files.
 </p>
 
 <p align="center">
-  <img src="docs/images/demo-animated.svg" alt="SkillBrain live demo — session_resume, skill_route, memory_query" width="860"/>
+  <img src="docs/images/demo-animated.svg" alt="Synapse live demo — session_resume, skill_route, memory_query" width="860"/>
 </p>
 
-Your AI assistant forgets everything when you close the session. For your whole team, that's a productivity tax you pay every single day. SkillBrain fixes it — **permanently, collectively, with audit trails.**
+Your AI assistant forgets everything when you close the session. For your whole team, that's a productivity tax you pay every single day. Synapse fixes it — **permanently, collectively, with audit trails.**
 
 **55 MCP tools, 258 skills, multi-user authentication, 12-page dashboard, collaborative whiteboards, team-safe knowledge graph — served from a single self-hosted server.** Claude Code, Claude Desktop, or any MCP client connects and gets the full system.
 
@@ -111,7 +111,7 @@ Each team member rotates their own MCP access token from the **Profile** page. N
 
 ## What's New — May 2026
 
-- **Whiteboards (FigJam-style, integrated with SkillBrain data)** — full collaborative whiteboard with infinite canvas, sticky notes, frames, shapes, code blocks, free-hand pen, images, emoji stamps, and connectors. **The killer feature**: drag SkillBrain memories/skills/sessions/projects directly onto the canvas as live cards, double-click to edit them inline, and run **14 deterministic generators** to auto-build boards from your data (by-tag, by-type, by-project, by-skill, by-author, recent, most-used, decisions-log, antipatterns, open-todos, session-timeline, skill-graph, project-overview, semantic-cluster). Includes async collaboration (comments + @mention email + in-app notification inbox + heartbeat presence avatars), 5 templates (Retro, Brainstorm, Kanban, OKR, Mind-map), undo/redo, snap-to-grid + alignment guides, multi-handle resize, group/ungroup, lock, dot voting, timer, color-by-author, markdown sticky, syntax-highlighted code, version snapshots auto-saved hourly, soft-delete trash, pin/favorites, tags + search, read-only public share links, full board export (PNG/JPG/PDF/JSON), MCP exposure (5 new tools), and Figma-style left vertical sidebar. Zero npm dependencies (vanilla JS, ~3000 LOC), MIT-only vendor libs (marked, Prism, html2canvas) self-hosted in `/vendor/`.
+- **Whiteboards (FigJam-style, integrated with Synapse data)** — full collaborative whiteboard with infinite canvas, sticky notes, frames, shapes, code blocks, free-hand pen, images, emoji stamps, and connectors. **The killer feature**: drag Synapse memories/skills/sessions/projects directly onto the canvas as live cards, double-click to edit them inline, and run **14 deterministic generators** to auto-build boards from your data (by-tag, by-type, by-project, by-skill, by-author, recent, most-used, decisions-log, antipatterns, open-todos, session-timeline, skill-graph, project-overview, semantic-cluster). Includes async collaboration (comments + @mention email + in-app notification inbox + heartbeat presence avatars), 5 templates (Retro, Brainstorm, Kanban, OKR, Mind-map), undo/redo, snap-to-grid + alignment guides, multi-handle resize, group/ungroup, lock, dot voting, timer, color-by-author, markdown sticky, syntax-highlighted code, version snapshots auto-saved hourly, soft-delete trash, pin/favorites, tags + search, read-only public share links, full board export (PNG/JPG/PDF/JSON), MCP exposure (5 new tools), and Figma-style left vertical sidebar. Zero npm dependencies (vanilla JS, ~3000 LOC), MIT-only vendor libs (marked, Prism, html2canvas) self-hosted in `/vendor/`.
 - **Semantic search (vector embeddings)** — `memory_search` now uses hybrid retrieval: `0.5 × BM25 + 0.5 × cosine similarity` via `Xenova/multilingual-e5-small` (384-dim, CPU-only, IT+EN). Memories that share meaning surface even without keyword overlap.
 - **Embed-on-add** — every new memory is embedded in the background automatically (fire-and-forget, never blocks `memory_add`). First call downloads the model (~118 MB) to the local cache.
 - **Graceful degradation** — if the model is unavailable, retrieval falls back to BM25-only. No breaking changes.
@@ -121,7 +121,7 @@ Each team member rotates their own MCP access token from the **Profile** page. N
 
 ## What's New — April 2026
 
-The last wave of releases turned SkillBrain from a single-user tool into a team platform. Everything below ships in the current build:
+The last wave of releases turned Synapse from a single-user tool into a team platform. Everything below ships in the current build:
 
 - **Multi-user authentication** — email + password, admin bootstrap on first login, legacy `DASHBOARD_PASSWORD` deprecated.
 - **Self-service API keys** — `GET/POST/DELETE /api/me/api-keys` from the **Profile** page, no admin needed for rotation.
@@ -141,7 +141,7 @@ The last wave of releases turned SkillBrain from a single-user tool into a team 
 
 ## Before vs After
 
-| | Without SkillBrain | With SkillBrain |
+| | Without Synapse | With Synapse |
 |---|---|---|
 | **Same bug, 3rd time** | 20 min rediscovering | `memory_search` → 2 seconds |
 | **New session** | Start from zero | Auto-loads context + top memories |
@@ -158,7 +158,7 @@ The last wave of releases turned SkillBrain from a single-user tool into a team 
 
 ---
 
-## What Is SkillBrain?
+## What Is Synapse?
 
 A **self-improving AI brain** deployed on your server, with multi-user authentication and team-safe storage. Thirteen integrated systems:
 
@@ -238,7 +238,7 @@ Web dashboard served on the same port as the MCP HTTP server. Bearer-token auth 
 The proxy auto-detects your project (from `package.json` or folder name), git branch, and client type (Code vs Desktop). Sessions are created, heart-beated and closed automatically.
 
 ### 🎨 13. Whiteboards **(NEW — May 2026)**
-A FigJam-style infinite canvas, but **wired to your SkillBrain data**. Drag any memory / skill / session / project onto the board as a live card and edit it in place. Run **14 generators** to auto-build boards from your knowledge graph (by tag, by type, by project, by skill, by author, recent, most-used, decisions log, antipatterns, open todos, session timeline, skill graph, project overview, semantic cluster via K-means + embeddings). Sticky notes with markdown, code blocks with syntax highlighting, frames, free-hand pen, shapes (rect/ellipse/triangle), images (drag-drop, base64 inline), emoji stamps, connectors with 4 kinds (related/depends-on/blocks/leads-to). Full async collaboration: comments threading, `@email` mentions (email + in-app inbox), heartbeat-based presence avatars, dot voting, timer, color-by-author. 5 templates (Retro, Brainstorm 3-step, Kanban, OKR, Mind-map). Auto-snapshots hourly, soft-delete trash + restore, pin/favorites, tags, search across boards, read-only public share links, export PNG/JPG/PDF/JSON. Zero JS dependencies (vanilla, ~3000 LOC); only 3 MIT vendor libs self-hosted (marked, Prism, html2canvas).
+A FigJam-style infinite canvas, but **wired to your Synapse data**. Drag any memory / skill / session / project onto the board as a live card and edit it in place. Run **14 generators** to auto-build boards from your knowledge graph (by tag, by type, by project, by skill, by author, recent, most-used, decisions log, antipatterns, open todos, session timeline, skill graph, project overview, semantic cluster via K-means + embeddings). Sticky notes with markdown, code blocks with syntax highlighting, frames, free-hand pen, shapes (rect/ellipse/triangle), images (drag-drop, base64 inline), emoji stamps, connectors with 4 kinds (related/depends-on/blocks/leads-to). Full async collaboration: comments threading, `@email` mentions (email + in-app inbox), heartbeat-based presence avatars, dot voting, timer, color-by-author. 5 templates (Retro, Brainstorm 3-step, Kanban, OKR, Mind-map). Auto-snapshots hourly, soft-delete trash + restore, pin/favorites, tags, search across boards, read-only public share links, export PNG/JPG/PDF/JSON. Zero JS dependencies (vanilla, ~3000 LOC); only 3 MIT vendor libs self-hosted (marked, Prism, html2canvas).
 
 ```
 whiteboard_list({ scope, projectName, tag, pinned, search }) → boards
@@ -519,7 +519,7 @@ Each team member gets their own API key from the dashboard and configures:
 
 ## How It Compares
 
-| Feature | CLAUDE.md | Mem0 / Zep | Spacebot | **SkillBrain** |
+| Feature | CLAUDE.md | Mem0 / Zep | Spacebot | **Synapse** |
 |---------|-----------|------------|----------|----------------|
 | Memory | Manual text | Vector DB | Typed graph (Rust) | **Typed graph (SQLite + MCP)** |
 | Retrieval | None | Cosine similarity | Keyword | **BM25 + vector embeddings + trigram FTS5 + closet boost** |
@@ -598,13 +598,13 @@ Contributions welcome:
 - Memory Graph integrations
 - Dashboard improvements
 - Multi-language support
-- Migration scripts between SkillBrain instances
+- Migration scripts between Synapse instances
 
 ---
 
 ## License
 
-SkillBrain is dual-licensed:
+Synapse is dual-licensed:
 
 - **AGPL-3.0** — Free for open source use. If you run a modified version over a network (including SaaS), you must share your source code under AGPL-3.0.
 - **Commercial License** — For proprietary/closed-source deployments. Removes all AGPL obligations.
@@ -615,4 +615,4 @@ The complete AGPL-3.0 text is in the [LICENSE](LICENSE) file.
 
 ---
 
-*Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + SkillBrain collective memory*
+*Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + Synapse collective memory*
