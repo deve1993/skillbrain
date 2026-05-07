@@ -462,10 +462,71 @@ function updatePromptPlaceholder() {
     ? 'Descrivi cosa generare…'
     : 'Itera sul risultato…'
 }
-function renderChatFromMessages(messages) { /* Task 6 */ }
-function appendChatMessage(role, text) { /* Task 6 */ }
-function clearChatEmptyState() { /* Task 6 */ }
-function renderCritique(json) { /* Task 6 */ }
+function clearChatEmptyState() {
+  const empty = $('#chat-empty')
+  if (empty) empty.remove()
+}
+
+function appendChatMessage(role, text) {
+  clearChatEmptyState()
+  const area = $('#chat-area')
+  if (!area) return
+
+  const msg = document.createElement('div')
+  msg.className = `msg msg-${role}`
+  msg.innerHTML = `
+    <div class="msg-av ${role}">${role === 'user' ? 'U' : 'AI'}</div>
+    <div class="msg-bubble ${role}-b">${esc(text)}</div>
+  `
+  area.appendChild(msg)
+  area.scrollTop = area.scrollHeight
+}
+
+function renderChatFromMessages(messages) {
+  const area = $('#chat-area')
+  if (!area) return
+  area.innerHTML = ''
+
+  const visible = messages.filter(m => m.role === 'user' || m.role === 'assistant')
+  if (visible.length === 0) {
+    area.innerHTML = '<div class="chat-empty" id="chat-empty"><div class="chat-empty-icon">💬</div><div style="font-size:11px">La chat apparirà qui dopo la generazione</div></div>'
+    return
+  }
+
+  for (const m of visible) {
+    const role = m.role === 'user' ? 'user' : 'ai'
+    const msg = document.createElement('div')
+    msg.className = `msg msg-${role}`
+    msg.innerHTML = `
+      <div class="msg-av ${role}">${role === 'user' ? 'U' : 'AI'}</div>
+      <div class="msg-bubble ${role}-b">${esc(m.content?.slice(0, 300) ?? '')}</div>
+    `
+    area.appendChild(msg)
+  }
+  area.scrollTop = area.scrollHeight
+}
+
+function renderCritique(json) {
+  const bar = $('#critique-bar')
+  const scoreEl = $('#critique-score')
+  const detail = $('#critique-detail')
+  if (!bar || !scoreEl || !detail) return
+
+  let data
+  try { data = typeof json === 'string' ? JSON.parse(json) : json } catch { return }
+
+  if (data.overall != null) scoreEl.textContent = `${data.overall} / 10`
+  bar.classList.add('visible')
+
+  const dims = data.dimensions ?? []
+  detail.innerHTML = dims.map(d => `
+    <div class="critique-row">
+      <div class="c-check ${d.pass ? 'pass' : 'fail'}">${d.pass ? '✓' : '✗'}</div>
+      <span style="flex:1">${esc(d.label ?? d.name ?? '')}</span>
+      <span style="font-size:10px;color:var(--text-muted)">${esc(String(d.comment ?? d.score ?? ''))}</span>
+    </div>
+  `).join('')
+}
 function clearChat() {
   const area = $('#chat-area')
   if (!area) return
