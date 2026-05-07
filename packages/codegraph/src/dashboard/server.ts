@@ -203,7 +203,7 @@ function countLines(f: string) { try { return fs.readFileSync(f, 'utf-8').split(
 const HTML = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SkillBrain — Neural Map</title>
+<title>Synapse — Neural Map</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#08080d;color:#d0d0d0;padding:20px 24px}
@@ -274,12 +274,12 @@ details .inner{padding:6px 0 6px 12px}
 /* Footer */
 .footer{text-align:center;color:#333;font-size:11px;margin-top:32px;padding:12px 0;border-top:1px solid #111118}
 </style></head><body>
-<h1>SkillBrain</h1>
+<h1>Synapse</h1>
 <div class="sub">Neural Map — Live Dashboard <span class="pulse" style="color:#34d399">&#9679;</span></div>
 <div class="refresh" id="ref">Loading...</div>
 <div class="totals" id="totals"></div>
 <div id="app"></div>
-<div class="footer">SkillBrain Neural Map — auto-refreshes every 30s — built with CodeGraph</div>
+<div class="footer">Synapse Neural Map — auto-refreshes every 30s — built with CodeGraph</div>
 
 <script>
 const EC={CALLS:'#6366f1',IMPORTS:'#34d399',EXTENDS:'#f59e0b',IMPLEMENTS:'#ec4899',HAS_METHOD:'#8b5cf6',MEMBER_OF:'#60a5fa',STEP_IN_PROCESS:'#fb923c'}
@@ -562,7 +562,7 @@ const server = http.createServer((req, res) => {
 // Only start standalone when run directly (not when imported by http-server)
 const isDirectRun = process.argv[1]?.includes('dashboard/server')
 if (isDirectRun) {
-  server.listen(PORT, () => console.log(`\n  SkillBrain Dashboard: http://localhost:${PORT}\n`))
+  server.listen(PORT, () => console.log(`\n  Synapse Dashboard: http://localhost:${PORT}\n`))
 }
 
 export { server, HTML, getRepoDetails, getSkillsGrouped, getLearnings, getMemoryGraph, getAutomation }
