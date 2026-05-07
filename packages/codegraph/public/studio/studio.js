@@ -764,6 +764,11 @@ async function init() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   })
   $('#prompt-textarea')?.addEventListener('input', autoGrow)
+  $('#prompt-textarea')?.addEventListener('input', () => {
+    const ta = $('#prompt-textarea')
+    const btn = $('#btn-send')
+    if (btn) btn.disabled = !ta?.value?.trim() || !state.activeConvId || state.previewState === 'generating'
+  })
   $('#critique-toggle')?.addEventListener('click', () => {
     const d = $('#critique-detail'); d?.classList.toggle('open')
     const t = $('#critique-toggle'); if (t) t.textContent = d?.classList.contains('open') ? '▴ chiudi' : '▾ dettaglio'
@@ -792,6 +797,18 @@ function autoGrow() {
   ta.style.height = Math.min(ta.scrollHeight, 100) + 'px'
 }
 
-function handleSend() { /* Task 7 */ }
+function handleSend() {
+  const ta = $('#prompt-textarea')
+  if (!ta) return
+  const text = ta.value.trim()
+  if (!text || state.previewState === 'generating') return
+
+  if (!state.activeConvId) {
+    toast('Crea prima una conversazione con il tasto +', 'info')
+    return
+  }
+
+  generate()
+}
 
 init()
