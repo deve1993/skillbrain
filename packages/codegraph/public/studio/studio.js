@@ -8,6 +8,7 @@ const state = {
   activeJobId: null,
   sseConn: null,
   artifactHtml: null, // current rendered artifact
+  currentBlobUrl: null, // track current blob URL for cleanup
   pickers: { skills: [], ds: [], directions: [] },
   selected: {
     skillId: null, dsId: null, directionId: null,
@@ -103,6 +104,10 @@ function renderTabs() {
 
 async function selectConv(convId) {
   if (state.sseConn) { state.sseConn.close(); state.sseConn = null }
+  if (state.currentBlobUrl) {
+    URL.revokeObjectURL(state.currentBlobUrl)
+    state.currentBlobUrl = null
+  }
 
   const previousConvId = state.activeConvId
   state.activeConvId = convId
@@ -423,11 +428,9 @@ function applyPreviewState() {
   if (s === 'done' && state.artifactHtml) {
     const blob = new Blob([state.artifactHtml], { type: 'text/html' })
     const url  = URL.createObjectURL(blob)
-    if (iframe.src !== url) {
-      const prev = iframe.src
-      iframe.src = url
-      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
-    }
+    if (state.currentBlobUrl) URL.revokeObjectURL(state.currentBlobUrl)
+    state.currentBlobUrl = url
+    iframe.src = url
   }
 
   // Update tab dot
@@ -482,8 +485,10 @@ async function init() {
     if (state.previewState === 'done' && state.artifactHtml) {
       const iframe = $('#preview-iframe')
       if (!iframe) return
+      if (state.currentBlobUrl) URL.revokeObjectURL(state.currentBlobUrl)
       const blob = new Blob([state.artifactHtml], { type: 'text/html' })
-      iframe.src = URL.createObjectURL(blob)
+      state.currentBlobUrl = URL.createObjectURL(blob)
+      iframe.src = state.currentBlobUrl
     }
   })
   $('#btn-fullscreen')?.addEventListener('click', () => {
