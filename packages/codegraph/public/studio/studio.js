@@ -23,7 +23,7 @@ const state = {
 // ── Pipeline constants ──
 const PIPELINE_STEPS = [
   { id: 'brief',     label: 'Brief analizzato' },
-  { id: 'context',   label: 'Contesto SkillBrain caricato' },
+  { id: 'context',   label: 'Contesto Synapse caricato' },
   { id: 'skill',     label: 'Skill applicata' },
   { id: 'html',      label: 'Generazione HTML…' },
   { id: 'critique',  label: 'Critique' },
@@ -394,7 +394,7 @@ function renderBriefSheetBody() {
         </select>
       </div>
       <div><label>Brand / prodotto</label>
-        <input class="sheet-input" id="brief-brand" placeholder="es. SkillBrain — AI memory platform" value="${esc(b.brand??'')}">
+        <input class="sheet-input" id="brief-brand" placeholder="es. Synapse — The intelligence layer for AI workflows" value="${esc(b.brand??'')}">
       </div>
       <div><label>Scale</label>
         <select class="sheet-select" id="brief-scale">
