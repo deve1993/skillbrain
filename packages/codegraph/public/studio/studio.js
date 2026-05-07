@@ -689,6 +689,11 @@ function handleSseEvent(event) {
     case 'status':
       if (event.job?.status === 'running') {
         setPipelineStep('context', 'done')
+      } else if (event.job?.status === 'error') {
+        const errMsg = (event.job?.errorMsg ?? '').includes('ANTHROPIC_API_KEY')
+          ? 'ANTHROPIC_API_KEY non configurata sul server'
+          : `Errore: ${event.job?.errorMsg ?? 'sconosciuto'}`
+        onGenerationError(errMsg)
       }
       break
 
