@@ -10,7 +10,7 @@
   <style>
     /* ── Reset ── */
     html, body { height: 100%; overflow: hidden; }
-    body { flex-direction: column; min-height: unset; }
+    body { display: flex; flex-direction: column; min-height: unset; }
 
     /* ── Header ── */
     .s-header {
@@ -69,7 +69,7 @@
     .btn-generate:disabled { opacity: .4; cursor: not-allowed; }
 
     /* ── Main ── */
-    .s-main { display: flex; flex: 1; overflow: hidden; }
+    .s-main { display: flex; flex: 1; overflow: hidden; position: relative; }
 
     /* ── Preview column ── */
     .preview-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
@@ -347,8 +347,6 @@
     .toast.error   { background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.25); color: var(--red); }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
-
     /* ── Connector modal styles (kept for connector modals) ── */
     .brief-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(4px);
@@ -429,7 +427,7 @@
   </header>
 
   <!-- ═══ MAIN ═══ -->
-  <div class="s-main" style="position:relative">
+  <div class="s-main">
 
     <!-- ─── Preview column ─── -->
     <div class="preview-col">
@@ -621,7 +619,7 @@
       <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
         <input id="payload-collection" type="text" class="brief-input" placeholder="Collection (default: pages)">
         <input id="payload-slug" type="text" class="brief-input" placeholder="Slug (auto-generated if empty)">
-        <select id="payload-status" class="brief-input">
+        <select id="payload-publish-status" class="brief-input">
           <option value="draft">Draft</option>
           <option value="published">Published</option>
         </select>
