@@ -468,15 +468,16 @@ function clearChatEmptyState() {
 }
 
 function appendChatMessage(role, text) {
+  const safeRole = role === 'user' ? 'user' : 'ai'
   clearChatEmptyState()
   const area = $('#chat-area')
   if (!area) return
 
   const msg = document.createElement('div')
-  msg.className = `msg msg-${role}`
+  msg.className = `msg msg-${safeRole}`
   msg.innerHTML = `
-    <div class="msg-av ${role}">${role === 'user' ? 'U' : 'AI'}</div>
-    <div class="msg-bubble ${role}-b">${esc(text)}</div>
+    <div class="msg-av ${safeRole}">${safeRole === 'user' ? 'U' : 'AI'}</div>
+    <div class="msg-bubble ${safeRole}-b">${esc(text)}</div>
   `
   area.appendChild(msg)
   area.scrollTop = area.scrollHeight
@@ -518,7 +519,7 @@ function renderCritique(json) {
   if (data.overall != null) scoreEl.textContent = `${data.overall} / 10`
   bar.classList.add('visible')
 
-  const dims = data.dimensions ?? []
+  const dims = Array.isArray(data.dimensions) ? data.dimensions : []
   detail.innerHTML = dims.map(d => `
     <div class="critique-row">
       <div class="c-check ${d.pass ? 'pass' : 'fail'}">${d.pass ? '✓' : '✗'}</div>
