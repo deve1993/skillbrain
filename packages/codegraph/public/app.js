@@ -1,4 +1,4 @@
-// SkillBrain Hub — SPA orchestrator
+// Synapse — SPA orchestrator
 // Routing, event listeners, and init only. All rendering is in js/render.js.
 // All modal logic is in js/modal.js. All fetch logic is in js/api.js.
 

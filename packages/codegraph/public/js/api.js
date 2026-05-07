@@ -1,4 +1,4 @@
-// SkillBrain Hub — API client module
+// Synapse — API client module
 // All fetch calls go through here. Same-origin, no auth header needed beyond credentials.
 
 const API = '' // same-origin

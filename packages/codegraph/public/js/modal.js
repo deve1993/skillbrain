@@ -1,4 +1,4 @@
-// SkillBrain Hub — Edit Project modal module
+// Synapse — Edit Project modal module
 
 import { api } from './api.js'
 

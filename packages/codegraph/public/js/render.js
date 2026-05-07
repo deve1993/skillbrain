@@ -1,4 +1,4 @@
-// SkillBrain Hub — Rendering / DOM-building module
+// Synapse — Rendering / DOM-building module
 
 import { api } from './api.js'
 
@@ -1449,7 +1449,7 @@ export async function renderWhiteboards() {
     const scope = confirm('Make this a TEAM-wide whiteboard?\n\nClick OK for "team", Cancel to attach to a project.') ? 'team' : 'project'
     let projectName = null
     if (scope === 'project') {
-      projectName = prompt('Project name (must exist in SkillBrain):')
+      projectName = prompt('Project name (must exist in Synapse):')
       if (!projectName) return
     }
     try {
