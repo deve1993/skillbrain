@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 200" role="img" aria-label="SkillBrain logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 200" role="img" aria-label="Synapse logo">
   <defs>
     <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#8b5cf6"/>
@@ -50,11 +50,11 @@
   <!-- Wordmark -->
   <text x="200" y="115" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
         font-weight="800" font-size="84" letter-spacing="-3"
-        fill="url(#g2)">Skill<tspan fill="url(#g1)">Brain</tspan></text>
+        fill="url(#g2)">Syn<tspan fill="url(#g1)">apse</tspan></text>
 
   <!-- Tagline -->
   <text x="202" y="155" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif"
         font-size="20" letter-spacing="1" fill="#94a3b8">
-    Self-hosted AI memory platform · for teams
+    The intelligence layer for AI workflows
   </text>
 </svg>
