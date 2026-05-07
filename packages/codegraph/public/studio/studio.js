@@ -186,11 +186,229 @@ async function deleteConv(convId) {
 }
 
 // ══════════════════════════════════
-// STUBS (implemented in later tasks)
+// PICKERS
 // ══════════════════════════════════
-function renderConfigBar() { /* Task 3 */ }
-function openSheet(mode) { /* Task 3 */ }
-function closeSheet() { /* Task 3 */ }
+
+async function loadPickers() {
+  try {
+    const [sr, dr, dir] = await Promise.all([
+      api.get('/api/studio/skills'),
+      api.get('/api/studio/design-systems'),
+      api.get('/api/studio/directions'),
+    ])
+    state.pickers.skills = Array.isArray(sr) ? sr : (sr.skills ?? [])
+    state.pickers.ds = Array.isArray(dr) ? dr : (dr.designSystems ?? [])
+    state.pickers.directions = Array.isArray(dir) ? dir : (dir.directions ?? [])
+  } catch (e) {
+    toast(`Failed to load pickers: ${e.message}`, 'error')
+  }
+}
+
+// ══════════════════════════════════
+// CONFIG BAR
+// ══════════════════════════════════
+
+function renderConfigBar() {
+  const bar = $('#config-bar')
+  if (!bar) return
+  bar.innerHTML = ''
+
+  const chips = []
+  if (state.selected.skillId) {
+    const s = state.pickers.skills.find(x => x.id === state.selected.skillId)
+    if (s) chips.push(s.name)
+  }
+  if (state.selected.dsId) {
+    const d = state.pickers.ds.find(x => x.id === state.selected.dsId)
+    if (d) chips.push(d.name)
+  }
+  if (state.selected.directionId) {
+    const d = state.pickers.directions.find(x => x.id === state.selected.directionId)
+    if (d) chips.push(d.name)
+  }
+
+  if (chips.length === 0) {
+    const ph = document.createElement('span')
+    ph.className = 'config-chip placeholder'
+    ph.textContent = '+ Add skill / DS'
+    ph.addEventListener('click', () => openSheet('edit'))
+    bar.appendChild(ph)
+  } else {
+    chips.forEach(name => {
+      const chip = document.createElement('span')
+      chip.className = 'config-chip'
+      chip.textContent = name
+      bar.appendChild(chip)
+    })
+    const editBtn = document.createElement('button')
+    editBtn.className = 'config-edit-btn'
+    editBtn.textContent = '✎ edit'
+    editBtn.addEventListener('click', () => openSheet('edit'))
+    bar.appendChild(editBtn)
+  }
+}
+
+// ══════════════════════════════════
+// SIDE SHEET
+// ══════════════════════════════════
+
+function openSheet(mode) {
+  const sheet = $('#side-sheet')
+  const title = $('#sheet-title')
+  const body = $('#sheet-body')
+  const footer = $('#sheet-footer')
+  if (!sheet || !body) return
+
+  if (mode === 'edit') {
+    title.textContent = 'Configura'
+    body.innerHTML = renderEditSheetBody()
+    footer.style.display = 'flex'
+    bindEditSheetPills(body)
+    $('#sheet-apply').onclick = () => { saveEditSheet(body); closeSheet() }
+  } else {
+    // brief mode
+    title.textContent = '⚙ Brief (opzionale)'
+    body.innerHTML = renderBriefSheetBody()
+    footer.style.display = 'flex'
+    $('#sheet-apply').onclick = () => { saveBriefSheet(body); closeSheet() }
+  }
+
+  sheet.classList.add('open')
+}
+
+function bindEditSheetPills(body) {
+  body.querySelectorAll('[data-skill]').forEach(btn => {
+    btn.className = `sheet-pill${btn.dataset.skill === state.selected.skillId ? ' selected' : ''}`
+    btn.onclick = () => {
+      state.selected.skillId = btn.dataset.skill === state.selected.skillId ? null : btn.dataset.skill
+      bindEditSheetPills(body); renderConfigBar()
+    }
+  })
+  body.querySelectorAll('[data-ds]').forEach(btn => {
+    btn.className = `sheet-pill${btn.dataset.ds === state.selected.dsId ? ' selected' : ''}`
+    btn.onclick = () => {
+      state.selected.dsId = btn.dataset.ds === state.selected.dsId ? null : btn.dataset.ds
+      bindEditSheetPills(body); renderConfigBar()
+    }
+  })
+  body.querySelectorAll('[data-dir]').forEach(btn => {
+    btn.className = `sheet-pill${btn.dataset.dir === state.selected.directionId ? ' selected' : ''}`
+    btn.onclick = () => {
+      state.selected.directionId = btn.dataset.dir === state.selected.directionId ? null : btn.dataset.dir
+      bindEditSheetPills(body); renderConfigBar()
+    }
+  })
+}
+
+function renderEditSheetBody() {
+  const skillPills = state.pickers.skills.slice(0, 12).map(s =>
+    `<button class="sheet-pill${s.id === state.selected.skillId ? ' selected' : ''}" data-skill="${esc(s.id)}">${esc(s.name)}</button>`
+  ).join('')
+  const dsPills = state.pickers.ds.slice(0, 12).map(d =>
+    `<button class="sheet-pill${d.id === state.selected.dsId ? ' selected' : ''}" data-ds="${esc(d.id)}">${esc(d.name)}</button>`
+  ).join('')
+  const dirPills = state.pickers.directions.map(d =>
+    `<button class="sheet-pill${d.id === state.selected.directionId ? ' selected' : ''}" data-dir="${esc(d.id)}">${esc(d.name)}</button>`
+  ).join('')
+  return `
+    <div class="sheet-section">
+      <div class="sheet-label">Skill</div>
+      <div class="sheet-pills">${skillPills || '<span style="font-size:11px;color:var(--text-muted)">Nessuna skill disponibile</span>'}</div>
+    </div>
+    <div class="sheet-section">
+      <div class="sheet-label">Design System</div>
+      <div class="sheet-pills">${dsPills || '<span style="font-size:11px;color:var(--text-muted)">Nessun DS disponibile</span>'}</div>
+    </div>
+    <div class="sheet-section">
+      <div class="sheet-label">Visual Direction</div>
+      <div class="sheet-pills">${dirPills || '<span style="font-size:11px;color:var(--text-muted)">Nessuna direction disponibile</span>'}</div>
+    </div>
+    <div class="sheet-section">
+      <div class="sheet-label">Modelli</div>
+      <div class="sheet-model-row">
+        <div>
+          <div class="sheet-model-label">Generate</div>
+          <select class="sheet-select" id="sel-agent">
+            <option value="claude-opus-4-7"${state.selected.agentModel==='claude-opus-4-7'?' selected':''}>Opus 4.7</option>
+            <option value="claude-sonnet-4-6"${state.selected.agentModel==='claude-sonnet-4-6'?' selected':''}>Sonnet 4.6</option>
+            <option value="claude-haiku-4-5-20251001"${state.selected.agentModel==='claude-haiku-4-5-20251001'?' selected':''}>Haiku 4.5</option>
+          </select>
+        </div>
+        <div>
+          <div class="sheet-model-label">Critique</div>
+          <select class="sheet-select" id="sel-critique">
+            <option value="claude-haiku-4-5-20251001"${state.selected.critiqueModel==='claude-haiku-4-5-20251001'?' selected':''}>Haiku 4.5</option>
+            <option value="claude-sonnet-4-6"${state.selected.critiqueModel==='claude-sonnet-4-6'?' selected':''}>Sonnet 4.6</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function saveEditSheet(body) {
+  state.selected.agentModel = body.querySelector('#sel-agent')?.value ?? state.selected.agentModel
+  state.selected.critiqueModel = body.querySelector('#sel-critique')?.value ?? state.selected.critiqueModel
+  renderConfigBar()
+}
+
+function renderBriefSheetBody() {
+  const b = state.selected.briefData ?? {}
+  return `
+    <p style="font-size:11px;color:var(--text-muted);line-height:1.6">
+      Fornisci contesto opzionale per guidare la generazione. Puoi saltare e scrivere direttamente nel prompt.
+    </p>
+    <div class="brief-fields">
+      <div><label>Surface</label>
+        <select class="sheet-select" id="brief-surface">
+          <option value="">— skip —</option>
+          <option value="landing"${b.surface==='landing'?' selected':''}>Landing page</option>
+          <option value="dashboard"${b.surface==='dashboard'?' selected':''}>Dashboard</option>
+          <option value="form"${b.surface==='form'?' selected':''}>Form / wizard</option>
+          <option value="email"${b.surface==='email'?' selected':''}>Email template</option>
+          <option value="component"${b.surface==='component'?' selected':''}>UI Component</option>
+        </select>
+      </div>
+      <div><label>Audience</label>
+        <input class="sheet-input" id="brief-audience" placeholder="es. SaaS founders, B2B" value="${esc(b.audience??'')}">
+      </div>
+      <div><label>Tone</label>
+        <select class="sheet-select" id="brief-tone">
+          <option value="">— skip —</option>
+          <option value="professional"${b.tone==='professional'?' selected':''}>Professional</option>
+          <option value="casual"${b.tone==='casual'?' selected':''}>Casual</option>
+          <option value="bold"${b.tone==='bold'?' selected':''}>Bold / aggressive</option>
+          <option value="minimal"${b.tone==='minimal'?' selected':''}>Minimal</option>
+        </select>
+      </div>
+      <div><label>Brand / prodotto</label>
+        <input class="sheet-input" id="brief-brand" placeholder="es. SkillBrain — AI memory platform" value="${esc(b.brand??'')}">
+      </div>
+      <div><label>Scale</label>
+        <select class="sheet-select" id="brief-scale">
+          <option value="">— skip —</option>
+          <option value="mvp"${b.scale==='mvp'?' selected':''}>MVP / prototipo</option>
+          <option value="full"${b.scale==='full'?' selected':''}>Completo</option>
+        </select>
+      </div>
+    </div>
+  `
+}
+
+function saveBriefSheet(body) {
+  const surface  = body.querySelector('#brief-surface')?.value  || null
+  const audience = body.querySelector('#brief-audience')?.value || null
+  const tone     = body.querySelector('#brief-tone')?.value     || null
+  const brand    = body.querySelector('#brief-brand')?.value    || null
+  const scale    = body.querySelector('#brief-scale')?.value    || null
+  state.selected.briefData = (surface || audience || tone || brand || scale)
+    ? { surface, audience, tone, brand, scale }
+    : null
+}
+
+function closeSheet() {
+  $('#side-sheet')?.classList.remove('open')
+}
 function applyPreviewState() { /* Task 4 */ }
 function updateToolbarButtons() { /* Task 8 */ }
 function updateGenerateButton() {
@@ -216,6 +434,7 @@ function clearChat() {
 // INIT
 // ══════════════════════════════════
 async function init() {
+  await loadPickers()
   await loadConvs()
   $('#btn-generate')?.addEventListener('click', () => generate())
   $('#btn-send')?.addEventListener('click', () => handleSend())
