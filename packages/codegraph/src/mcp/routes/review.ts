@@ -145,7 +145,7 @@ export function createReviewRouter(ctx: RouteContext): Router {
       ? `## Current Skill Content\n\`\`\`\n${skill.content}\n\`\`\``
       : `## Note\nThis skill does not exist yet — create it from scratch based on the learnings below.`
 
-    const prompt = `You are improving a SkillBrain skill file based on recent learnings.
+    const prompt = `You are improving a Synapse skill file based on recent learnings.
 
 ## Skill: ${proposal.skill_name}
 Category: ${skill?.category || 'unknown'}

@@ -76,7 +76,7 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
     {
       name: z.string().describe('Skill name (e.g., "nextjs", "agent:builder", "command:frontend")'),
       project: z.string().optional().describe('Current project (for telemetry)'),
-      sessionId: z.string().optional().describe('SkillBrain session id (for telemetry, if known)'),
+      sessionId: z.string().optional().describe('Synapse session id (for telemetry, if known)'),
       task: z.string().optional().describe('Task this skill is being loaded for (for telemetry)'),
       repo: z.string().optional(),
     },
@@ -197,7 +197,7 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
       task: z.string().describe('What you want to do (e.g., "add stripe payments", "fix auth bug")'),
       limit: z.number().optional().default(5),
       project: z.string().optional().describe('Current project (for telemetry)'),
-      sessionId: z.string().optional().describe('SkillBrain session id (for telemetry, if known)'),
+      sessionId: z.string().optional().describe('Synapse session id (for telemetry, if known)'),
       repo: z.string().optional(),
     },
     async ({ task, limit, project, sessionId, repo }) => {
@@ -358,7 +358,7 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
     {
       project: z.string().optional().describe('Current project name'),
       task: z.string().optional().describe('What you are about to work on'),
-      sessionId: z.string().optional().describe('SkillBrain session id (for telemetry, if known)'),
+      sessionId: z.string().optional().describe('Synapse session id (for telemetry, if known)'),
       repo: z.string().optional(),
     },
     async ({ project, task, sessionId, repo }) => {

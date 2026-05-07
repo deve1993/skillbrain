@@ -45,7 +45,7 @@ const AUTH_TOKEN = process.env.CODEGRAPH_AUTH_TOKEN || ''
 
 /**
  * Run codegraph analyze on the local workspace, then upload
- * the resulting graph.db to the remote SkillBrain server.
+ * the resulting graph.db to the remote Synapse server.
  */
 async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, baseDelayMs = 1500): Promise<T> {
   let lastErr: unknown
@@ -316,7 +316,7 @@ export async function startProxy(): Promise<void> {
         ...remote.tools,
         {
           name: 'codegraph_analyze',
-          description: 'Analyze current workspace and upload graph to SkillBrain server',
+          description: 'Analyze current workspace and upload graph to Synapse server',
           inputSchema: { type: 'object' as const, properties: {}, required: [] },
         },
       ],
@@ -330,7 +330,7 @@ export async function startProxy(): Promise<void> {
       try {
         await localAnalyzeAndUpload(workspacePath, REMOTE_URL, AUTH_TOKEN)
         return {
-          content: [{ type: 'text' as const, text: `✅ Workspace "${project.name}" analyzed and uploaded to SkillBrain.` }],
+          content: [{ type: 'text' as const, text: `✅ Workspace "${project.name}" analyzed and uploaded to Synapse.` }],
         }
       } catch (err: any) {
         return {

@@ -479,7 +479,7 @@ function renderConsentPage(p: {
   const logo = p.logoUri ? escapeHtml(p.logoUri) : null
   const scopeList = p.scopes.map((s) => `<li>${escapeHtml(s)}</li>`).join('')
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Authorize ${name} — SkillBrain</title>
+<title>Authorize ${name} — Synapse</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#08080d;color:#d0d0d0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
@@ -506,7 +506,7 @@ form{display:contents}
 </style></head><body>
 <div class="card">
 <h1>Authorize access</h1>
-<div class="sub">A third-party app is requesting access to your SkillBrain account.</div>
+<div class="sub">A third-party app is requesting access to your Synapse account.</div>
 <div class="app">
 ${logo ? `<img src="${logo}" alt="">` : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-weight:700">${name.charAt(0).toUpperCase()}</div>`}
 <div><div class="name">${name}</div>${uri ? `<div class="uri">${uri}</div>` : ''}</div>
@@ -515,7 +515,7 @@ ${logo ? `<img src="${logo}" alt="">` : `<div style="width:48px;height:48px;bord
 <h3>This app will be able to:</h3>
 <ul>${scopeList || '<li>Use the MCP server on your behalf</li>'}</ul>
 </div>
-<div class="warn">Only approve if you trust this app. It will be able to read and write your SkillBrain memories, skills, and project data.</div>
+<div class="warn">Only approve if you trust this app. It will be able to read and write your Synapse memories, skills, and project data.</div>
 <form method="post" action="/oauth/authorize/consent">
 <input type="hidden" name="request_id" value="${escapeHtml(p.requestId)}">
 <div class="actions">

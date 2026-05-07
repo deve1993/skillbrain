@@ -39,7 +39,7 @@ export async function uploadToGoogleDrive(
 
   const metadata: Record<string, unknown> = {
     name: params.filename,
-    description: params.description ?? 'Uploaded by SkillBrain Studio',
+    description: params.description ?? 'Uploaded by Synapse Studio',
   }
   if (folderId) metadata['parents'] = [folderId]
 

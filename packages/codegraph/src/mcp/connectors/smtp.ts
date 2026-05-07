@@ -39,7 +39,7 @@ export async function sendSmtpEmail(
   })()
   const from = (() => {
     try { return getConnectorEnv('SMTP_FROM', ctx) }
-    catch { return `SkillBrain Studio <${user}>` }
+    catch { return `Synapse Studio <${user}>` }
   })()
 
   const transport = nodemailer.createTransport({

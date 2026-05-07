@@ -114,7 +114,7 @@ export function registerUserEnvTools(server: McpServer, ctx: ToolContext): void 
 
         const value = withUsersEnvStore(resolved.path, (s) => s.getEnv(userId, varName))
         if (value === undefined) {
-          return { content: [{ type: 'text', text: JSON.stringify({ found: false, varName, hint: `Not in your master.env. Add it via the SkillBrain hub (#/my-env) or call user_env_set.` }) }] }
+          return { content: [{ type: 'text', text: JSON.stringify({ found: false, varName, hint: `Not in your master.env. Add it via the Synapse hub (#/my-env) or call user_env_set.` }) }] }
         }
 
         let conflict = false

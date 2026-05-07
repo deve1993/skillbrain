@@ -71,7 +71,7 @@ async function sendMentionEmail(opts: {
   const secure = process.env.SMTP_SECURE === 'true'
   const user = process.env.SMTP_USER || ''
   const pass = process.env.SMTP_PASS || ''
-  const from = process.env.SMTP_FROM || 'SkillBrain <noreply@dvesolutions.eu>'
+  const from = process.env.SMTP_FROM || 'Synapse <noreply@dvesolutions.eu>'
   try {
     const transport = nodemailer.createTransport({ host, port, secure, auth: { user, pass } })
     const link = `${dashboardUrl()}/whiteboard.html?id=${encodeURIComponent(opts.boardId)}&node=${encodeURIComponent(opts.nodeId)}`
