@@ -61,7 +61,7 @@ const SMTP_HOST    = process.env.SMTP_HOST || ''
 const SMTP_PORT    = parseInt(process.env.SMTP_PORT || '587', 10)
 const SMTP_USER    = process.env.SMTP_USER || ''
 const SMTP_PASS    = process.env.SMTP_PASS || ''
-const SMTP_FROM    = process.env.SMTP_FROM || 'SkillBrain <noreply@dvesolutions.eu>'
+const SMTP_FROM    = process.env.SMTP_FROM || 'Synapse <noreply@dvesolutions.eu>'
 const SMTP_SECURE  = process.env.SMTP_SECURE === 'true'
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
 const LEGACY_TOKEN_USER_EMAIL = process.env.LEGACY_TOKEN_USER_EMAIL || ''
@@ -94,11 +94,11 @@ async function sendInviteEmail(to: string, name: string, password: string, apiKe
   await t.sendMail({
     from: SMTP_FROM,
     to,
-    subject: 'Accesso a SkillBrain',
+    subject: 'Accesso a Synapse',
     text: [
       `Ciao ${name},`,
       '',
-      'Sei stato aggiunto al team SkillBrain.',
+      'Sei stato aggiunto al team Synapse.',
       '',
       `Dashboard: ${dashboardUrl()}/`,
       `Email:     ${to}`,
@@ -696,7 +696,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
 
   app.listen(port, () => {
     console.log(`
-  SkillBrain Hub (HTTP mode)
+  Synapse (HTTP mode)
   ──────────────────────────
   Dashboard:  http://localhost:${port}
   MCP:        http://localhost:${port}/mcp               (Streamable HTTP)
@@ -722,7 +722,7 @@ function getLoginPage(returnTo?: string): string {
   const safeReturn = returnTo && /^\/[^/]/.test(returnTo) ? returnTo : ''
   const returnJson = JSON.stringify(safeReturn)
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SkillBrain — Login</title>
+<title>Synapse — Login</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#08080d;color:#d0d0d0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh}
@@ -736,7 +736,7 @@ button:hover{opacity:.9}
 .err{color:#f87171;font-size:12px;margin-top:8px;display:none}
 </style></head><body>
 <div class="login">
-<h1>SkillBrain</h1>
+<h1>Synapse</h1>
 <div class="sub">Sign in to your account</div>
 <form onsubmit="return doLogin(event)">
 <input type="email" id="em" placeholder="Email" autofocus>
@@ -765,10 +765,10 @@ async function doLogin(e){
 }
 
 function getFallbackPage(activeSessions: number): string {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SkillBrain</title>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Synapse</title>
 <style>body{background:#08080d;color:#d0d0d0;font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
 .c{text-align:center}h1{font-size:24px;color:#a78bfa}p{color:#555;margin-top:8px}</style>
-</head><body><div class="c"><h1>SkillBrain Hub</h1><p>Server running. Dashboard files not found.</p>
+</head><body><div class="c"><h1>Synapse</h1><p>Server running. Dashboard files not found.</p>
 <p>Active sessions: ${activeSessions}</p></div></body></html>`
 }
 
