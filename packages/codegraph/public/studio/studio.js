@@ -579,10 +579,10 @@ async function generate() {
       {
         agentModel:    state.selected.agentModel,
         critiqueModel: state.selected.critiqueModel,
-        skillId:       state.selected.skillId   ?? undefined,
-        dsId:          state.selected.dsId       ?? undefined,
-        directionId:   state.selected.directionId ?? undefined,
-        brief:         brief ?? undefined,
+        skillId:       state.selected.skillId    || undefined,
+        dsId:          state.selected.dsId       || undefined,
+        directionId:   state.selected.directionId || undefined,
+        brief:         brief                      || undefined,
       }
     )
     state.activeJobId = res.jobId
@@ -598,9 +598,11 @@ function connectSSE(jobId) {
   const sse = new EventSource(`/api/studio/jobs/${jobId}/stream`)
   state.sseConn = sse
   sse.onmessage = (e) => {
+    if (state.sseConn !== sse) return  // stale connection — ignore
     try { handleSseEvent(JSON.parse(e.data)) } catch { /* ignore parse errors */ }
   }
   sse.onerror = () => {
+    if (state.sseConn !== sse) return  // stale connection — ignore
     onGenerationError('SSE disconnected')
     state.sseConn = null
   }
