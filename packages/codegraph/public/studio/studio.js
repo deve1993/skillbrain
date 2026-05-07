@@ -52,16 +52,6 @@ function toast(msg, type = 'info') {
 // Make toast available globally for connectors.js
 window.showToast = toast
 
-// ── Relative time ──
-function relTime(iso) {
-  const m = Math.floor((Date.now() - new Date(iso)) / 60000)
-  if (m < 1) return 'now'
-  if (m < 60) return `${m}m`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h`
-  return `${Math.floor(h / 24)}d`
-}
-
 // ══════════════════════════════════
 // TABS
 // ══════════════════════════════════
@@ -276,18 +266,23 @@ function openSheet(mode) {
   const footer = $('#sheet-footer')
   if (!sheet || !body) return
 
+  // snapshot selected state so Cancel can revert pill mutations
+  const snapshot = { ...state.selected }
+
   if (mode === 'edit') {
     title.textContent = 'Configura'
     body.innerHTML = renderEditSheetBody()
     footer.style.display = 'flex'
     bindEditSheetPills(body)
     $('#sheet-apply').onclick = () => { saveEditSheet(body); closeSheet() }
+    $('#sheet-cancel').onclick = () => { Object.assign(state.selected, snapshot); renderConfigBar(); closeSheet() }
   } else {
     // brief mode
     title.textContent = '⚙ Brief (opzionale)'
     body.innerHTML = renderBriefSheetBody()
     footer.style.display = 'flex'
     $('#sheet-apply').onclick = () => { saveBriefSheet(body); closeSheet() }
+    $('#sheet-cancel').onclick = () => closeSheet()
   }
 
   sheet.classList.add('open')
@@ -803,11 +798,12 @@ async function init() {
     if (!state.activeConvId) return
     try {
       const res = await fetch(`/api/studio/conversations/${state.activeConvId}/export/html`)
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a'); a.href = url
       a.download = res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ?? 'studio-export.html'
-      a.click(); URL.revokeObjectURL(url)
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
     } catch (e) { toast(`Export failed: ${e.message}`, 'error') }
   })
   $('#btn-export-zip')?.addEventListener('click', async () => {
@@ -823,7 +819,7 @@ async function init() {
       const a = document.createElement('a'); a.href = url
       const slug = (bundle.conversation?.title ?? 'studio').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)
       a.download = `studio-${slug}.zip`
-      a.click(); URL.revokeObjectURL(url)
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
       toast('ZIP scaricato', 'success')
     } catch (e) { toast(`ZIP failed: ${e.message}`, 'error') }
   })

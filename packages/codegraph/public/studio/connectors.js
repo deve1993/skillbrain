@@ -11,6 +11,10 @@ function getActiveConvId() { return window.studioState?.activeConvId ?? null }
 window.closeModal = (id) => {
   const el = $(`#${id}`)
   if (el) el.style.display = 'none'
+  // cancel any running Kling poll when its modal is closed
+  if (id === 'kling-overlay' && window._klingPoll) {
+    clearInterval(window._klingPoll); window._klingPoll = null
+  }
 }
 
 // ── Init: carica statuses e renderizza deploy dropdown ──
@@ -141,7 +145,7 @@ async function openPlausibleModal() {
   if (!getActiveConvId()) { window.showToast?.('No conversation selected', 'error'); return }
   $('#plausible-overlay').style.display = 'flex'
   $('#plausible-info').textContent = 'Loading config…'
-  $('#btn-plausible-download').style.display = 'none'
+  $('#btn-plausible-download')?.style && ($('#btn-plausible-download').style.display = 'none')
 
   try {
     const info = await api.get('/api/studio/connectors/plausible/preview')
@@ -149,7 +153,7 @@ async function openPlausibleModal() {
       $('#plausible-info').innerHTML =
         `Site: <strong style="color:var(--accent)">${escHtml(info.siteId)}</strong><br>` +
         `Script: <code style="font-size:10px;color:var(--text-dim)">${escHtml(info.scriptSrc)}</code>`
-      $('#btn-plausible-download').style.display = 'block'
+      $('#btn-plausible-download')?.style && ($('#btn-plausible-download').style.display = 'block')
     } else {
       $('#plausible-info').textContent = `Not configured: ${info.error ?? 'set PLAUSIBLE_SITE_ID'}`
     }
@@ -291,21 +295,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Poll ogni 10s fino a succeed/failed (max 12 tentativi = 2min)
       let attempts = 0
-      const poll = setInterval(async () => {
+      window._klingPoll = setInterval(async () => {
         attempts++
         try {
           const t = await api.get(`/api/studio/connectors/kling-video/${task.taskId}`)
           $('#kling-status').textContent = `Status: ${t.status}`
           if (t.status === 'succeed' && t.videoUrl) {
-            clearInterval(poll)
+            clearInterval(window._klingPoll); window._klingPoll = null
             $('#kling-status').innerHTML =
               `✓ Done — <a href="${escHtml(t.videoUrl)}" target="_blank" style="color:var(--accent)">Download video</a>`
             window.showToast?.('Kling video ready', 'success')
-          } else if (t.status === 'failed' || attempts >= 12) {
-            clearInterval(poll)
-            if (t.status === 'failed') $('#kling-status').textContent = 'Generation failed'
+          } else if (t.status === 'failed') {
+            clearInterval(window._klingPoll); window._klingPoll = null
+            $('#kling-status').textContent = 'Generation failed'
+          } else if (attempts >= 12) {
+            clearInterval(window._klingPoll); window._klingPoll = null
+            $('#kling-status').textContent = 'Timed out — check Kling dashboard'
           }
-        } catch { clearInterval(poll) }
+        } catch { clearInterval(window._klingPoll); window._klingPoll = null }
       }, 10_000)
     } catch (e) {
       $('#kling-status').textContent = `Error: ${e.message}`
@@ -318,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!convId) return
     const collection = $('#payload-collection')?.value?.trim() || undefined
     const slug       = $('#payload-slug')?.value?.trim() || undefined
-    const status     = $('#payload-status')?.value ?? 'draft'
+    const status     = $('#payload-publish-status')?.value ?? 'draft'
 
     $('#payload-status-msg').textContent = 'Publishing…'
     try {

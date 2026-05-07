@@ -404,7 +404,9 @@
     ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 2px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+          integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHveA=="
+          crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -471,7 +473,7 @@
           <div class="preview-gen-sub">Il preview apparirà al termine</div>
         </div>
         <!-- Iframe -->
-        <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
+        <iframe id="preview-iframe" sandbox="allow-scripts"></iframe>
       </div>
 
     </div>
