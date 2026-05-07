@@ -409,7 +409,31 @@ function saveBriefSheet(body) {
 function closeSheet() {
   $('#side-sheet')?.classList.remove('open')
 }
-function applyPreviewState() { /* Task 4 */ }
+function applyPreviewState() {
+  const s = state.previewState
+  const empty   = $('#preview-empty')
+  const gen     = $('#preview-generating')
+  const iframe  = $('#preview-iframe')
+  if (!empty || !gen || !iframe) return
+
+  empty.style.display   = s === 'empty'      ? 'flex'  : 'none'
+  gen.style.display     = s === 'generating' ? 'flex'  : 'none'
+  iframe.style.display  = s === 'done'       ? 'block' : 'none'
+
+  if (s === 'done' && state.artifactHtml) {
+    const blob = new Blob([state.artifactHtml], { type: 'text/html' })
+    const url  = URL.createObjectURL(blob)
+    if (iframe.src !== url) {
+      const prev = iframe.src
+      iframe.src = url
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+    }
+  }
+
+  // Update tab dot
+  renderTabs()
+  updateToolbarButtons()
+}
 function updateToolbarButtons() { /* Task 8 */ }
 function updateGenerateButton() {
   const btn = $('#btn-generate')
@@ -453,6 +477,18 @@ async function init() {
   $('#critique-toggle')?.addEventListener('click', () => {
     const d = $('#critique-detail'); d?.classList.toggle('open')
     const t = $('#critique-toggle'); if (t) t.textContent = d?.classList.contains('open') ? '▴ chiudi' : '▾ dettaglio'
+  })
+  $('#btn-refresh')?.addEventListener('click', () => {
+    if (state.previewState === 'done' && state.artifactHtml) {
+      const iframe = $('#preview-iframe')
+      if (!iframe) return
+      const blob = new Blob([state.artifactHtml], { type: 'text/html' })
+      iframe.src = URL.createObjectURL(blob)
+    }
+  })
+  $('#btn-fullscreen')?.addEventListener('click', () => {
+    const iframe = $('#preview-iframe')
+    if (iframe?.requestFullscreen) iframe.requestFullscreen()
   })
   updateGenerateButton()
 }
