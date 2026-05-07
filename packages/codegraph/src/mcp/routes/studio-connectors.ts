@@ -273,7 +273,7 @@ export function createStudioConnectorsRouter(ctx: RouteContext): Router {
 
     try {
       const result = await createOdooLead(
-        { name, email, phone, description, partnerName, source: source ?? 'SkillBrain Studio' },
+        { name, email, phone, description, partnerName, source: source ?? 'Studio' },
         connectorCtx(req as never),
       )
       res.status(201).json(result)
@@ -359,7 +359,7 @@ export function createStudioConnectorsRouter(ctx: RouteContext): Router {
         {
           to,
           subject,
-          html: bodyHtml ?? `<p>Preview from SkillBrain Studio.</p>`,
+          html: bodyHtml ?? `<p>Preview from Studio.</p>`,
           attachments: attachments.length ? attachments : undefined,
         },
         connectorCtx(req as never),
@@ -395,7 +395,7 @@ export function createStudioConnectorsRouter(ctx: RouteContext): Router {
           content: Buffer.from(uploadHtml, 'utf-8'),
           mimeType: 'text/html',
           folderId,
-          description: `SkillBrain Studio export: ${convTitle}`,
+          description: `Studio export: ${convTitle}`,
         },
         connectorCtx(req as never),
       )
