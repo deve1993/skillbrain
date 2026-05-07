@@ -449,7 +449,14 @@ function applyPreviewState() {
   renderTabs()
   updateToolbarButtons()
 }
-function updateToolbarButtons() { /* Task 8 */ }
+function updateToolbarButtons() {
+  const hasDone = state.previewState === 'done' && !!state.artifactHtml
+  const ids = ['btn-export-html', 'btn-export-zip', 'btn-deploy', 'btn-refresh', 'btn-fullscreen']
+  ids.forEach(id => {
+    const btn = $(`#${id}`)
+    if (btn) btn.disabled = !hasDone
+  })
+}
 function updateGenerateButton() {
   const btn = $('#btn-generate')
   if (!btn) return
@@ -786,6 +793,34 @@ async function init() {
   $('#btn-fullscreen')?.addEventListener('click', () => {
     const iframe = $('#preview-iframe')
     if (iframe?.requestFullscreen) iframe.requestFullscreen()
+  })
+  $('#btn-export-html')?.addEventListener('click', async () => {
+    if (!state.activeConvId) return
+    try {
+      const res = await fetch(`/api/studio/conversations/${state.activeConvId}/export/html`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url
+      a.download = res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ?? 'studio-export.html'
+      a.click(); URL.revokeObjectURL(url)
+    } catch (e) { toast(`Export failed: ${e.message}`, 'error') }
+  })
+  $('#btn-export-zip')?.addEventListener('click', async () => {
+    if (!state.activeConvId || !window.JSZip) { toast('JSZip not loaded', 'error'); return }
+    try {
+      const bundle = await api.get(`/api/studio/conversations/${state.activeConvId}/export/bundle`)
+      const zip = new window.JSZip()
+      if (bundle.artifactHtml) zip.file('index.html', bundle.artifactHtml)
+      if (bundle.messages)     zip.file('messages.json', JSON.stringify(bundle.messages, null, 2))
+      if (bundle.critiqueJson) zip.file('critique.json', typeof bundle.critiqueJson === 'string' ? bundle.critiqueJson : JSON.stringify(bundle.critiqueJson, null, 2))
+      const blob = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url
+      const slug = (bundle.conversation?.title ?? 'studio').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)
+      a.download = `studio-${slug}.zip`
+      a.click(); URL.revokeObjectURL(url)
+      toast('ZIP scaricato', 'success')
+    } catch (e) { toast(`ZIP failed: ${e.message}`, 'error') }
   })
   updateGenerateButton()
 }
