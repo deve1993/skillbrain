@@ -1,5 +1,5 @@
 /*
- * SkillBrain — Self-hosted AI memory platform
+ * Synapse — The intelligence layer for AI workflows
  * Copyright (c) 2026 Daniel De Vecchi
  *
  * Licensed under AGPL-3.0-or-later.
@@ -94,9 +94,12 @@ export function createOAuthRouter(deps: OAuthRouterDeps): Router {
   const router = express.Router()
   const { issuer, skillbrainRoot, getUserIdFromRequest } = deps
 
-  // Prevent clickjacking on OAuth endpoints
+  // SAMEORIGIN (not DENY): this router is mounted without a path prefix so its
+  // middleware runs for ALL requests, including /studio/ static files. DENY would
+  // break the Studio iframe embedded in the hub. SAMEORIGIN is still safe against
+  // third-party clickjacking.
   router.use((_req, res, next) => {
-    res.setHeader('X-Frame-Options', 'DENY')
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN')
     next()
   })
 

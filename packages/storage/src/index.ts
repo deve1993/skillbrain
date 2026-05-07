@@ -1,5 +1,5 @@
 /*
- * SkillBrain — Self-hosted AI memory platform
+ * Synapse — The intelligence layer for AI workflows
  * Copyright (c) 2026 Daniel De Vecchi
  *
  * Licensed under AGPL-3.0-or-later.
@@ -91,3 +91,10 @@ export type { GraphNode, GraphEdge, FileRecord, RepoMeta, NodeLabel, EdgeType } 
 
 // ── Embeddings ────────────────────────────────────────
 export { EmbeddingService, cosine, vectorToBlob, blobToVector } from './embedding-service.js'
+
+export { StudioStore } from './studio-store.js'
+export type {
+  Conversation, ConversationSummary, Message, Job,
+  DesignSystem, DesignSystemSummary, DsVersion,
+  StudioSkill, StudioDirection, MediaTemplate, BriefData,
+} from './studio-store.js'

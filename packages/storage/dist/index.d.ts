@@ -29,4 +29,6 @@ export { detectDesignFiles, parseTailwindConfig, parseTailwindConfigFromContent,
 export type { TokenSource } from './design-token-parser.js';
 export type { GraphNode, GraphEdge, FileRecord, RepoMeta, NodeLabel, EdgeType } from './types/graph.js';
 export { EmbeddingService, cosine, vectorToBlob, blobToVector } from './embedding-service.js';
+export { StudioStore } from './studio-store.js';
+export type { Conversation, ConversationSummary, Message, Job, DesignSystem, DesignSystemSummary, DsVersion, StudioSkill, StudioDirection, MediaTemplate, BriefData, } from './studio-store.js';
 //# sourceMappingURL=index.d.ts.map

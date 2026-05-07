@@ -1,5 +1,5 @@
 /*
- * SkillBrain — Self-hosted AI memory platform
+ * Synapse — The intelligence layer for AI workflows
  * Copyright (c) 2026 Daniel De Vecchi
  *
  * Licensed under AGPL-3.0-or-later.
@@ -46,6 +46,9 @@ import { createAdminRouter } from './routes/admin.js'
 import { createReviewRouter } from './routes/review.js'
 import { createUserProfileRouter } from './routes/user-profile.js'
 import { createWhiteboardsRouter } from './routes/whiteboards.js'
+import { createStudioRouter } from './routes/studio.js'
+import { createStudioExportRouter } from './routes/studio-export.js'
+import { createStudioConnectorsRouter } from './routes/studio-connectors.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -329,6 +332,9 @@ export async function startHttpServer(port: number, authToken?: string): Promise
 
   // Auth check for dashboard routes (not /mcp, not /sse, not /auth, not /oauth, not /.well-known)
   const authEnabled = !!ADMIN_EMAIL
+  if (!authEnabled) {
+    console.warn('[SECURITY] ADMIN_EMAIL not set — all API routes are UNAUTHENTICATED. Do not expose to the internet.')
+  }
   const isPublicPath = (p: string) =>
     p.startsWith('/mcp') ||
     p.startsWith('/sse') ||
@@ -338,7 +344,8 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     p === '/oauth/revoke' ||
     p.startsWith('/.well-known/') ||
     p.startsWith('/telemetry/') ||
-    p.startsWith('/api/whiteboards/shared/')
+    p.startsWith('/api/whiteboards/shared/') ||
+    p === '/api/studio/form-submit'
 
   if (authEnabled) {
     app.use((req, res, next) => {
@@ -633,6 +640,9 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   app.use(createReviewRouter(routeCtx))
   app.use(createUserProfileRouter(routeCtx))
   app.use(createWhiteboardsRouter(routeCtx))
+  app.use(createStudioRouter(routeCtx))
+  app.use(createStudioExportRouter(routeCtx))
+  app.use(createStudioConnectorsRouter(routeCtx))
 
   // ── Static files (dashboard SPA) ──
   const publicDir = path.resolve(__dirname, '..', '..', 'public')

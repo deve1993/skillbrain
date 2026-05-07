@@ -34,4 +34,5 @@ export { parseComponentFile, extractUsedTokens } from './component-parser.js';
 export { detectDesignFiles, parseTailwindConfig, parseTailwindConfigFromContent, parseCSSVariables, parseCSSVariablesFromContent, parseTokensJson, parseTokensJsonFromContent, mergeTokenSources, } from './design-token-parser.js';
 // ── Embeddings ────────────────────────────────────────
 export { EmbeddingService, cosine, vectorToBlob, blobToVector } from './embedding-service.js';
+export { StudioStore } from './studio-store.js';
 //# sourceMappingURL=index.js.map

@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkillBrain Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    /* ---- Base resets for Studio ---- */
+    html, body { height: 100%; overflow: hidden; }
+    body { flex-direction: column; min-height: unset; }
+
+    /* ---- Header ---- */
+    .studio-header {
+      height: 48px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 5;
+    }
+
+    .studio-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      flex-shrink: 0;
+    }
+
+    .studio-logo svg { width: 18px; height: 18px; stroke: #8b5cf6; flex-shrink: 0; }
+
+    .header-spacer { flex: 1; }
+
+    .header-pill {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 2px 8px;
+      background: rgba(167,139,250,.08);
+      border: 1px solid rgba(167,139,250,.15);
+      border-radius: 4px;
+    }
+
+    .layout-toggle {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .layout-toggle button {
+      padding: 4px 14px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: all .15s;
+    }
+
+    .layout-toggle button.active {
+      background: rgba(167,139,250,.12);
+      color: var(--accent);
+    }
+
+    .layout-toggle button:hover:not(.active) { color: var(--text); }
+
+    /* ---- Studio main area ---- */
+    .studio-main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ---- Conv Sidebar (left) ---- */
+    .conv-sidebar {
+      width: 240px;
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width .2s;
+    }
+
+    .conv-sidebar-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .conv-sidebar-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .btn-new-conv {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      border: none;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: opacity .15s;
+    }
+
+    .btn-new-conv:hover { opacity: .85; }
+
+    .conv-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+
+    .conv-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: background .1s;
+    }
+
+    .conv-item:hover { background: rgba(255,255,255,.03); }
+
+    .conv-item.active {
+      background: rgba(167,139,250,.08);
+      border-right: 2px solid var(--accent);
+    }
+
+    .conv-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .conv-status.generating {
+      background: var(--accent);
+      animation: pulse 1.5s infinite;
+    }
+
+    .conv-status.complete { background: var(--green); }
+
+    .conv-status.idle {
+      background: transparent;
+      border: 1.5px solid var(--text-muted);
+    }
+
+    .conv-name {
+      font-size: 13px;
+      color: var(--text-dim);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .conv-item.active .conv-name { color: var(--text); }
+
+    .conv-meta { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+
+    /* ---- Preview Column (center) ---- */
+    .preview-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+      min-width: 0;
+    }
+
+    .preview-toolbar {
+      height: 40px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .preview-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-weight: 600;
+    }
+
+    .preview-spacer { flex: 1; }
+
+    .preview-btn {
+      padding: 3px 10px;
+      border-radius: 5px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: all .15s;
+    }
+
+    .preview-btn:hover { border-color: var(--border-hover); color: var(--text); }
+
+    .preview-frame-wrap {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    .preview-placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #090910;
+      color: var(--text-muted);
+      gap: 10px;
+      border: 1px dashed var(--border);
+      margin: 12px;
+      border-radius: 8px;
+    }
+
+    .preview-placeholder svg {
+      width: 44px;
+      height: 44px;
+      stroke: var(--text-muted);
+      opacity: .3;
+    }
+
+    .preview-placeholder .pp-title { font-size: 13px; color: var(--text-muted); }
+    .preview-placeholder .pp-sub { font-size: 11px; opacity: .5; }
+
+    /* ---- Chat History ---- */
+    .chat-section {
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 270px;
+      flex-shrink: 0;
+    }
+
+    .chat-toolbar {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chat-toolbar-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .chat-toolbar-spacer { flex: 1; }
+
+    .export-btn {
+      padding: 3px 10px;
+      border-radius: 5px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--font);
+      font-weight: 600;
+      transition: all .15s;
+    }
+
+    .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .msg { display: flex; gap: 8px; font-size: 12px; line-height: 1.5; }
+
+    .msg-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .msg-avatar.user-av { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
+    .msg-avatar.ai-av { background: linear-gradient(135deg, #059669, var(--green)); color: #fff; }
+
+    .msg-body { flex: 1; }
+
+    .msg-role {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 3px;
+    }
+
+    .msg-role.user { color: var(--accent); }
+    .msg-role.ai { color: var(--green); }
+    .msg-text { color: var(--text-dim); }
+
+    /* ---- Critique Panel ---- */
+    .critique-panel { border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    .critique-toggle {
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-weight: 600;
+      text-align: left;
+      transition: color .15s;
+    }
+
+    .critique-toggle:hover { color: var(--text-dim); }
+
+    .critique-toggle .chevron {
+      margin-left: auto;
+      transition: transform .2s;
+      font-size: 12px;
+    }
+
+    .critique-toggle.open .chevron { transform: rotate(180deg); }
+
+    .critique-score {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(52,211,153,.1);
+      border: 1px solid rgba(52,211,153,.2);
+      font-size: 10px;
+      color: var(--green);
+    }
+
+    .critique-body { padding: 0 14px 10px; display: none; }
+    .critique-body.open { display: block; }
+
+    .critique-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(255,255,255,.03);
+    }
+
+    .critique-row:last-child { border: none; }
+
+    .critique-check {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      flex-shrink: 0;
+    }
+
+    .critique-check.pass { background: rgba(52,211,153,.15); color: var(--green); }
+    .critique-check.fail { background: rgba(248,113,113,.15); color: var(--red); }
+
+    .critique-label { color: var(--text-dim); flex: 1; }
+    .critique-comment { font-size: 11px; color: var(--text-muted); }
+
+    /* ---- Composer Column (right) ---- */
+    .composer-col {
+      width: 340px;
+      background: var(--card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+      transition: width .2s, height .25s;
+    }
+
+    /* Drawer handle — hidden in V1 */
+    .drawer-handle { display: none; }
+
+    .composer-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ---- Pickers ---- */
+    .picker-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .picker-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .picker-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      padding: 1px 6px;
+      background: rgba(255,255,255,.04);
+      border-radius: 4px;
+    }
+
+    .pills { display: flex; flex-wrap: wrap; gap: 5px; }
+
+    .pill {
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: var(--font);
+    }
+
+    .pill:hover { border-color: var(--border-hover); color: var(--text); }
+
+    .pill.selected {
+      background: rgba(167,139,250,.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .pill-more {
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--text-muted);
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: all .15s;
+    }
+
+    .pill-more:hover { border-color: var(--text-muted); color: var(--text-dim); }
+
+    /* ---- Selects ---- */
+    .composer-select {
+      width: 100%;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 28px 7px 10px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: var(--font);
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23777' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: border-color .15s;
+    }
+
+    .composer-select:focus { border-color: var(--accent); }
+    .composer-select option { background: var(--card); color: var(--text); }
+
+    .model-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .model-sub-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* ---- Textarea + Generate ---- */
+    .composer-divider { height: 1px; background: var(--border); }
+
+    .composer-textarea {
+      width: 100%;
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: var(--font);
+      outline: none;
+      resize: none;
+      line-height: 1.5;
+      transition: border-color .15s, box-shadow .15s;
+      min-height: 80px;
+    }
+
+    .composer-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(167,139,250,.06);
+    }
+
+    .composer-textarea::placeholder { color: var(--text-muted); }
+
+    .btn-generate {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      border: none;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: var(--font);
+      cursor: pointer;
+      letter-spacing: .3px;
+      transition: opacity .15s, box-shadow .15s;
+    }
+
+    .btn-generate:hover {
+      opacity: .9;
+      box-shadow: 0 4px 16px rgba(167,139,250,.3);
+    }
+
+    /* ---- Project Picker ---- */
+    .project-picker {
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      flex-shrink: 0;
+    }
+
+    .project-picker-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .project-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .1s;
+      margin-bottom: 3px;
+    }
+
+    .project-option:last-child { margin: 0; }
+    .project-option:hover { background: rgba(255,255,255,.03); }
+    .project-option.selected { background: rgba(167,139,250,.06); }
+
+    .proj-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .proj-dot.online { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,.4); }
+    .proj-dot.offline { background: var(--border); }
+
+    .proj-name { font-size: 12px; font-weight: 600; flex: 1; }
+
+    .proj-tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .proj-tag.proxy {
+      background: rgba(52,211,153,.1);
+      border: 1px solid rgba(52,211,153,.2);
+      color: var(--green);
+    }
+
+    .proj-tag.offline-tag {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    /* ---- Brief Modal Overlay ---- */
+    .brief-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.75);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brief-overlay.open { display: flex; }
+
+    .brief-modal {
+      background: var(--card);
+      border: 1px solid var(--border-hover);
+      border-radius: 12px;
+      padding: 24px;
+      width: 480px;
+      max-width: 90vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,.6), 0 0 0 1px rgba(167,139,250,.06);
+    }
+
+    .brief-modal h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 4px;
+    }
+
+    .brief-subtitle { font-size: 12px; color: var(--text-muted); margin: 0 0 20px; }
+
+    .brief-fields { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+
+    .brief-field { display: flex; flex-direction: column; gap: 5px; }
+
+    .brief-field label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .brief-field input {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: var(--font);
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .brief-field input:focus { border-color: var(--accent); }
+    .brief-field input::placeholder { color: var(--text-muted); }
+
+    .brief-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-skip {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: color .15s;
+    }
+
+    .btn-skip:hover { color: var(--text-dim); }
+
+    /* ---- V2 Layout overrides ---- */
+    .studio-main.layout-v2 .conv-sidebar { width: 180px; }
+
+    .studio-main.layout-v2 .composer-col {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      left: 180px;
+      width: auto;
+      height: 48px;
+      border-left: none;
+      border-top: 2px solid var(--border);
+      z-index: 10;
+      background: var(--card);
+    }
+
+    .studio-main.layout-v2 .composer-col.expanded { height: 340px; }
+
+    .studio-main.layout-v2 .drawer-handle {
+      display: flex;
+      height: 48px;
+      align-items: center;
+      padding: 0 16px;
+      cursor: pointer;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .studio-main.layout-v2 .composer-scroll { display: none; }
+    .studio-main.layout-v2 .composer-col.expanded .composer-scroll { display: flex; }
+    .studio-main.layout-v2 .project-picker { display: none; }
+    .studio-main.layout-v2 .composer-col.expanded .project-picker { display: block; }
+
+    .drawer-handle-label { font-size: 12px; color: var(--text-dim); font-weight: 500; flex: 1; }
+
+    .drawer-chevron {
+      color: var(--text-muted);
+      transition: transform .2s;
+      font-size: 12px;
+    }
+
+    .studio-main.layout-v2 .composer-col.expanded .drawer-chevron { transform: rotate(180deg); }
+
+    /* ---- Scrollbars ---- */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <header class="studio-header">
+    <div class="studio-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+      </svg>
+      SkillBrain Studio
+    </div>
+    <span class="header-pill">v1 — mockup</span>
+
+    <div class="header-spacer"></div>
+
+    <div class="layout-toggle">
+      <button id="btn-v1" class="active" onclick="setLayout('v1')">V1</button>
+      <button id="btn-v2" onclick="setLayout('v2')">V2</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════ MAIN LAYOUT ═══════════════ -->
+  <div class="studio-main" id="studio-main">
+
+    <!-- ─── LEFT: Conversation Sidebar ─── -->
+    <aside class="conv-sidebar">
+      <div class="conv-sidebar-header">
+        <span class="conv-sidebar-title">Conversations</span>
+        <button class="btn-new-conv" id="btn-new-conv">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New
+        </button>
+      </div>
+
+      <div class="conv-list">
+        <div class="conv-item active">
+          <span class="conv-status generating" title="Generating"></span>
+          <span class="conv-name">Landing Pixarts</span>
+          <span class="conv-meta">now</span>
+        </div>
+        <div class="conv-item">
+          <span class="conv-status complete" title="Complete"></span>
+          <span class="conv-name">Dashboard Admin v2</span>
+          <span class="conv-meta">2h</span>
+        </div>
+        <div class="conv-item">
+          <span class="conv-status idle" title="Idle"></span>
+          <span class="conv-name">Email Template Q2</span>
+          <span class="conv-meta">1d</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ─── CENTER: Preview + Chat ─── -->
+    <div class="preview-col">
+
+      <!-- Preview toolbar -->
+      <div class="preview-toolbar">
+        <span class="preview-label">Preview</span>
+        <div class="preview-spacer"></div>
+        <button class="preview-btn">↻ Refresh</button>
+        <button class="preview-btn">⤢ Fullscreen</button>
+      </div>
+
+      <!-- iframe placeholder -->
+      <div class="preview-frame-wrap">
+        <div class="preview-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span class="pp-title">Preview — start a conversation</span>
+          <span class="pp-sub">Generate a design to see it here</span>
+        </div>
+      </div>
+
+      <!-- Chat history + critique -->
+      <div class="chat-section">
+
+        <div class="chat-toolbar">
+          <span class="chat-toolbar-label">Chat</span>
+          <div class="chat-toolbar-spacer"></div>
+          <button class="export-btn">HTML</button>
+          <button class="export-btn">MD</button>
+          <button class="export-btn">ZIP</button>
+        </div>
+
+        <div class="chat-messages">
+          <div class="msg">
+            <div class="msg-avatar user-av">D</div>
+            <div class="msg-body">
+              <div class="msg-role user">You</div>
+              <div class="msg-text">Crea una landing page per Pixarts con hero section, features e pricing. Stile Linear, dark theme, molto clean.</div>
+            </div>
+          </div>
+          <div class="msg">
+            <div class="msg-avatar ai-av">AI</div>
+            <div class="msg-body">
+              <div class="msg-role ai">Studio</div>
+              <div class="msg-text">Ecco il design. Ho usato il token palette di Linear con spacing generoso. La hero usa un gradient sottile, il pricing ha 3 tier con highlight sul Piano Pro. Puoi iterare su tone, palette o layout.</div>
+            </div>
+          </div>
+          <div class="msg">
+            <div class="msg-avatar user-av">D</div>
+            <div class="msg-body">
+              <div class="msg-role user">You</div>
+              <div class="msg-text">Rendi il hero più bold, aggiungi un CTA secondario e rimuovi la sezione testimonials.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Critique panel (collapsible) -->
+        <div class="critique-panel">
+          <button class="critique-toggle" id="critique-toggle" onclick="toggleCritique()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Critique
+            <span class="critique-score">4/5 ✓</span>
+            <span class="chevron">▾</span>
+          </button>
+          <div class="critique-body" id="critique-body">
+            <div class="critique-row">
+              <span class="critique-check pass">✓</span>
+              <span class="critique-label">Philosophy</span>
+              <span class="critique-comment">Strong opinionated direction</span>
+            </div>
+            <div class="critique-row">
+              <span class="critique-check pass">✓</span>
+              <span class="critique-label">Hierarchy</span>
+              <span class="critique-comment">Clear visual flow</span>
+            </div>
+            <div class="critique-row">
+              <span class="critique-check fail">✗</span>
+              <span class="critique-label">Execution</span>
+              <span class="critique-comment">CTA contrast too low</span>
+            </div>
+            <div class="critique-row">
+              <span class="critique-check pass">✓</span>
+              <span class="critique-label">Specificity</span>
+              <span class="critique-comment">Good token usage</span>
+            </div>
+            <div class="critique-row">
+              <span class="critique-check pass">✓</span>
+              <span class="critique-label">Restraint</span>
+              <span class="critique-comment">No decorative noise</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── RIGHT: Composer ─── -->
+    <div class="composer-col" id="composer-col">
+
+      <!-- Drawer handle (V2 only) -->
+      <div class="drawer-handle" onclick="toggleDrawer()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"/>
+          <line x1="4" y1="12" x2="20" y2="12"/>
+          <line x1="4" y1="18" x2="20" y2="18"/>
+        </svg>
+        <span class="drawer-handle-label">Composer</span>
+        <span style="font-size:11px;color:var(--text-muted)">Sonnet 4.6 · Linear · Modern Minimal</span>
+        <span class="drawer-chevron">▾</span>
+      </div>
+
+      <div class="composer-scroll">
+
+        <!-- Skill Picker -->
+        <div class="picker-group">
+          <div class="picker-label">
+            Skill
+            <span class="picker-count">31 available</span>
+          </div>
+          <div class="pills" data-mode="multi">
+            <button class="pill selected">web-prototype</button>
+            <button class="pill">saas-landing</button>
+            <button class="pill">dashboard</button>
+            <button class="pill">mobile-app</button>
+            <button class="pill">email-template</button>
+            <button class="pill">blog-post</button>
+            <button class="pill-more">+25 more</button>
+          </div>
+        </div>
+
+        <!-- Design System Picker -->
+        <div class="picker-group">
+          <div class="picker-label">
+            Design System
+            <span class="picker-count">72 available</span>
+          </div>
+          <div class="pills" data-mode="single">
+            <button class="pill selected">Linear</button>
+            <button class="pill">Stripe</button>
+            <button class="pill">Vercel</button>
+            <button class="pill">Apple</button>
+            <button class="pill">Notion</button>
+            <button class="pill">Figma</button>
+            <button class="pill-more">+66 more</button>
+          </div>
+        </div>
+
+        <!-- Visual Direction Picker -->
+        <div class="picker-group">
+          <div class="picker-label">Visual Direction</div>
+          <div class="pills" data-mode="single">
+            <button class="pill">Editorial</button>
+            <button class="pill selected">Modern Minimal</button>
+            <button class="pill">Tech Utility</button>
+            <button class="pill">Brutalist</button>
+            <button class="pill">Soft Warm</button>
+          </div>
+        </div>
+
+        <!-- Agent Picker -->
+        <div class="picker-group">
+          <div class="picker-label">Agent</div>
+          <div class="pills" data-mode="single">
+            <button class="pill selected">Claude</button>
+            <button class="pill">Codex</button>
+          </div>
+        </div>
+
+        <!-- Model selectors -->
+        <div class="picker-group">
+          <div class="picker-label">Models</div>
+          <div class="model-row">
+            <div>
+              <div class="model-sub-label">Generate</div>
+              <select class="composer-select">
+                <option>Opus 4.7</option>
+                <option selected>Sonnet 4.6</option>
+                <option>Haiku 4.5</option>
+              </select>
+            </div>
+            <div>
+              <div class="model-sub-label">Critique</div>
+              <select class="composer-select">
+                <option selected>Haiku 4.5</option>
+                <option>Sonnet 4.6</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer-divider"></div>
+
+        <!-- Prompt textarea -->
+        <textarea class="composer-textarea" rows="4" placeholder="Describe what to generate or iterate on...">Rendi il hero più bold, aggiungi un CTA secondario e rimuovi la sezione testimonials.</textarea>
+
+        <!-- Generate -->
+        <button class="btn-generate">⚡ Generate</button>
+
+      </div>
+
+      <!-- Project picker -->
+      <div class="project-picker">
+        <div class="project-picker-label">Project</div>
+        <div class="project-option selected">
+          <span class="proj-dot online"></span>
+          <span class="proj-name">Pixarts Hub</span>
+          <span class="proj-tag proxy">proxy ●</span>
+        </div>
+        <div class="project-option">
+          <span class="proj-dot offline"></span>
+          <span class="proj-name" style="color:var(--text-muted)">Client XYZ</span>
+          <span class="proj-tag offline-tag">offline</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════ BRIEF MODAL ═══════════════ -->
+  <div class="brief-overlay" id="brief-overlay">
+    <div class="brief-modal">
+      <h2>New Conversation Brief</h2>
+      <p class="brief-subtitle">Tell Studio what you're building — or skip to start from scratch.</p>
+
+      <div class="brief-fields">
+        <div class="brief-field">
+          <label>Surface</label>
+          <input type="text" placeholder="e.g. Landing page, Dashboard, Mobile app...">
+        </div>
+        <div class="brief-field">
+          <label>Audience</label>
+          <input type="text" placeholder="e.g. B2B SaaS founders, developers, consumers...">
+        </div>
+        <div class="brief-field">
+          <label>Tone</label>
+          <input type="text" placeholder="e.g. Professional, Playful, Minimal, Technical...">
+        </div>
+        <div class="brief-field">
+          <label>Brand</label>
+          <input type="text" placeholder="e.g. Pixarts — dark, purple, sharp edges...">
+        </div>
+        <div class="brief-field">
+          <label>Scale</label>
+          <input type="text" placeholder="e.g. Single hero, 5 sections, Full multi-page...">
+        </div>
+      </div>
+
+      <div class="brief-actions">
+        <button class="btn-skip" id="btn-skip-brief">Skip brief →</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-ghost" onclick="closeBrief()">Cancel</button>
+          <button class="btn-primary" onclick="closeBrief()">Start →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Layout toggle V1 / V2
+    function setLayout(v) {
+      const main = document.getElementById('studio-main');
+      const btnV1 = document.getElementById('btn-v1');
+      const btnV2 = document.getElementById('btn-v2');
+      if (v === 'v2') {
+        main.classList.add('layout-v2');
+        btnV1.classList.remove('active');
+        btnV2.classList.add('active');
+        document.getElementById('composer-col').classList.remove('expanded');
+      } else {
+        main.classList.remove('layout-v2');
+        btnV1.classList.add('active');
+        btnV2.classList.remove('active');
+      }
+    }
+
+    // Drawer toggle (V2)
+    function toggleDrawer() {
+      document.getElementById('composer-col').classList.toggle('expanded');
+    }
+
+    // Brief overlay
+    document.getElementById('btn-new-conv').addEventListener('click', () => {
+      document.getElementById('brief-overlay').classList.add('open');
+    });
+    document.getElementById('btn-skip-brief').addEventListener('click', closeBrief);
+    document.getElementById('brief-overlay').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeBrief();
+    });
+    function closeBrief() {
+      document.getElementById('brief-overlay').classList.remove('open');
+    }
+
+    // Critique toggle
+    function toggleCritique() {
+      document.getElementById('critique-body').classList.toggle('open');
+      document.getElementById('critique-toggle').classList.toggle('open');
+    }
+
+    // Pill selection
+    document.querySelectorAll('.pills').forEach(group => {
+      const mode = group.dataset.mode || 'multi';
+      group.querySelectorAll('.pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          if (mode === 'single') {
+            group.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+            pill.classList.add('selected');
+          } else {
+            pill.classList.toggle('selected');
+          }
+        });
+      });
+    });
+
+    // Conv item selection
+    document.querySelectorAll('.conv-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.conv-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
+
+    // Project option selection
+    document.querySelectorAll('.project-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        document.querySelectorAll('.project-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+      });
+    });
+  </script>
+</body>
+</html>

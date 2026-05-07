@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * SkillBrain — Self-hosted AI memory platform
+ * Synapse — The intelligence layer for AI workflows
  * Copyright (c) 2026 Daniel De Vecchi
  *
  * Licensed under AGPL-3.0-or-later.

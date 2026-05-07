@@ -18,6 +18,7 @@ import {
   renderDesignSystems, openDesignSystemDetail, renderScanReview,
   renderReview,
   renderWhiteboards,
+  renderStudio,
   escHtml,
 } from './js/render.js'
 
@@ -34,6 +35,9 @@ function route() {
   currentPage = page
 
   $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page))
+
+  const searchBar = document.getElementById('search-bar')
+  if (searchBar) searchBar.style.display = page === 'studio' ? 'none' : ''
 
   const searchEl = $('#global-search')
   searchEl.value = ''
@@ -54,6 +58,7 @@ function route() {
     case 'review': renderReview(); break
     case 'profile': renderProfile(); break
     case 'my-env': renderMyEnv(); break
+    case 'studio': renderStudio(); break
     default: renderHome()
   }
 }

@@ -1460,3 +1460,13 @@ export async function renderWhiteboards() {
     }
   }
 }
+
+export function renderStudio() {
+  const page = document.getElementById('page')
+  page.innerHTML = `
+    <iframe
+      src="/studio/"
+      style="display:block;width:calc(100% + 56px);height:calc(100vh - 40px);margin:-20px -28px;border:none;border-radius:0"
+    ></iframe>
+  `
+}

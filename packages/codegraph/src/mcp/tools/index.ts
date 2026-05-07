@@ -1,5 +1,5 @@
 /*
- * SkillBrain — Self-hosted AI memory platform
+ * Synapse — The intelligence layer for AI workflows
  * Copyright (c) 2026 Daniel De Vecchi
  *
  * Licensed under AGPL-3.0-or-later.
@@ -31,6 +31,7 @@ import { registerCodegraphTools } from './codegraph.js'
 import { registerComponentTools } from './components.js'
 import { registerUserEnvTools } from './users-env.js'
 import { registerWhiteboardTools } from './whiteboards.js'
+import { registerStudioTools } from './studio.js'
 
 export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   registerMemoryTools(server, ctx)
@@ -41,4 +42,5 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   registerComponentTools(server, ctx)
   registerUserEnvTools(server, ctx)
   registerWhiteboardTools(server, ctx)
+  registerStudioTools(server, ctx)
 }
