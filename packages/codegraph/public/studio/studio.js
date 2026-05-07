@@ -104,6 +104,7 @@ function renderTabs() {
 async function selectConv(convId) {
   if (state.sseConn) { state.sseConn.close(); state.sseConn = null }
 
+  const previousConvId = state.activeConvId
   state.activeConvId = convId
   state.activeConv = null
   state.artifactHtml = null
@@ -137,10 +138,10 @@ async function selectConv(convId) {
     updateGenerateButton()
     updatePromptPlaceholder()
   } catch (e) {
+    state.activeConvId = previousConvId
     toast(`Failed to load conversation: ${e.message}`, 'error')
   }
 }
-
 async function createConv() {
   const title = `New ${new Date().toLocaleTimeString('it', { hour: '2-digit', minute: '2-digit' })}`
   try {
@@ -157,8 +158,9 @@ async function createConv() {
 
 async function deleteConv(convId) {
   if (!confirm('Delete this conversation?')) return
+  if (!state.convs.find(c => c.id === convId)) return
   try {
-    await api.delete(`/api/studio/conversations/${convId}`)
+    await api.del(`/api/studio/conversations/${convId}`)
     state.convs = state.convs.filter(c => c.id !== convId)
     if (state.activeConvId === convId) {
       state.activeConvId = null
