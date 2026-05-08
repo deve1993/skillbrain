@@ -16,28 +16,33 @@ import type { ComponentsDesignSystem as DesignSystem } from '@skillbrain/storage
  * Generate a CSS `:root {}` block with custom properties from a design system.
  */
 export function exportToCss(ds: DesignSystem): string {
+    const colors = ds.colors ?? {}
+    const fonts = ds.fonts ?? {}
+    const spacing = ds.spacing ?? {}
+    const radius = ds.radius ?? {}
+
     const lines: string[] = []
 
-    if (Object.keys(ds.colors).length > 0) {
-        for (const [key, value] of Object.entries(ds.colors)) {
+    if (Object.keys(colors).length > 0) {
+        for (const [key, value] of Object.entries(colors)) {
             lines.push(`  --color-${key}: ${value};`)
         }
     }
 
-    if (Object.keys(ds.fonts).length > 0) {
-        for (const [key, value] of Object.entries(ds.fonts)) {
+    if (Object.keys(fonts).length > 0) {
+        for (const [key, value] of Object.entries(fonts)) {
             lines.push(`  --font-${key}: ${String(value)};`)
         }
     }
 
-    if (Object.keys(ds.spacing).length > 0) {
-        for (const [key, value] of Object.entries(ds.spacing)) {
+    if (Object.keys(spacing).length > 0) {
+        for (const [key, value] of Object.entries(spacing)) {
             lines.push(`  --spacing-${key}: ${String(value)};`)
         }
     }
 
-    if (Object.keys(ds.radius).length > 0) {
-        for (const [key, value] of Object.entries(ds.radius)) {
+    if (Object.keys(radius).length > 0) {
+        for (const [key, value] of Object.entries(radius)) {
             lines.push(`  --radius-${key}: ${value};`)
         }
     }
@@ -51,21 +56,26 @@ export function exportToCss(ds: DesignSystem): string {
  * Generate a W3C Design Tokens format object (flat, dot-notation keys).
  */
 export function exportToW3CJson(ds: DesignSystem): Record<string, unknown> {
+    const colors = ds.colors ?? {}
+    const fonts = ds.fonts ?? {}
+    const spacing = ds.spacing ?? {}
+    const radius = ds.radius ?? {}
+
     const result: Record<string, unknown> = {}
 
-    for (const [key, value] of Object.entries(ds.colors)) {
+    for (const [key, value] of Object.entries(colors)) {
         result[`color.${key}`] = { $value: value, $type: 'color' }
     }
 
-    for (const [key, value] of Object.entries(ds.fonts)) {
+    for (const [key, value] of Object.entries(fonts)) {
         result[`font.${key}`] = { $value: String(value), $type: 'fontFamily' }
     }
 
-    for (const [key, value] of Object.entries(ds.spacing)) {
+    for (const [key, value] of Object.entries(spacing)) {
         result[`spacing.${key}`] = { $value: String(value), $type: 'dimension' }
     }
 
-    for (const [key, value] of Object.entries(ds.radius)) {
+    for (const [key, value] of Object.entries(radius)) {
         result[`radius.${key}`] = { $value: value, $type: 'dimension' }
     }
 
@@ -80,29 +90,32 @@ const FONT_KEYS = ['sans', 'mono', 'serif', 'heading'] as const
  * Generate a Tailwind CSS config JS module string from a design system.
  */
 export function exportToTailwind(ds: DesignSystem): string {
-    // Colors — pass through as-is
-    const colors: Record<string, string> = { ...ds.colors }
+    const colors = ds.colors ?? {}
+    const fonts = ds.fonts ?? {}
+    const spacing = ds.spacing ?? {}
+    const radius = ds.radius ?? {}
 
-    // Font families — only allowed keys, always append fallback
+    // Colors — pass through as-is
+    const colorsOut: Record<string, string> = { ...colors }
+
+    // Font families — only allowed keys, always append appropriate fallback
     const fontFamily: Record<string, string[]> = {}
-    for (const key of FONT_KEYS) {
-        const val = ds.fonts[key]
-        if (val !== undefined && val !== null && String(val).trim() !== '') {
-            fontFamily[key] = [String(val), 'sans-serif']
+    for (const k of FONT_KEYS) {
+        const v = fonts[k]
+        if (v !== undefined && v !== null && String(v).trim() !== '') {
+            const fallback = k === 'mono' ? 'monospace' : k === 'serif' ? 'serif' : 'sans-serif'
+            fontFamily[k] = [String(v), fallback]
         }
     }
 
     // Spacing
-    const spacing: Record<string, string> = {}
-    for (const [key, value] of Object.entries(ds.spacing)) {
-        spacing[key] = String(value)
+    const spacingOut: Record<string, string> = {}
+    for (const [key, value] of Object.entries(spacing)) {
+        spacingOut[key] = String(value)
     }
 
     // Border radius
-    const borderRadius: Record<string, string> = { ...ds.radius }
-
-    const toSingleQuotes = (obj: Record<string, unknown>): string =>
-        JSON.stringify(obj, null, 4).replace(/"/g, "'")
+    const borderRadius: Record<string, string> = { ...radius }
 
     const lines: string[] = [
         `/** @type {import('tailwindcss').Config} */`,
@@ -111,20 +124,20 @@ export function exportToTailwind(ds: DesignSystem): string {
         `    extend: {`,
     ]
 
-    if (Object.keys(colors).length > 0) {
-        lines.push(`      colors: ${toSingleQuotes(colors)},`)
+    if (Object.keys(colorsOut).length > 0) {
+        lines.push(`      colors: ${JSON.stringify(colorsOut, null, 4)},`)
     }
 
     if (Object.keys(fontFamily).length > 0) {
-        lines.push(`      fontFamily: ${toSingleQuotes(fontFamily)},`)
+        lines.push(`      fontFamily: ${JSON.stringify(fontFamily, null, 4)},`)
     }
 
-    if (Object.keys(spacing).length > 0) {
-        lines.push(`      spacing: ${toSingleQuotes(spacing)},`)
+    if (Object.keys(spacingOut).length > 0) {
+        lines.push(`      spacing: ${JSON.stringify(spacingOut, null, 4)},`)
     }
 
     if (Object.keys(borderRadius).length > 0) {
-        lines.push(`      borderRadius: ${toSingleQuotes(borderRadius)},`)
+        lines.push(`      borderRadius: ${JSON.stringify(borderRadius, null, 4)},`)
     }
 
     lines.push(`    },`)
