@@ -54,6 +54,7 @@ export type { Project, TeamMember, EnvVar } from './projects-store.js'
 export { OAuthStore } from './oauth-store.js'
 export { UsersEnvStore } from './users-env-store.js'
 export { ComponentsStore } from './components-store.js'
+export type { UiComponent, UiComponentInput, ComponentComment, DesignSystem as ComponentsDesignSystem, DesignSystemInput, DesignSystemScan, ComponentSearchResult, SectionType } from './components-store.js'
 export { AuditStore } from './audit-store.js'
 export { GraphStore } from './graph-store.js'
 
