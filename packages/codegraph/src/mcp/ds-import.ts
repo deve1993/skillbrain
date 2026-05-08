@@ -126,7 +126,8 @@ export function parseTailwindConfig(configText: string): Partial<DesignSystemInp
 
   /** Extract the full brace-balanced block for a given key */
   function extractBlock(text: string, key: string): string | null {
-    const startRe = new RegExp(`${key}\\s*:\\s*\\{`)
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const startRe = new RegExp(`${escaped}\\s*:\\s*\\{`)
     const match = startRe.exec(text)
     if (!match) return null
 
@@ -259,10 +260,10 @@ export function parseFigmaVariables(raw: unknown): Partial<DesignSystemInput> {
         const hex = toHex({ r: color.r, g: color.g, b: color.b, a: color.a ?? 1 })
         categorize(name, hex, colors, fonts, spacing, radius)
       }
-    } else if (variable.resolvedType === 'FLOAT') {
-      categorize(name, `${firstValue as number}px`, colors, fonts, spacing, radius)
-    } else if (variable.resolvedType === 'STRING') {
-      categorize(name, firstValue as string, colors, fonts, spacing, radius)
+    } else if (variable.resolvedType === 'FLOAT' && typeof firstValue === 'number') {
+      categorize(name, `${firstValue}px`, colors, fonts, spacing, radius)
+    } else if (variable.resolvedType === 'STRING' && typeof firstValue === 'string') {
+      categorize(name, firstValue, colors, fonts, spacing, radius)
     }
   }
 
