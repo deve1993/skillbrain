@@ -9,20 +9,11 @@
  */
 
 import { spawn } from 'node:child_process'
-import { writeFileSync, existsSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { Response } from 'express'
 
 import { openDb, closeDb, UsersEnvStore, isEncryptionAvailable } from '@skillbrain/storage'
-import { localProviderOverrides, type RunnerCtx } from './studio-runner.js'
-
-// Minimal settings file for claude CLI — disables hooks/MCP so DS jobs run cleanly
-const STUDIO_SETTINGS_PATH = join(tmpdir(), 'synapse-studio-claude-settings.json')
-if (!existsSync(STUDIO_SETTINGS_PATH)) {
-  writeFileSync(STUDIO_SETTINGS_PATH, '{}', 'utf8')
-}
+import { localProviderOverrides, STUDIO_SETTINGS_PATH, type RunnerCtx } from './studio-runner.js'
 
 // ── DS System Prompt ──────────────────────────────────────────────────────────
 
@@ -162,9 +153,7 @@ function resolveCredentials(ctx: RunnerCtx): ResolvedCreds | null {
 // ── Job runner ────────────────────────────────────────────────────────────────
 
 export function enqueueDsJob(jobId: string, ctx: RunnerCtx): void {
-  const creds = resolveCredentials(ctx)
-
-  runDsJob(jobId, ctx, creds)
+  runDsJob(jobId, ctx)
     .catch((err: unknown) => {
       const job = jobs.get(jobId)
       if (job) {
@@ -181,22 +170,14 @@ export function enqueueDsJob(jobId: string, ctx: RunnerCtx): void {
     })
 }
 
-async function runDsJob(jobId: string, ctx: RunnerCtx, creds: ResolvedCreds | null): Promise<void> {
+async function runDsJob(jobId: string, ctx: RunnerCtx): Promise<void> {
   const job = jobs.get(jobId)
   if (!job) throw new Error(`DS job ${jobId} not found`)
 
   job.status = 'running'
   emitDs(jobId, { type: 'start', jobId })
 
-  if (!creds) {
-    job.status = 'error'
-    job.error = 'No credentials available. Set ANTHROPIC_API_KEY or configure STUDIO_PROVIDER=claude_code.'
-    emitDs(jobId, { type: 'error', jobId, message: job.error })
-    return
-  }
-
-  // For API credentials, fall back to claude_code runner approach
-  // (DS generation always uses the Claude Code CLI for consistency)
+  // DS generation always uses the Claude Code CLI
   await runWithClaudeCode(jobId, ctx)
 }
 

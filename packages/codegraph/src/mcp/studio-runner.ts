@@ -9,15 +9,60 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { spawn } from 'node:child_process'
+import { writeFileSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { Response } from 'express'
-import { openDb, closeDb, StudioStore } from '@skillbrain/storage'
+
+// Minimal settings file for claude CLI — disables hooks/MCP so Studio jobs run cleanly
+export const STUDIO_SETTINGS_PATH = join(tmpdir(), 'synapse-studio-claude-settings.json')
+if (!existsSync(STUDIO_SETTINGS_PATH)) {
+  writeFileSync(STUDIO_SETTINGS_PATH, '{}', 'utf8')
+}
+import { openDb, closeDb, StudioStore, UsersEnvStore, isEncryptionAvailable } from '@skillbrain/storage'
 import type { Job, Conversation, BriefData } from '@skillbrain/storage'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface RunnerCtx {
+export interface RunnerCtx {
   skillbrainRoot: string
-  anthropicApiKey: string
+  anthropicApiKey: string   // server-wide fallback
+  userId?: string           // requesting user (for per-user credentials)
+}
+
+type ResolvedCreds =
+  | { type: 'api'; key: string }
+  | { type: 'claude_code' }
+
+// ── Credential resolver ───────────────────────────────────────────────────────
+
+// In-memory fallback for local instances without ENCRYPTION_KEY or auth
+export const localProviderOverrides = new Map<string, string>()
+
+function resolveCredentials(ctx: RunnerCtx): ResolvedCreds | null {
+  const { userId, skillbrainRoot, anthropicApiKey } = ctx
+  const effectiveId = userId ?? '__local__'
+
+  // 1. Check in-memory override (set when encryption is unavailable or no session)
+  const memProvider = localProviderOverrides.get(effectiveId)
+  if (memProvider === 'claude_code') return { type: 'claude_code' }
+
+  // 2. Check encrypted per-user store
+  if (userId && isEncryptionAvailable()) {
+    try {
+      const db = openDb(skillbrainRoot)
+      const envStore = new UsersEnvStore(db)
+      const provider = envStore.getEnv(userId, 'STUDIO_PROVIDER')
+      if (provider === 'claude_code') { closeDb(db); return { type: 'claude_code' } }
+      const userKey = envStore.getEnv(userId, 'ANTHROPIC_API_KEY')
+      closeDb(db)
+      if (userKey) return { type: 'api', key: userKey }
+    } catch { /* encryption unavailable or no entry */ }
+  }
+
+  // 3. Fall back to server-wide key
+  return anthropicApiKey ? { type: 'api', key: anthropicApiKey } : null
 }
 
 interface SseEvent {
@@ -55,7 +100,13 @@ class StudioRunner {
   enqueue(jobId: string, ctx: RunnerCtx): void {
     if (this.running.has(jobId)) return
     this.running.add(jobId)
-    this.run(jobId, ctx).catch((err: unknown) => {
+
+    const creds = resolveCredentials(ctx)
+    const promise = creds?.type === 'claude_code'
+      ? this.runWithClaudeCode(jobId, ctx)
+      : this.run(jobId, { ...ctx, anthropicApiKey: creds?.key ?? '' })
+
+    promise.catch((err: unknown) => {
       this.emit(jobId, { type: 'error', jobId, message: (err as Error).message })
     }).finally(() => {
       this.running.delete(jobId)
@@ -154,6 +205,95 @@ class StudioRunner {
       critiqueJson: JSON.stringify(critiqueJson),
     })
     closeDb(db3)
+
+    this.emit(jobId, { type: 'done', jobId })
+  }
+
+  // ── Claude Code CLI runner ──────────────────────────────────────────────────
+
+  private async runWithClaudeCode(jobId: string, ctx: RunnerCtx): Promise<void> {
+    const db = openDb(ctx.skillbrainRoot)
+    const store = new StudioStore(db)
+
+    const job = store.getJob(jobId)
+    if (!job) { closeDb(db); throw new Error(`Job ${jobId} not found`) }
+    const conv = store.getConversation(job.convId)
+    if (!conv) { closeDb(db); throw new Error(`Conversation ${job.convId} not found`) }
+
+    store.updateJob(jobId, { status: 'running' })
+    closeDb(db)
+
+    this.emit(jobId, { type: 'start', jobId, text: `claude-code:${job.agentModel}` })
+
+    const systemPrompt = buildSystemPrompt(job)
+    const userPrompt = buildUserPrompt(conv)
+
+    let fullText = ''
+    let lastEmittedLen = 0
+
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn('claude', [
+        '-p',
+        '--output-format', 'stream-json',
+        '--verbose',
+        '--include-partial-messages',
+        '--no-session-persistence',
+        '--settings', STUDIO_SETTINGS_PATH,
+        '--model', job.agentModel,
+        '--system-prompt', systemPrompt,
+      ], { stdio: ['pipe', 'pipe', 'pipe'] })
+
+      child.stdin.write(userPrompt, 'utf8')
+      child.stdin.end()
+
+      let buf = ''
+
+      child.stdout.on('data', (chunk: Buffer) => {
+        buf += chunk.toString('utf8')
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const evt = JSON.parse(line) as Record<string, unknown>
+            if (evt.type === 'assistant') {
+              const msg = evt.message as Record<string, unknown> | undefined
+              const content = msg?.content as Array<{ type: string; text?: string }> | undefined
+              if (content) {
+                let accumulated = ''
+                for (const blk of content) {
+                  if (blk.type === 'text' && blk.text) accumulated += blk.text
+                }
+                if (accumulated.length > lastEmittedLen) {
+                  const delta = accumulated.slice(lastEmittedLen)
+                  this.emit(jobId, { type: 'chunk', jobId, text: delta })
+                  fullText = accumulated
+                  lastEmittedLen = accumulated.length
+                }
+              }
+            }
+          } catch { /* malformed JSON line */ }
+        }
+      })
+
+      child.stderr.on('data', (d: Buffer) => {
+        process.stderr.write(`[studio:claude-code] ${d.toString().trim()}\n`)
+      })
+
+      child.on('error', (e) => reject(new Error(`Failed to start claude CLI: ${e.message}. Is Claude Code installed and authenticated?`)))
+      child.on('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error(`claude CLI exited with code ${code}`))
+      })
+    })
+
+    const artifactHtml = extractHtml(fullText)
+    this.emit(jobId, { type: 'artifact', jobId, html: artifactHtml })
+
+    const db2 = openDb(ctx.skillbrainRoot)
+    new StudioStore(db2).updateJob(jobId, { status: 'done', artifactHtml })
+    closeDb(db2)
 
     this.emit(jobId, { type: 'done', jobId })
   }
