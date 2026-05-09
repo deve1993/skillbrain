@@ -131,7 +131,7 @@ export function exportToW3CJson(ds: DesignSystem): Record<string, unknown> {
 
     // palette
     for (const [group, shades] of Object.entries(ds.palette ?? {})) {
-        for (const [shade, value] of Object.entries(shades as Record<string, string>)) {
+        for (const [shade, value] of Object.entries((shades ?? {}) as Record<string, string>)) {
             result[`color.${group}.${shade}`] = { $value: value, $type: 'color' }
         }
     }
@@ -198,7 +198,7 @@ export function exportToTailwind(ds: DesignSystem): string {
     const spacing = ds.spacing ?? {}
     const radius = ds.radius ?? {}
 
-    // Colors: flat colors + palette groups merged
+    // Colors: flat colors + palette groups merged (palette wins on key collision — palette.brand {} replaces a flat colors.brand string)
     const colorsOut: Record<string, unknown> = { ...colors, ...(ds.palette ?? {}) }
 
     // Font families: legacy fonts.* keys + typography.families
