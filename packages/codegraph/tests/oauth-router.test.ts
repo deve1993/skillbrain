@@ -112,11 +112,11 @@ describe('OAuth router — discovery endpoints', () => {
     })
   })
 
-  it('sets X-Frame-Options: DENY on all responses', async () => {
+  it('sets X-Frame-Options: SAMEORIGIN on all responses', async () => {
     const app = createApp(tmpDir)
     await withServer(app, async (port) => {
       const res = await fetch(port, 'GET', '/.well-known/oauth-authorization-server')
-      expect(res.headers['x-frame-options']).toBe('DENY')
+      expect(res.headers['x-frame-options']).toBe('SAMEORIGIN')
     })
   })
 })
