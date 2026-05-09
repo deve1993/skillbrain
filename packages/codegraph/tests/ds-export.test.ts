@@ -34,7 +34,7 @@ const fullDs: DS = {
   components: {
     button: { radius: '0.375rem', paddingX: '1rem', fontWeight: '600' },
   },
-  assets: { logoUrl: 'https://example.com/logo.svg', iconLibrary: 'lucide' },
+  assets: { logoUrl: 'https://example.com/logo.svg', logoWordmark: 'https://example.com/wordmark.svg', iconLibrary: 'lucide' },
 }
 
 describe('exportToCss', () => {
@@ -67,6 +67,14 @@ describe('exportToCss', () => {
     const css = exportToCss(fullDs)
     expect(css).toContain('--font-size-xs: 0.75rem;')
     expect(css).toContain('--font-size-base: 1rem;')
+    expect(css).toContain('--line-height-xs: 1rem;')
+    expect(css).toContain('--line-height-base: 1.5rem;')
+  })
+
+  it('emits typography weight variables', () => {
+    const css = exportToCss(fullDs)
+    expect(css).toContain('--font-weight-normal: 400;')
+    expect(css).toContain('--font-weight-bold: 700;')
   })
 
   it('emits effect customCss when non-empty', () => {
@@ -110,6 +118,8 @@ describe('exportToW3CJson', () => {
   it('emits typography scale tokens', () => {
     const json = exportToW3CJson(fullDs)
     expect(json['typography.scale.base.size']).toEqual({ $value: '1rem', $type: 'dimension' })
+    expect(json['typography.scale.base.leading']).toEqual({ $value: '1.5rem', $type: 'string' })
+    expect(json['typography.scale.xs.size']).toEqual({ $value: '0.75rem', $type: 'dimension' })
   })
 
   it('emits effect preset tokens', () => {
@@ -121,6 +131,7 @@ describe('exportToW3CJson', () => {
     const json = exportToW3CJson(fullDs)
     expect(json['asset.logoUrl']).toEqual({ $value: 'https://example.com/logo.svg', $type: 'string' })
     expect(json['asset.iconLibrary']).toEqual({ $value: 'lucide', $type: 'string' })
+    expect(json['asset.logoWordmark']).toEqual({ $value: 'https://example.com/wordmark.svg', $type: 'string' })
   })
 })
 
