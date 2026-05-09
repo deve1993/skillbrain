@@ -513,6 +513,9 @@ window.runImport = async function() {
         weights: { ...tokens.typography.weights, ...result.typography.weights },
       }
     }
+    if (result.effects && typeof result.effects === 'object') tokens.effects = { ...tokens.effects, ...result.effects }
+    if (result.components && typeof result.components === 'object') tokens.components = { ...tokens.components, ...result.components }
+    if (result.assets && typeof result.assets === 'object') tokens.assets = { ...tokens.assets, ...result.assets }
     renderAll()
     setStatus('Imported! Review and save.', 'ok')
     closeImport()

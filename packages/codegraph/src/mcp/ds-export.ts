@@ -97,6 +97,22 @@ export function exportToCss(ds: DesignSystem): string {
         }
     }
 
+    // components: --component-{name}-{key}
+    const components = (ds.components ?? {}) as Record<string, Record<string, string>>
+    for (const [name, toks] of Object.entries(components)) {
+        for (const [key, value] of Object.entries(toks ?? {})) {
+            lines.push(`  --component-${name}-${key}: ${value};`)
+        }
+    }
+
+    // assets: --asset-{key}
+    const assets = (ds.assets ?? {}) as Record<string, string>
+    for (const [key, value] of Object.entries(assets)) {
+        if (typeof value === 'string' && value.trim()) {
+            lines.push(`  --asset-${key}: ${JSON.stringify(value)};`)
+        }
+    }
+
     return `:root {\n${lines.join('\n')}\n}`
 }
 
@@ -182,6 +198,14 @@ export function exportToW3CJson(ds: DesignSystem): Record<string, unknown> {
         result['asset.logoWordmark'] = { $value: assets.logoWordmark, $type: 'string' }
     }
 
+    // components: component.{name}.{key}
+    const components = (ds.components ?? {}) as Record<string, Record<string, string>>
+    for (const [name, toks] of Object.entries(components)) {
+        for (const [key, value] of Object.entries(toks ?? {})) {
+            result[`component.${name}.${key}`] = { $value: value, $type: 'string' }
+        }
+    }
+
     return result
 }
 
@@ -198,8 +222,9 @@ export function exportToTailwind(ds: DesignSystem): string {
     const spacing = ds.spacing ?? {}
     const radius = ds.radius ?? {}
 
-    // Colors: flat colors + palette groups merged (palette wins on key collision — palette.brand {} replaces a flat colors.brand string)
-    const colorsOut: Record<string, unknown> = { ...colors, ...(ds.palette ?? {}) }
+    // Colors: flat colors + palette groups + semanticColors nested groups merged
+    // (palette wins over flat colors on key collision; semanticColors adds nested semantic groups)
+    const colorsOut: Record<string, unknown> = { ...colors, ...(ds.palette ?? {}), ...(ds.semanticColors ?? {}) }
 
     // Font families: legacy fonts.* keys + typography.families
     const fontFamily: Record<string, string[]> = {}
