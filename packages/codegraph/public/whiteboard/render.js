@@ -23,6 +23,15 @@ export function escHtml(s) {
 }
 function escAttr(s) { return escHtml(s) }
 
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
 /**
  * Compute the point where a line from a node's center to (tx, ty) crosses the
  * node's bounding box. Returns the edge intersection point so connectors land
@@ -93,6 +102,21 @@ function renderNodes() {
   $nodes.innerHTML = html
 }
 
+function getLuminance(hex) {
+  const h = hex.replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  const r = parseInt(full.slice(0, 2), 16) / 255
+  const g = parseInt(full.slice(2, 4), 16) / 255
+  const b = parseInt(full.slice(4, 6), 16) / 255
+  const lin = v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+function getContrastColor(hex) {
+  if (!hex || !hex.startsWith('#')) return '#1e293b'
+  return getLuminance(hex) < 0.35 ? '#ffffff' : '#1e293b'
+}
+
 function renderNode(n, selected, isMatch, voting) {
   const cls = ['wb-node']
   if (selected) cls.push('selected')
@@ -100,7 +124,13 @@ function renderNode(n, selected, isMatch, voting) {
   if (n.locked) cls.push('locked')
   if (n.type === 'frame') cls.push('wb-frame')
 
-  const style = `left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px;` + (n.color ? `background:${n.color};` : '')
+  const bgColor = (n.type === 'frame' && n.color)
+    ? hexToRgba(n.color, n.opacity ?? 0.08)
+    : (n.color || null)
+  const borderStyle = n.borderColor
+    ? (n.type === 'frame' ? `--wb-custom-border:2px solid ${n.borderColor};` : `border:2px solid ${n.borderColor};`)
+    : ''
+  const style = `left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px;` + (bgColor ? `background:${bgColor};` : '') + borderStyle
 
   // Badges (votes, comments)
   const totalVotes = n.votes ? Object.values(n.votes).reduce((s, v) => s + v, 0) : 0
@@ -113,17 +143,20 @@ function renderNode(n, selected, isMatch, voting) {
 
   let body = ''
   if (n.type === 'frame') {
+    if (n.borderColor) cls.push('wb-frame-custom-border')
     body = `<div class="wb-frame-label">${escHtml(n.name || 'Frame')}</div>`
   } else if (n.type === 'group') {
     cls.push('group')
     body = `<div class="wb-group-label">${escHtml(n.name || 'Group')}</div>`
   } else if (n.type === 'sticky') {
     const text = n.text || ''
+    const textColor = n.textColor || getContrastColor(n.color || '')
+    const fontSize = n.fontSize ?? 13
     if (n.editing) {
-      body = `<textarea class="wb-sticky-text" data-edit-id="${n.id}">${escHtml(text)}</textarea>`
+      body = `<textarea class="wb-sticky-text" data-edit-id="${n.id}" style="color:${textColor};font-size:${fontSize}px">${escHtml(text)}</textarea>`
     } else {
       const md = renderMarkdown(text)
-      body = `<div class="wb-sticky-render" data-render-id="${n.id}">${md || '<span style="color:#94a3b8">empty…</span>'}</div>`
+      body = `<div class="wb-sticky-render" data-render-id="${n.id}" style="color:${textColor};font-size:${fontSize}px">${md || '<span style="color:#94a3b8">empty…</span>'}</div>`
     }
   } else if (n.type === 'code') {
     const lang = n.language || 'text'
@@ -219,6 +252,7 @@ function sanitizeBasic(html) {
 function renderEdges() {
   const { connectors, nodes, guides } = getState()
   const map = new Map(nodes.map((n) => [n.id, n]))
+  const customMarkers = []
   const parts = []
   const labels = []  // labels rendered AFTER paths so they sit on top
   for (const c of connectors) {
@@ -240,10 +274,22 @@ function renderEdges() {
     }
     const kind = c.kind || 'related'
     const color = ARROW_PALETTE[kind] || '#64748b'
+    const strokeColor = c.color || color
+    const id = c.id
+    customMarkers.push(`<marker id="wb-arrow-c-${id}" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1.5 L 10 6 L 0 10.5 L 3 6 Z" fill="${strokeColor}"></path></marker>`)
     const isLeadsTo = kind === 'leads-to'
     const isDependsOn = kind === 'depends-on'
-    const dashAttr = isDependsOn ? 'stroke-dasharray="6,4"' : (isLeadsTo ? 'stroke-dasharray="6,4" class="wb-edge-flow"' : '')
-    const id = c.id
+    let dashAttr = ''
+    if (c.style === 'dashed') {
+      dashAttr = 'stroke-dasharray="8 4"'
+    } else if (c.style === 'dotted') {
+      dashAttr = 'stroke-dasharray="2 3"'
+    } else if (c.style === 'solid') {
+      dashAttr = ''
+    } else {
+      // Legacy behavior based on kind
+      dashAttr = isDependsOn ? 'stroke-dasharray="6,4"' : (isLeadsTo ? 'stroke-dasharray="6,4" class="wb-edge-flow"' : '')
+    }
     // Build smooth cubic bezier with control points perpendicular to anchor sides.
     // Distance scales with the path length so longer connectors have softer arcs.
     const dx = bx - ax, dy = by - ay
@@ -258,7 +304,7 @@ function renderEdges() {
       : `M ${ax} ${ay} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${bx} ${by}`
     // Hit area (transparent thick path) for easier mouse interaction
     parts.push(`<path d="${d}" stroke="transparent" stroke-width="14" fill="none" data-edge="${id}" class="wb-edge-hit" pointer-events="stroke"></path>`)
-    parts.push(`<path d="${d}" stroke="${color}" ${dashAttr} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#wb-edge-shadow)" data-edge="${id}" class="wb-edge" marker-end="url(#wb-arrow-${kind})"></path>`)
+    parts.push(`<path d="${d}" stroke="${strokeColor}" ${dashAttr} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#wb-edge-shadow)" data-edge="${id}" class="wb-edge" marker-end="url(#wb-arrow-c-${id})"></path>`)
     if (c.label) {
       // Compute midpoint of bezier (t=0.5)
       const mx = c.fromPoint ? (ax + bx) / 2 : bezierMid(ax, c1x, c2x, bx)
@@ -270,7 +316,7 @@ function renderEdges() {
       const labelH = 18
       labels.push(`
         <g class="wb-edge-label" transform="translate(${mx - labelW / 2}, ${my - labelH / 2})">
-          <rect width="${labelW}" height="${labelH}" rx="4" fill="${color}" opacity="0.95"></rect>
+          <rect width="${labelW}" height="${labelH}" rx="4" fill="${strokeColor}" opacity="0.95"></rect>
           <text x="${labelW / 2}" y="${labelH / 2 + 4}" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">${labelText}</text>
         </g>
       `)
@@ -295,6 +341,7 @@ function renderEdges() {
       <filter id="wb-edge-shadow" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#0f172a" flood-opacity="0.18"></feDropShadow>
       </filter>
+      ${customMarkers.join('')}
       ${Object.entries(ARROW_PALETTE).map(([k, v]) => `
         <marker id="wb-arrow-${k}" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 1.5 L 10 6 L 0 10.5 L 3 6 Z" fill="${v}"></path>

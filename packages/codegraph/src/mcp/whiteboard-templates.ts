@@ -24,6 +24,8 @@ export interface FrameNode {
   h: number
   name: string
   color: string
+  borderColor?: string
+  opacity?: number
 }
 
 export interface StickyNode {
@@ -34,7 +36,10 @@ export interface StickyNode {
   w: number
   h: number
   text: string
+  fontSize?: number
   color?: string
+  textColor?: string
+  borderColor?: string
 }
 
 export interface ConnectorEdge {
@@ -42,7 +47,9 @@ export interface ConnectorEdge {
   from: string
   to: string
   kind?: 'related' | 'depends-on' | 'blocks' | 'leads-to'
+  style?: 'solid' | 'dashed' | 'dotted'
   label?: string
+  color?: string
 }
 
 export interface WhiteboardTemplate {
