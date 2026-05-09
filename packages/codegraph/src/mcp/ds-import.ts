@@ -274,7 +274,7 @@ export function parseTailwindConfig(configText: string): Partial<DesignSystemInp
     return pairs
   }
 
-  // Colors
+  // Colors (flat keys only — nested group objects are handled below as palette)
   const colorsBlock = extractBlock(configText, 'colors')
   if (colorsBlock) {
     for (const [k, v] of extractPairs(colorsBlock)) {
@@ -334,6 +334,8 @@ export function parseTailwindConfig(configText: string): Partial<DesignSystemInp
       }
       if (Object.keys(shades).length > 0) {
         palette[groupName] = shades
+        // Remove numeric shade keys that leaked from nested blocks into flat colors
+        for (const shade of Object.keys(shades)) delete colors[shade]
       }
     }
   }
@@ -341,7 +343,11 @@ export function parseTailwindConfig(configText: string): Partial<DesignSystemInp
   const typography: Record<string, unknown> = {}
   if (Object.keys(typographyFamilies).length) typography.families = typographyFamilies
 
-  const result: Partial<DesignSystemInput> = { colors, fonts, spacing, radius }
+  const result: Partial<DesignSystemInput> = {}
+  if (Object.keys(colors).length) result.colors = colors
+  if (Object.keys(fonts).length) result.fonts = fonts
+  if (Object.keys(spacing).length) result.spacing = spacing
+  if (Object.keys(radius).length) result.radius = radius
   if (Object.keys(shadows).length) result.shadows = shadows
   if (Object.keys(palette).length) result.palette = palette
   if (Object.keys(typography).length) result.typography = typography

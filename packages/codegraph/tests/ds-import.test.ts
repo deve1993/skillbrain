@@ -86,6 +86,24 @@ describe('parseCssVars — new fields', () => {
     expect(result.semanticColors?.['bg']?.['base']).toBe('#ffffff')
   })
 
+  it('parses --color-border-* into semanticColors.border', () => {
+    const result = parseCssVars(`
+      :root {
+        --color-border-default: #e2e8f0;
+      }
+    `)
+    expect(result.semanticColors?.['border']?.['default']).toBe('#e2e8f0')
+  })
+
+  it('parses --color-feedback-* into semanticColors.feedback', () => {
+    const result = parseCssVars(`
+      :root {
+        --color-feedback-error: #ef4444;
+      }
+    `)
+    expect(result.semanticColors?.['feedback']?.['error']).toBe('#ef4444')
+  })
+
   it('does not break with empty input', () => {
     expect(() => parseCssVars('')).not.toThrow()
     expect(parseCssVars('')).toEqual({})
@@ -165,6 +183,28 @@ describe('parseJsonTokens — new fields', () => {
       }
     })
     expect(result.semanticColors?.['bg']?.['base']).toBe('#ffffff')
+  })
+
+  it('maps color.border.* to semanticColors.border', () => {
+    const result = parseJsonTokens({
+      color: {
+        border: {
+          default: { $value: '#e2e8f0', $type: 'color' },
+        }
+      }
+    })
+    expect(result.semanticColors?.['border']?.['default']).toBe('#e2e8f0')
+  })
+
+  it('maps color.feedback.* to semanticColors.feedback', () => {
+    const result = parseJsonTokens({
+      color: {
+        feedback: {
+          error: { $value: '#ef4444', $type: 'color' },
+        }
+      }
+    })
+    expect(result.semanticColors?.['feedback']?.['error']).toBe('#ef4444')
   })
 })
 
