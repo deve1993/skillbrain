@@ -398,6 +398,47 @@
     textarea.brief-input { resize: vertical; }
     select.brief-input { appearance: none; cursor: pointer; }
 
+    /* ── Credentials modal ── */
+    .cred-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .cred-tab {
+      flex: 1; padding: 7px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; font-family: var(--font); border: 1px solid var(--border);
+      background: transparent; color: var(--text-muted); transition: all .15s; text-align: center;
+    }
+    .cred-tab.active { background: rgba(167,139,250,.12); border-color: rgba(167,139,250,.3); color: var(--accent); }
+    .cred-tab:hover:not(.active) { color: var(--text-dim); border-color: var(--border-hover); }
+    .cred-panel { display: none; flex-direction: column; gap: 12px; }
+    .cred-panel.active { display: flex; }
+    .cred-status {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border-radius: 7px; font-size: 12px; font-weight: 500;
+    }
+    .cred-status.ok { background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.2); color: var(--green); }
+    .cred-status.warn { background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.2); color: #fbbf24; }
+    .cred-status.err { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.2); color: var(--red); }
+    .cred-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .cred-dot.ok { background: var(--green); }
+    .cred-dot.warn { background: #fbbf24; }
+    .cred-dot.err { background: var(--red); }
+    .cred-label { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+    .cred-row { display: flex; gap: 8px; align-items: center; }
+    .cred-input {
+      flex: 1; background: rgba(255,255,255,.04); border: 1px solid var(--border);
+      border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 12px;
+      font-family: var(--font); outline: none;
+    }
+    .cred-input:focus { border-color: var(--accent); }
+    .cred-btn {
+      padding: 7px 14px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; font-family: var(--font); flex-shrink: 0; transition: all .15s;
+    }
+    .cred-btn.primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); border: none; color: #fff; }
+    .cred-btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+    .cred-btn.ghost:hover { border-color: var(--border-hover); color: var(--text); }
+    .cred-btn.danger { background: transparent; border: 1px solid rgba(248,113,113,.3); color: var(--red); }
+    .cred-btn.danger:hover { background: rgba(248,113,113,.08); }
+    .cred-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
     /* ── Scrollbars ── */
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -424,6 +465,7 @@
       <!-- tabs injected by JS -->
     </div>
     <div class="h-actions">
+      <button class="cred-btn ghost" id="btn-credentials" title="AI Provider Settings" style="padding:5px 10px;font-size:11px">⚙ Provider</button>
       <button class="btn-generate" id="btn-generate" disabled>⚡ Generate</button>
     </div>
   </header>
@@ -767,6 +809,62 @@
       <div class="brief-footer">
         <button class="btn-submit-brief" id="btn-gdrive-submit">Upload</button>
         <button class="btn-skip" onclick="closeModal('gdrive-overlay')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CREDENTIALS MODAL ═══ -->
+  <div id="credentials-overlay" class="brief-overlay" style="display:none">
+    <div class="brief-modal" style="width:440px">
+      <div class="brief-modal-header">
+        <span class="brief-modal-title">⚙ AI Provider</span>
+        <button class="btn-skip" onclick="closeModal('credentials-overlay')">✕</button>
+      </div>
+      <div style="padding:16px 20px 20px">
+        <div class="cred-tabs">
+          <button class="cred-tab active" id="cred-tab-apikey" onclick="switchCredTab('api_key')">API Key</button>
+          <button class="cred-tab" id="cred-tab-claudecode" onclick="switchCredTab('claude_code')">Claude Code</button>
+        </div>
+
+        <!-- API Key panel -->
+        <div class="cred-panel active" id="cred-panel-apikey">
+          <div id="cred-apikey-status" class="cred-status warn">
+            <div class="cred-dot warn"></div>
+            <span>Checking…</span>
+          </div>
+          <div>
+            <div class="cred-label">Anthropic API Key</div>
+            <div class="cred-row">
+              <input class="cred-input" id="cred-apikey-input" type="password" placeholder="sk-ant-…">
+              <button class="cred-btn primary" id="cred-apikey-save" onclick="saveApiKey()">Save</button>
+            </div>
+          </div>
+          <div class="cred-note">
+            Get your key at <strong>console.anthropic.com</strong>. Stored encrypted, per user, on this server.
+          </div>
+          <div id="cred-apikey-remove-row" style="display:none">
+            <button class="cred-btn danger" onclick="deleteCredentials()">Remove saved key</button>
+          </div>
+        </div>
+
+        <!-- Claude Code panel -->
+        <div class="cred-panel" id="cred-panel-claudecode">
+          <div id="cred-cc-status" class="cred-status warn">
+            <div class="cred-dot warn"></div>
+            <span>Checking…</span>
+          </div>
+          <div class="cred-note" id="cred-cc-note">
+            Use your Claude.ai subscription via the local <code>claude</code> CLI. Only available when running Synapse on localhost.
+          </div>
+          <div id="cred-cc-actions" style="display:flex;gap:8px">
+            <button class="cred-btn ghost" id="cred-cc-check" onclick="checkClaudeCode()">↻ Check status</button>
+            <button class="cred-btn primary" id="cred-cc-activate" onclick="activateClaudeCode()" style="display:none">Use Claude Code</button>
+          </div>
+          <div id="cred-cc-active-row" style="display:none;gap:8px;flex-direction:column">
+            <div class="cred-note">Claude Code is your active provider. Generations will use your claude.ai subscription.</div>
+            <button class="cred-btn danger" style="align-self:flex-start" onclick="deleteCredentials()">Switch to API key</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -9,9 +9,13 @@
  */
 
 import { Router } from 'express'
-import { openDb, closeDb, StudioStore } from '@skillbrain/storage'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { openDb, closeDb, StudioStore, UsersEnvStore, isEncryptionAvailable } from '@skillbrain/storage'
 import type { RouteContext } from './index.js'
-import { studioRunner } from '../studio-runner.js'
+import { studioRunner, localProviderOverrides } from '../studio-runner.js'
+
+const execFileAsync = promisify(execFile)
 
 export function createStudioRouter(ctx: RouteContext): Router {
   const router = Router()
@@ -143,6 +147,7 @@ export function createStudioRouter(ctx: RouteContext): Router {
         studioRunner.enqueue(job.id, {
           skillbrainRoot: ctx.skillbrainRoot,
           anthropicApiKey: ctx.anthropicApiKey,
+          userId: (req as any).userId as string ?? '__local__',
         })
         res.status(201).json({ jobId: job.id, contextBlock })
       } finally {
@@ -289,6 +294,102 @@ export function createStudioRouter(ctx: RouteContext): Router {
       }
     } catch (e) {
       res.status(500).json({ error: (e as Error).message })
+    }
+  })
+
+  // ── Credentials ──
+
+  router.get('/api/studio/credentials', (req, res) => {
+    const userId = (req as any).userId as string | undefined
+    const effectiveId = userId ?? '__local__'
+    const memProvider = localProviderOverrides.get(effectiveId)
+
+    if (!isEncryptionAvailable()) {
+      res.json({ provider: memProvider ?? 'server', hasApiKey: false, encryptionAvailable: false }); return
+    }
+    try {
+      const db = openDb(root)
+      const envStore = new UsersEnvStore(db)
+      const provider = memProvider ?? (envStore.getEnv(effectiveId, 'STUDIO_PROVIDER') ?? 'server')
+      const hasApiKey = !!envStore.getEnv(effectiveId, 'ANTHROPIC_API_KEY')
+      closeDb(db)
+      res.json({ provider, hasApiKey, encryptionAvailable: true })
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message })
+    }
+  })
+
+  router.put('/api/studio/credentials', (req, res) => {
+    const userId = (req as any).userId as string | undefined
+    const effectiveId = userId ?? '__local__'
+    const { provider, apiKey } = (req.body || {}) as { provider?: string; apiKey?: string }
+
+    // Claude Code provider: store in-memory (no secret, works without encryption)
+    if (provider === 'claude_code') {
+      localProviderOverrides.set(effectiveId, 'claude_code')
+      res.json({ ok: true }); return
+    }
+
+    // API key or api_key provider: require encryption
+    if (!isEncryptionAvailable()) {
+      res.status(503).json({ error: 'ENCRYPTION_KEY not configured — cannot store API key securely. Set ENCRYPTION_KEY env var.' }); return
+    }
+    try {
+      const db = openDb(root)
+      const envStore = new UsersEnvStore(db)
+      if (apiKey) {
+        envStore.setEnv(effectiveId, 'ANTHROPIC_API_KEY', apiKey, { category: 'api_key', isSecret: true, service: 'anthropic' })
+      }
+      envStore.setEnv(effectiveId, 'STUDIO_PROVIDER', 'api_key', { category: 'preference', isSecret: false, service: 'studio' })
+      localProviderOverrides.delete(effectiveId)
+      closeDb(db)
+      res.json({ ok: true })
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message })
+    }
+  })
+
+  router.delete('/api/studio/credentials', (req, res) => {
+    const userId = (req as any).userId as string | undefined
+    const effectiveId = userId ?? '__local__'
+    localProviderOverrides.delete(effectiveId)
+    if (isEncryptionAvailable()) {
+      try {
+        const db = openDb(root)
+        const envStore = new UsersEnvStore(db)
+        envStore.deleteEnv(effectiveId, 'STUDIO_PROVIDER')
+        envStore.deleteEnv(effectiveId, 'ANTHROPIC_API_KEY')
+        closeDb(db)
+      } catch { /* ignore */ }
+    }
+    res.json({ ok: true })
+  })
+
+  // Only available when running locally — checks if `claude` CLI is authenticated
+  router.get('/api/studio/credentials/claude-code/check', async (req, res) => {
+    if (!ctx.isLocalhost(req)) {
+      res.json({ available: false, reason: 'Claude Code is only available when running Synapse locally' }); return
+    }
+    try {
+      const { stdout } = await execFileAsync('claude', ['auth', 'status'], { timeout: 8000 })
+      const status = JSON.parse(stdout.trim()) as Record<string, unknown>
+      if (status.loggedIn) {
+        res.json({
+          available: true,
+          email: status.email,
+          subscriptionType: status.subscriptionType,
+          authMethod: status.authMethod,
+        })
+      } else {
+        res.json({ available: false, reason: 'Not logged in. Run `claude login` in your terminal.' })
+      }
+    } catch (e) {
+      const msg = (e as Error).message
+      if (msg.includes('ENOENT') || msg.includes('not found')) {
+        res.json({ available: false, reason: 'Claude Code CLI not found. Install it at claude.ai/code' })
+      } else {
+        res.json({ available: false, reason: msg })
+      }
     }
   })
 

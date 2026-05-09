@@ -757,6 +757,8 @@ function onGenerationError(msg) {
 async function init() {
   await loadPickers()
   await loadConvs()
+  loadCredentials()
+  $('#btn-credentials')?.addEventListener('click', openCredentialsModal)
   $('#btn-generate')?.addEventListener('click', () => generate())
   $('#btn-send')?.addEventListener('click', () => handleSend())
   $('#btn-brief')?.addEventListener('click', () => openSheet('brief'))
@@ -846,5 +848,170 @@ function handleSend() {
 
   generate()
 }
+
+// ── Credentials UI ──────────────────────────────────────────────────────────
+
+let credState = { provider: 'server', hasApiKey: false, isLocalhost: false }
+
+async function loadCredentials() {
+  credState.isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+  try {
+    const r = await fetch('/api/studio/credentials')
+    if (r.ok) {
+      const d = await r.json()
+      credState.provider = d.provider ?? 'server'
+      credState.hasApiKey = !!d.hasApiKey
+    }
+  } catch { /* ignore */ }
+  renderCredentialsBadge()
+}
+
+function renderCredentialsBadge() {
+  const btn = $('#btn-credentials')
+  if (!btn) return
+  if (credState.provider === 'claude_code') {
+    btn.textContent = '⚙ Claude Code'; btn.style.color = 'var(--green)'
+  } else if (credState.provider === 'api_key' && credState.hasApiKey) {
+    btn.textContent = '⚙ API Key'; btn.style.color = 'var(--green)'
+  } else {
+    btn.textContent = '⚙ Provider'; btn.style.color = ''
+  }
+}
+
+function openCredentialsModal() {
+  const overlay = $('#credentials-overlay')
+  if (!overlay) return
+  overlay.style.display = 'flex'
+  const tab = credState.provider === 'claude_code' ? 'claude_code' : 'api_key'
+  switchCredTab(tab)
+  renderApiKeyStatus()
+  if (credState.isLocalhost) checkClaudeCode()
+  const ccTab = $('#cred-tab-claudecode')
+  if (ccTab) ccTab.style.display = credState.isLocalhost ? '' : 'none'
+}
+
+function switchCredTab(tab) {
+  $('#cred-tab-apikey')?.classList.toggle('active', tab === 'api_key')
+  $('#cred-tab-claudecode')?.classList.toggle('active', tab === 'claude_code')
+  $('#cred-panel-apikey')?.classList.toggle('active', tab === 'api_key')
+  $('#cred-panel-claudecode')?.classList.toggle('active', tab === 'claude_code')
+}
+
+function renderApiKeyStatus() {
+  const statusEl = $('#cred-apikey-status')
+  const removeRow = $('#cred-apikey-remove-row')
+  if (!statusEl) return
+  if (credState.provider === 'api_key' && credState.hasApiKey) {
+    statusEl.className = 'cred-status ok'
+    statusEl.innerHTML = '<div class="cred-dot ok"></div><span>API key salvata — provider attivo</span>'
+    if (removeRow) removeRow.style.display = ''
+  } else if (credState.hasApiKey) {
+    statusEl.className = 'cred-status warn'
+    statusEl.innerHTML = '<div class="cred-dot warn"></div><span>API key salvata (inattiva — Claude Code è attivo)</span>'
+    if (removeRow) removeRow.style.display = ''
+  } else {
+    statusEl.className = 'cred-status warn'
+    statusEl.innerHTML = '<div class="cred-dot warn"></div><span>Nessuna key personale — usa la server key</span>'
+    if (removeRow) removeRow.style.display = 'none'
+  }
+}
+
+async function saveApiKey() {
+  const input = $('#cred-apikey-input')
+  const key = input?.value?.trim()
+  if (!key) { toast('Inserisci una API key valida', 'error'); return }
+  const btn = $('#cred-apikey-save')
+  if (btn) btn.disabled = true
+  try {
+    const r = await fetch('/api/studio/credentials', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'api_key', apiKey: key }),
+    })
+    if (!r.ok) { toast((await r.json()).error || 'Errore', 'error'); return }
+    credState.provider = 'api_key'; credState.hasApiKey = true
+    if (input) input.value = ''
+    renderApiKeyStatus(); renderCredentialsBadge()
+    toast('API key salvata ✓', 'success')
+  } catch (e) {
+    toast(e.message, 'error')
+  } finally {
+    if (btn) btn.disabled = false
+  }
+}
+
+async function deleteCredentials() {
+  const r = await fetch('/api/studio/credentials', { method: 'DELETE' })
+  if (!r.ok) { toast('Errore rimozione', 'error'); return }
+  credState.provider = 'server'; credState.hasApiKey = false
+  renderApiKeyStatus(); renderCredentialsBadge()
+  const ccActiveRow = $('#cred-cc-active-row')
+  const ccActions = $('#cred-cc-actions')
+  if (ccActiveRow) ccActiveRow.style.display = 'none'
+  if (ccActions) ccActions.style.display = 'flex'
+  toast('Credenziali rimosse', 'success')
+}
+
+async function checkClaudeCode() {
+  const statusEl = $('#cred-cc-status')
+  const activateBtn = $('#cred-cc-activate')
+  const activeRow = $('#cred-cc-active-row')
+  const actionsRow = $('#cred-cc-actions')
+  if (!statusEl) return
+  statusEl.className = 'cred-status warn'
+  statusEl.innerHTML = '<div class="cred-dot warn"></div><span>Checking…</span>'
+  try {
+    const r = await fetch('/api/studio/credentials/claude-code/check')
+    const d = await r.json()
+    if (credState.provider === 'claude_code') {
+      statusEl.className = 'cred-status ok'
+      statusEl.innerHTML = `<div class="cred-dot ok"></div><span>Attivo — ${d.email ?? ''} (${d.subscriptionType ?? ''})</span>`
+      if (activeRow) activeRow.style.display = 'flex'
+      if (actionsRow) actionsRow.style.display = 'none'
+    } else if (d.available) {
+      statusEl.className = 'cred-status ok'
+      statusEl.innerHTML = `<div class="cred-dot ok"></div><span>${d.email} · ${d.subscriptionType}</span>`
+      if (activateBtn) activateBtn.style.display = ''
+      if (activeRow) activeRow.style.display = 'none'
+      if (actionsRow) actionsRow.style.display = 'flex'
+    } else {
+      statusEl.className = 'cred-status err'
+      statusEl.innerHTML = `<div class="cred-dot err"></div><span>${d.reason}</span>`
+      if (activateBtn) activateBtn.style.display = 'none'
+    }
+  } catch (e) {
+    statusEl.className = 'cred-status err'
+    statusEl.innerHTML = `<div class="cred-dot err"></div><span>${e.message}</span>`
+  }
+}
+
+async function activateClaudeCode() {
+  const btn = $('#cred-cc-activate')
+  if (btn) btn.disabled = true
+  try {
+    const r = await fetch('/api/studio/credentials', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'claude_code' }),
+    })
+    if (!r.ok) { toast((await r.json()).error || 'Errore', 'error'); return }
+    credState.provider = 'claude_code'
+    renderCredentialsBadge()
+    await checkClaudeCode()
+    toast('Claude Code attivato come provider ✓', 'success')
+  } catch (e) {
+    toast(e.message, 'error')
+  } finally {
+    if (btn) btn.disabled = false
+  }
+}
+
+// Expose to global scope for onclick= attributes (module scope is not global)
+window.switchCredTab = switchCredTab
+window.openCredentialsModal = openCredentialsModal
+window.saveApiKey = saveApiKey
+window.deleteCredentials = deleteCredentials
+window.checkClaudeCode = checkClaudeCode
+window.activateClaudeCode = activateClaudeCode
 
 init()
