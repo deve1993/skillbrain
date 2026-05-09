@@ -268,6 +268,7 @@ export class ComponentsStore {
             colorFormat: pri.colorFormat,
             tailwindConfig: pri.tailwindConfig ?? ali.tailwindConfig,
             notes: [pri.notes, ali.notes].filter(Boolean).join('\n\n') || undefined,
+            // Shallow merge: primary's top-level group keys replace alias's (e.g. palette.brand fully replaced, not deep-merged per shade)
             palette: { ...(ali.palette ?? {}), ...(pri.palette ?? {}) },
             semanticColors: { ...(ali.semanticColors ?? {}), ...(pri.semanticColors ?? {}) },
             shadows: { ...(ali.shadows ?? {}), ...(pri.shadows ?? {}) },
