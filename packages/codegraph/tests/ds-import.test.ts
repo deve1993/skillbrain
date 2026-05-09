@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { parseCssVars, parseJsonTokens, parseTailwindConfig, parseFigmaVariables } from '../src/mcp/ds-import.js'
+import { parseCssVars, parseJsonTokens, parseTailwindConfig } from '../src/mcp/ds-import.js'
 
 describe('parseCssVars — new fields', () => {
   it('parses --shadow-* into shadows', () => {
@@ -53,6 +53,13 @@ describe('parseCssVars — new fields', () => {
     `)
     const weights = (result.typography as any)?.weights ?? {}
     expect(weights['bold']).toBe('700')
+  })
+
+  it('strips font-family- prefix — --font-family-sans → families.sans not families.family-sans', () => {
+    const result = parseCssVars(':root { --font-family-sans: Inter; }')
+    const families = (result.typography as any)?.families ?? {}
+    expect(families['sans']).toBe('Inter')
+    expect(families['family-sans']).toBeUndefined()
   })
 
   it('parses --color-brand-{shade} into palette.brand', () => {
@@ -206,6 +213,23 @@ describe('parseJsonTokens — new fields', () => {
     })
     expect(result.semanticColors?.['feedback']?.['error']).toBe('#ef4444')
   })
+
+  it('maps typography.weights.* to typography.weights', () => {
+    const result = parseJsonTokens({
+      typography: {
+        weights: {
+          bold: { $value: '700', $type: 'string' },
+        }
+      }
+    })
+    expect((result.typography as any)?.weights?.['bold']).toBe('700')
+  })
+
+  it('does not break with null or empty input', () => {
+    expect(() => parseJsonTokens(null)).not.toThrow()
+    expect(() => parseJsonTokens({})).not.toThrow()
+    expect(parseJsonTokens({})).toEqual({})
+  })
 })
 
 describe('parseTailwindConfig — new fields', () => {
@@ -242,6 +266,11 @@ describe('parseTailwindConfig — new fields', () => {
     expect(result.fonts?.['sans']).toBe('Inter')
     expect((result.typography as any)?.families?.['sans']).toBe('Inter')
     expect((result.typography as any)?.families?.['mono']).toBe('JetBrains Mono')
+  })
+
+  it('does not break with empty input', () => {
+    expect(() => parseTailwindConfig('')).not.toThrow()
+    expect(parseTailwindConfig('')).toEqual({})
   })
 
   it('detects nested color groups as palette', () => {

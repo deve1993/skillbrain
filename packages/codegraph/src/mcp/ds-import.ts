@@ -111,7 +111,9 @@ export function parseCssVars(css: string): Partial<DesignSystemInput> {
     if (isColorValue || isColorName) {
       colors[storageKey] = value
     } else if (/^font-|family|typeface/.test(name)) {
-      const fontKey = name.startsWith('font-') ? name.slice(5) : name
+      const fontKey = name.startsWith('font-family-')
+        ? name.slice(12)
+        : name.startsWith('font-') ? name.slice(5) : name
       fonts[fontKey] = value
       typographyFamilies[fontKey] = value
     } else if (/spacing|space|gap/.test(name)) {
@@ -154,6 +156,7 @@ export function parseJsonTokens(raw: unknown): Partial<DesignSystemInput> {
   const typographyFamilies: Record<string, string> = {}
   const typographyScale: Record<string, { size: string; leading?: string }> = {}
 
+  const typographyWeights: Record<string, string> = {}
   const SEMANTIC_CATS = new Set(['text', 'bg', 'border', 'feedback'])
 
   function walk(node: unknown, path: string[]): void {
@@ -172,6 +175,11 @@ export function parseJsonTokens(raw: unknown): Partial<DesignSystemInput> {
       // typography.families.{key}
       if (p0 === 'typography' && p1 === 'families' && path.length === 3) {
         typographyFamilies[p2] = value; return
+      }
+
+      // typography.weights.{key}
+      if (p0 === 'typography' && p1 === 'weights' && path.length === 3) {
+        typographyWeights[p2] = value; return
       }
 
       // typography.scale.{step}.size|leading
@@ -216,6 +224,7 @@ export function parseJsonTokens(raw: unknown): Partial<DesignSystemInput> {
   const typography: Record<string, unknown> = {}
   if (Object.keys(typographyFamilies).length) typography.families = typographyFamilies
   if (Object.keys(typographyScale).length) typography.scale = typographyScale
+  if (Object.keys(typographyWeights).length) typography.weights = typographyWeights
 
   const result: Partial<DesignSystemInput> = {}
   if (Object.keys(colors).length) result.colors = colors
@@ -323,6 +332,7 @@ export function parseTailwindConfig(configText: string): Partial<DesignSystemInp
   // Detect palette: nested color group objects (e.g. brand: { '50': '...' })
   const palette: Record<string, Record<string, string>> = {}
   if (colorsBlock) {
+    // NOTE: [^}]+ is not brace-aware — does not support nested objects inside color groups (e.g. DEFAULT: {...})
     const nestedRe = /['"]([^'"]+)['"]\s*:\s*\{([^}]+)\}/g
     let nm: RegExpExecArray | null
     while ((nm = nestedRe.exec(colorsBlock)) !== null) {
