@@ -670,16 +670,26 @@ export async function renderComponents(typeFilter) {
           ${type.toUpperCase()}
           <span class="count">${comps.length}</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px">
           ${comps.map(c => `
-            <div style="padding:12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="openComponentDetail('${c.id}')">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-                <span style="font-weight:600;font-size:13px">${escHtml(c.name)}</span>
-                <span style="font-size:10px;color:var(--text-muted);background:var(--surface);padding:2px 6px;border-radius:4px;white-space:nowrap">${escHtml(c.project)}</span>
+            <div style="border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s;overflow:hidden" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)'" onclick="openComponentDetail('${c.id}')">
+              ${c.codeSnippet ? `
+                <div style="width:100%;height:160px;background:var(--surface);overflow:hidden;position:relative;pointer-events:none">
+                  <iframe sandbox="allow-scripts" srcdoc="${escHtml(c.codeSnippet)}" style="width:160%;height:160%;border:none;transform:scale(0.625);transform-origin:top left" tabindex="-1"></iframe>
+                </div>
+              ` : `
+                <div style="width:100%;height:80px;background:var(--surface);display:flex;align-items:center;justify-content:center">
+                  <span style="font-size:11px;color:var(--text-dim)">No preview</span>
+                </div>
+              `}
+              <div style="padding:10px">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+                  <span style="font-weight:600;font-size:13px">${escHtml(c.name)}</span>
+                  <span style="font-size:10px;color:var(--text-muted);background:var(--bg);padding:2px 6px;border-radius:4px;white-space:nowrap">${escHtml(c.project)}</span>
+                </div>
+                ${c.description ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;line-height:1.4">${escHtml(c.description.slice(0, 80))}</div>` : ''}
+                ${c.tags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${c.tags.map(t => `<span class="tag" style="font-size:10px;padding:1px 6px">${escHtml(t)}</span>`).join('')}</div>` : ''}
               </div>
-              ${c.description ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;line-height:1.4">${escHtml(c.description.slice(0, 100))}</div>` : ''}
-              ${c.filePath ? `<div style="font-size:10px;color:var(--text-dim);font-family:monospace;margin-bottom:6px">${escHtml(c.filePath)}</div>` : ''}
-              ${c.tags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${c.tags.map(t => `<span class="tag" style="font-size:10px;padding:1px 6px">${escHtml(t)}</span>`).join('')}</div>` : ''}
             </div>
           `).join('')}
         </div>
@@ -689,21 +699,57 @@ export async function renderComponents(typeFilter) {
 }
 
 export async function openComponentDetail(id, openDetailFn) {
-  const c = await api.get(`/api/components/${encodeURIComponent(id)}`)
+  const [c, commentsData] = await Promise.all([
+    api.get(`/api/components/${encodeURIComponent(id)}`),
+    api.get(`/api/components/${encodeURIComponent(id)}/comments`).catch(() => ({ comments: [] })),
+  ])
   if (!c || c.error) { openDetailFn?.(id, `<p style="color:var(--red)">Component not found</p>`); return }
 
+  const comments = commentsData?.comments ?? []
+
   openDetailFn?.(c.name, `
-    <div style="margin-bottom:12px">
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${SECTION_TYPE_COLORS[c.sectionType] || '#6b7280'}22;color:${SECTION_TYPE_COLORS[c.sectionType] || '#6b7280'};border:1px solid ${SECTION_TYPE_COLORS[c.sectionType] || '#6b7280'}44">${c.sectionType.toUpperCase()}</span>
-      <span style="margin-left:8px;font-size:12px;color:var(--text-muted)">Project: <strong>${escHtml(c.project)}</strong></span>
+      <span style="font-size:12px;color:var(--text-muted)">Project: <strong>${escHtml(c.project)}</strong></span>
+      <span style="font-size:11px;color:var(--text-dim);margin-left:auto">Added: ${c.createdAt?.split('T')[0] || '?'}</span>
     </div>
+
+    ${c.codeSnippet ? `
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px">
+        <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted)">PREVIEW</span>
+        </div>
+        <div style="height:320px;overflow:hidden;background:#fff">
+          <iframe sandbox="allow-scripts" srcdoc="${escHtml(c.codeSnippet)}" style="width:100%;height:100%;border:none" title="${escHtml(c.name)} preview"></iframe>
+        </div>
+      </div>
+    ` : ''}
+
     ${c.description ? `<div class="card"><div class="card-title">Description</div><p style="font-size:13px">${escHtml(c.description)}</p></div>` : ''}
     ${c.filePath ? `<div class="card"><div class="card-title">File</div><code style="font-size:12px">${escHtml(c.filePath)}</code></div>` : ''}
     ${c.tags?.length ? `<div style="margin-bottom:12px">${c.tags.map(t => `<span class="tag">${escHtml(t)}</span>`).join('')}</div>` : ''}
-    ${c.propsSchema && Object.keys(c.propsSchema).length ? `<div class="card"><div class="card-title">Props</div><pre style="font-size:11px;overflow:auto">${escHtml(JSON.stringify(c.propsSchema, null, 2))}</pre></div>` : ''}
-    ${c.designTokens && Object.keys(c.designTokens).length ? `<div class="card"><div class="card-title">Design Tokens</div><pre style="font-size:11px;overflow:auto">${escHtml(JSON.stringify(c.designTokens, null, 2))}</pre></div>` : ''}
-    ${c.codeSnippet ? `<div class="card"><div class="card-title">Code Preview</div><pre style="font-size:11px;overflow:auto;max-height:300px">${escHtml(c.codeSnippet)}</pre></div>` : ''}
-    <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Added: ${c.createdAt?.split('T')[0] || '?'}</div>
+    ${c.propsSchema && Object.keys(c.propsSchema).length ? `<div class="card"><div class="card-title">Props</div><pre style="font-size:11px;overflow:auto;max-height:200px">${escHtml(JSON.stringify(c.propsSchema, null, 2))}</pre></div>` : ''}
+    ${c.designTokens && Object.keys(c.designTokens).length ? `<div class="card"><div class="card-title">Design Tokens</div><pre style="font-size:11px;overflow:auto;max-height:200px">${escHtml(JSON.stringify(c.designTokens, null, 2))}</pre></div>` : ''}
+    ${c.codeSnippet ? `<div class="card"><div class="card-title">Source</div><pre style="font-size:11px;overflow:auto;max-height:200px">${escHtml(c.codeSnippet)}</pre></div>` : ''}
+
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Comments <span class="count">${comments.length}</span></div>
+      <div id="comment-list-${id}" style="margin-bottom:10px">
+        ${comments.length === 0 ? `<p style="font-size:12px;color:var(--text-dim)">No comments yet.</p>` : comments.map(cm => `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <span style="font-size:12px">${escHtml(cm.text)}</span>
+              <span style="font-size:10px;color:var(--text-dim);display:block;margin-top:2px">${cm.userEmail ? escHtml(cm.userEmail) + ' · ' : ''}${cm.createdAt?.split('T')[0] || ''}</span>
+            </div>
+            <button onclick="deleteComponentComment('${id}','${cm.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:14px;padding:0 4px;flex-shrink:0" title="Delete">×</button>
+          </div>
+        `).join('')}
+      </div>
+      <div style="display:flex;gap:8px">
+        <input id="comment-input-${id}" placeholder="Add a comment…" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text)" onkeydown="if(event.key==='Enter')addComponentComment('${id}')">
+        <button onclick="addComponentComment('${id}')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap">Add</button>
+      </div>
+    </div>
   `)
 }
 
@@ -1464,9 +1510,35 @@ export async function renderWhiteboards() {
 export function renderStudio() {
   const page = document.getElementById('page')
   page.innerHTML = `
-    <iframe
-      src="/studio/"
-      style="display:block;width:calc(100% + 56px);height:calc(100vh - 40px);margin:-20px -28px;border:none;border-radius:0"
-    ></iframe>
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin:-20px -28px 0;padding:0 28px">
+      <button id="studio-tab-ds" onclick="switchStudioTab('ds')" style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--text);padding:12px 18px;font-size:13px;font-weight:500;cursor:pointer">Design System</button>
+      <button id="studio-tab-proto" onclick="switchStudioTab('proto')" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);padding:12px 18px;font-size:13px;font-weight:500;cursor:pointer">Prototype Generator</button>
+    </div>
+    <div id="studio-content" style="margin:0 -28px;height:calc(100vh - 84px)">
+      <iframe id="studio-iframe-ds" src="/ds-studio/" style="display:block;width:100%;height:100%;border:none"></iframe>
+      <iframe id="studio-iframe-proto" src="/studio/" style="display:none;width:100%;height:100%;border:none"></iframe>
+    </div>
   `
+}
+
+window.switchStudioTab = function(tab) {
+  const dsTab = document.getElementById('studio-tab-ds')
+  const protoTab = document.getElementById('studio-tab-proto')
+  const dsFrame = document.getElementById('studio-iframe-ds')
+  const protoFrame = document.getElementById('studio-iframe-proto')
+  if (tab === 'ds') {
+    dsTab.style.borderBottom = '2px solid var(--accent)'
+    dsTab.style.color = 'var(--text)'
+    protoTab.style.borderBottom = '2px solid transparent'
+    protoTab.style.color = 'var(--text-muted)'
+    dsFrame.style.display = 'block'
+    protoFrame.style.display = 'none'
+  } else {
+    protoTab.style.borderBottom = '2px solid var(--accent)'
+    protoTab.style.color = 'var(--text)'
+    dsTab.style.borderBottom = '2px solid transparent'
+    dsTab.style.color = 'var(--text-muted)'
+    protoFrame.style.display = 'block'
+    dsFrame.style.display = 'none'
+  }
 }
