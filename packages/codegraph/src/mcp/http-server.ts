@@ -578,8 +578,15 @@ export async function startHttpServer(port: number, authToken?: string): Promise
                 ).run(row)
               }
 
-              // Rebuild nodes FTS from updated content table
-              existingDb.prepare("INSERT INTO nodes_fts(nodes_fts) VALUES('rebuild')").run()
+              // Rebuild nodes FTS manually — search_text is computed and not stored in nodes,
+              // so the content-FTS 'rebuild' command would fail with "no such column: T.search_text".
+              existingDb.prepare('DELETE FROM nodes_fts').run()
+              existingDb.prepare(`
+                INSERT INTO nodes_fts(rowid, name, file_path, search_text)
+                SELECT rowid, name, COALESCE(file_path, ''),
+                  name || ' ' || REPLACE(REPLACE(LOWER(name), '_', ' '), '-', ' ') || ' ' || COALESCE(file_path, '')
+                FROM nodes
+              `).run()
             })()
           } finally {
             closeDb(incomingDb)

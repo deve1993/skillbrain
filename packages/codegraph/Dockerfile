@@ -16,11 +16,26 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 RUN pnpm run build
 
+# tsc does not copy .sql files — pull storage migrations into dist explicitly.
+# Workspace link: node_modules/@skillbrain/storage → ../storage (relative to /app).
+# We try that first, then fall back to common alternative locations.
+RUN for dir in \
+      node_modules/@skillbrain/storage/dist/migrations \
+      node_modules/@skillbrain/storage/src/migrations \
+      packages/storage/dist/migrations \
+      packages/storage/src/migrations; do \
+      if [ -d "$dir" ]; then \
+        mkdir -p dist/storage && cp -r "$dir" dist/storage/migrations; \
+        echo "Copied storage migrations from $dir"; \
+        break; \
+      fi; \
+    done
+
 # Stage 2: Production
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-RUN apk add --no-cache sqlite libstdc++ curl
+RUN apk add --no-cache sqlite libstdc++ curl gcompat
 
 RUN addgroup --system --gid 1001 codegraph && \
     adduser --system --uid 1001 codegraph

@@ -39,13 +39,13 @@ CREATE INDEX IF NOT EXISTS idx_nodes_label ON nodes(label);
 CREATE INDEX IF NOT EXISTS idx_nodes_name ON nodes(name);
 CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_path);
 
--- FTS5 virtual table for node search
+-- FTS5 standalone table for node search
+-- search_text is computed (camelCase-expanded) and not stored in nodes, so standalone FTS is used.
+-- Rows are populated explicitly by addNodesBatch() in graph-store.
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
   name,
   file_path,
-  search_text,
-  content='nodes',
-  content_rowid='rowid'
+  search_text
 );
 
 -- Memory graph: typed memories + edges
