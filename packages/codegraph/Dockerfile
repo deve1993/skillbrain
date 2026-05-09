@@ -4,10 +4,14 @@
 # ─────────────────────────────────────────────
 
 # Stage 1: Build
-FROM node:20-alpine AS builder
+# node:20-slim (Debian/glibc) so native addons (better-sqlite3, etc.)
+# are compiled against glibc and are compatible with the runner stage.
+FROM node:20-slim AS builder
 WORKDIR /app
 
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
@@ -32,13 +36,18 @@ RUN for dir in \
     done
 
 # Stage 2: Production
-FROM node:20-alpine AS runner
+# node:20-slim (Debian) provides native glibc — required by onnxruntime-node.
+# Alpine + gcompat shim is insufficient: libonnxruntime.so.1 needs libm.so.6,
+# libc.so.6, libpthread.so.0 as glibc natives, not musl wrappers.
+FROM node:20-slim AS runner
 WORKDIR /app
 
-RUN apk add --no-cache sqlite libstdc++ curl gcompat
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sqlite3 curl \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN addgroup --system --gid 1001 codegraph && \
-    adduser --system --uid 1001 codegraph
+RUN groupadd --system --gid 1001 codegraph && \
+    useradd --system --uid 1001 --gid 1001 --no-create-home codegraph
 
 # Copy built app
 COPY --from=builder /app/dist ./dist
