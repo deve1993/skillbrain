@@ -65,6 +65,14 @@ export interface ComponentSearchResult {
     component: UiComponent;
     rank: number;
 }
+export interface ComponentComment {
+    id: string;
+    componentId: string;
+    userId?: string;
+    userEmail?: string;
+    text: string;
+    createdAt: string;
+}
 export interface DesignSystemScan {
     id: string;
     project: string;
@@ -87,6 +95,9 @@ export declare class ComponentsStore {
     }): UiComponent[];
     searchComponents(query: string, limit?: number): ComponentSearchResult[];
     deleteComponent(id: string): void;
+    addComment(componentId: string, text: string, userId?: string, userEmail?: string): ComponentComment;
+    listComments(componentId: string): ComponentComment[];
+    deleteComment(commentId: string): void;
     componentStats(): {
         total: number;
         byProject: Record<string, number>;

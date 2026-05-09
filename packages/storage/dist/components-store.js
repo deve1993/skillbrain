@@ -1,5 +1,5 @@
 /*
- * SkillBrain — Self-hosted AI memory platform
+ * Synapse — The intelligence layer for AI workflows
  * Copyright (c) 2026 Daniel De Vecchi
  *
  * Licensed under AGPL-3.0-or-later.
@@ -107,6 +107,29 @@ export class ComponentsStore {
     }
     deleteComponent(id) {
         this.db.prepare('DELETE FROM ui_components WHERE id = ?').run(id);
+    }
+    // ── Component Comments ────────────────────────────
+    addComment(componentId, text, userId, userEmail) {
+        const id = `CC-${randomId()}`;
+        const createdAt = new Date().toISOString();
+        this.db.prepare(`
+      INSERT INTO component_comments (id, component_id, user_id, user_email, text, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, componentId, userId ?? null, userEmail ?? null, text, createdAt);
+        return { id, componentId, userId, userEmail, text, createdAt };
+    }
+    listComments(componentId) {
+        return this.db.prepare('SELECT * FROM component_comments WHERE component_id = ? ORDER BY created_at ASC').all(componentId).map((r) => ({
+            id: r.id,
+            componentId: r.component_id,
+            userId: r.user_id ?? undefined,
+            userEmail: r.user_email ?? undefined,
+            text: r.text,
+            createdAt: r.created_at,
+        }));
+    }
+    deleteComment(commentId) {
+        this.db.prepare('DELETE FROM component_comments WHERE id = ?').run(commentId);
     }
     componentStats() {
         const total = this.db.prepare('SELECT COUNT(*) as c FROM ui_components').get().c;
