@@ -44,6 +44,12 @@ export function parseCssVars(css: string): Partial<DesignSystemInput> {
   const fonts: Record<string, string> = {}
   const spacing: Record<string, string> = {}
   const radius: Record<string, string> = {}
+  const shadows: Record<string, string> = {}
+  const palette: Record<string, Record<string, string>> = {}
+  const semanticColors: Record<string, Record<string, string>> = {}
+  const typographyScale: Record<string, { size: string; leading?: string }> = {}
+  const typographyFamilies: Record<string, string> = {}
+  const typographyWeights: Record<string, string> = {}
 
   const re = /--([a-z][a-z0-9-]*)\s*:\s*([^;}{]+?)\s*;/gi
   let match: RegExpExecArray | null
@@ -53,16 +59,61 @@ export function parseCssVars(css: string): Partial<DesignSystemInput> {
     const name = rawName.toLowerCase()
     const value = rawValue.trim()
 
+    // --shadow-* → shadows
+    if (name.startsWith('shadow-')) {
+      shadows[name.slice(7)] = value
+      continue
+    }
+
+    // --font-size-* → typography.scale[step].size
+    if (name.startsWith('font-size-')) {
+      const step = name.slice(10)
+      typographyScale[step] = { ...(typographyScale[step] ?? {}), size: value }
+      continue
+    }
+
+    // --line-height-* → typography.scale[step].leading
+    if (name.startsWith('line-height-')) {
+      const step = name.slice(12)
+      typographyScale[step] = { ...(typographyScale[step] ?? { size: '' }), leading: value }
+      continue
+    }
+
+    // --font-weight-* → typography.weights
+    if (name.startsWith('font-weight-')) {
+      typographyWeights[name.slice(12)] = value
+      continue
+    }
+
+    // --color-{group}-{numericShade} → palette.group[shade]
+    const paletteMatch = name.match(/^color-([a-z][a-z0-9-]*)-(\d+)$/)
+    if (paletteMatch) {
+      const [, group, shade] = paletteMatch
+      palette[group] ??= {}
+      palette[group][shade] = value
+      continue
+    }
+
+    // --color-{semanticCat}-{role} → semanticColors.cat[role]
+    const semMatch = name.match(/^color-(text|bg|border|feedback)-(.+)$/)
+    if (semMatch) {
+      const [, cat, role] = semMatch
+      semanticColors[cat] ??= {}
+      semanticColors[cat][role] = value
+      continue
+    }
+
+    // Legacy routing: colors, fonts, spacing, radius
     const isColorValue = /^(#|rgb|hsl|oklch)/.test(value)
     const isColorName = /color|bg|background|text|foreground|accent|primary|secondary|muted|border|surface/.test(name)
-
-    // Strip leading "color-" prefix from key for cleaner storage
     const storageKey = name.startsWith('color-') ? name.slice(6) : name
 
     if (isColorValue || isColorName) {
       colors[storageKey] = value
-    } else if (/font|family|typeface/.test(name)) {
-      fonts[storageKey] = value
+    } else if (/^font-|family|typeface/.test(name)) {
+      const fontKey = name.startsWith('font-') ? name.slice(5) : name
+      fonts[fontKey] = value
+      typographyFamilies[fontKey] = value
     } else if (/spacing|space|gap/.test(name)) {
       spacing[storageKey] = value
     } else if (/radius|rounded|corner/.test(name)) {
@@ -70,7 +121,21 @@ export function parseCssVars(css: string): Partial<DesignSystemInput> {
     }
   }
 
-  return { colors, fonts, spacing, radius }
+  const typography: Record<string, unknown> = {}
+  if (Object.keys(typographyFamilies).length) typography.families = typographyFamilies
+  if (Object.keys(typographyScale).length) typography.scale = typographyScale
+  if (Object.keys(typographyWeights).length) typography.weights = typographyWeights
+
+  const result: Partial<DesignSystemInput> = {}
+  if (Object.keys(colors).length) result.colors = colors
+  if (Object.keys(fonts).length) result.fonts = fonts
+  if (Object.keys(spacing).length) result.spacing = spacing
+  if (Object.keys(radius).length) result.radius = radius
+  if (Object.keys(shadows).length) result.shadows = shadows
+  if (Object.keys(palette).length) result.palette = palette
+  if (Object.keys(semanticColors).length) result.semanticColors = semanticColors
+  if (Object.keys(typography).length) result.typography = typography
+  return result
 }
 
 // ── Function 2: parseJsonTokens ───────────────────────────────────────────────
@@ -83,15 +148,53 @@ export function parseJsonTokens(raw: unknown): Partial<DesignSystemInput> {
   const fonts: Record<string, string> = {}
   const spacing: Record<string, string> = {}
   const radius: Record<string, string> = {}
+  const shadows: Record<string, string> = {}
+  const palette: Record<string, Record<string, string>> = {}
+  const semanticColors: Record<string, Record<string, string>> = {}
+  const typographyFamilies: Record<string, string> = {}
+  const typographyScale: Record<string, { size: string; leading?: string }> = {}
+
+  const SEMANTIC_CATS = new Set(['text', 'bg', 'border', 'feedback'])
 
   function walk(node: unknown, path: string[]): void {
     if (node === null || typeof node !== 'object') return
-
     const obj = node as Record<string, unknown>
 
-    // W3C Design Token leaf: has $value key
     if ('$value' in obj) {
       const value = String(obj.$value)
+      const [p0, p1, p2, p3] = path
+
+      // shadow.{name}
+      if (p0 === 'shadow' && path.length === 2) {
+        shadows[p1] = value; return
+      }
+
+      // typography.families.{key}
+      if (p0 === 'typography' && p1 === 'families' && path.length === 3) {
+        typographyFamilies[p2] = value; return
+      }
+
+      // typography.scale.{step}.size|leading
+      if (p0 === 'typography' && p1 === 'scale' && path.length === 4) {
+        typographyScale[p2] ??= { size: '' }
+        if (p3 === 'size')    typographyScale[p2].size = value
+        if (p3 === 'leading') typographyScale[p2].leading = value
+        return
+      }
+
+      // color.{group}.{numericShade} → palette
+      if (p0 === 'color' && path.length === 3 && /^\d+$/.test(p2)) {
+        palette[p1] ??= {}
+        palette[p1][p2] = value; return
+      }
+
+      // color.{semanticCat}.{role} → semanticColors
+      if (p0 === 'color' && path.length === 3 && SEMANTIC_CATS.has(p1)) {
+        semanticColors[p1] ??= {}
+        semanticColors[p1][p2] = value; return
+      }
+
+      // fallback to legacy categorizer
       categorize(path.join('.'), value, colors, fonts, spacing, radius)
       return
     }
@@ -110,7 +213,20 @@ export function parseJsonTokens(raw: unknown): Partial<DesignSystemInput> {
 
   walk(raw, [])
 
-  return { colors, fonts, spacing, radius }
+  const typography: Record<string, unknown> = {}
+  if (Object.keys(typographyFamilies).length) typography.families = typographyFamilies
+  if (Object.keys(typographyScale).length) typography.scale = typographyScale
+
+  const result: Partial<DesignSystemInput> = {}
+  if (Object.keys(colors).length) result.colors = colors
+  if (Object.keys(fonts).length) result.fonts = fonts
+  if (Object.keys(spacing).length) result.spacing = spacing
+  if (Object.keys(radius).length) result.radius = radius
+  if (Object.keys(shadows).length) result.shadows = shadows
+  if (Object.keys(palette).length) result.palette = palette
+  if (Object.keys(semanticColors).length) result.semanticColors = semanticColors
+  if (Object.keys(typography).length) result.typography = typography
+  return result
 }
 
 // ── Function 3: parseTailwindConfig ──────────────────────────────────────────
@@ -192,7 +308,44 @@ export function parseTailwindConfig(configText: string): Partial<DesignSystemInp
     }
   }
 
-  return { colors, fonts, spacing, radius }
+  // boxShadow → shadows
+  const shadows: Record<string, string> = {}
+  const shadowBlock = extractBlock(configText, 'boxShadow')
+  if (shadowBlock) {
+    for (const [k, v] of extractPairs(shadowBlock)) {
+      shadows[k] = v
+    }
+  }
+
+  // fontFamily also populates typography.families (already parsed into fonts above)
+  const typographyFamilies: Record<string, string> = { ...fonts }
+
+  // Detect palette: nested color group objects (e.g. brand: { '50': '...' })
+  const palette: Record<string, Record<string, string>> = {}
+  if (colorsBlock) {
+    const nestedRe = /['"]([^'"]+)['"]\s*:\s*\{([^}]+)\}/g
+    let nm: RegExpExecArray | null
+    while ((nm = nestedRe.exec(colorsBlock)) !== null) {
+      const groupName = nm[1]
+      const innerBlock = nm[2]
+      const shades: Record<string, string> = {}
+      for (const [k, v] of extractPairs(innerBlock)) {
+        shades[k] = v
+      }
+      if (Object.keys(shades).length > 0) {
+        palette[groupName] = shades
+      }
+    }
+  }
+
+  const typography: Record<string, unknown> = {}
+  if (Object.keys(typographyFamilies).length) typography.families = typographyFamilies
+
+  const result: Partial<DesignSystemInput> = { colors, fonts, spacing, radius }
+  if (Object.keys(shadows).length) result.shadows = shadows
+  if (Object.keys(palette).length) result.palette = palette
+  if (Object.keys(typography).length) result.typography = typography
+  return result
 }
 
 // ── Function 4: parseFigmaVariables ──────────────────────────────────────────
