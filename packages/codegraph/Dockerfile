@@ -43,7 +43,7 @@ FROM node:20-slim AS runner
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    sqlite3 curl \
+    sqlite3 curl libstdc++6 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 1001 codegraph && \

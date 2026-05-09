@@ -52,6 +52,7 @@ import { createStudioConnectorsRouter } from './routes/studio-connectors.js'
 import { createStudioDsRouter } from './routes/studio-ds.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+let _handlersRegistered = false
 
 const SKILLBRAIN_ROOT = process.env.SKILLBRAIN_ROOT || process.cwd()
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || ''
@@ -703,6 +704,16 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     }
   }
 
+  if (!_handlersRegistered) {
+    _handlersRegistered = true
+    process.on('uncaughtException', (err) => {
+      console.error('[http-server] uncaughtException — keeping server alive:', err.message)
+    })
+    process.on('unhandledRejection', (reason) => {
+      console.error('[http-server] unhandledRejection — keeping server alive:', reason)
+    })
+  }
+
   app.listen(port, () => {
     console.log(`
   Synapse (HTTP mode)
@@ -780,4 +791,3 @@ function getFallbackPage(activeSessions: number): string {
 </head><body><div class="c"><h1>Synapse</h1><p>Server running. Dashboard files not found.</p>
 <p>Active sessions: ${activeSessions}</p></div></body></html>`
 }
-
