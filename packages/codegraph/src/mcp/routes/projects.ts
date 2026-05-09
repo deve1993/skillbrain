@@ -271,6 +271,47 @@ export function createProjectsRouter(ctx: RouteContext): Router {
     }
   })
 
+  router.get('/api/components/:id/comments', (req, res) => {
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new ComponentsStore(db)
+      const comments = store.listComments(String(req.params.id))
+      closeDb(db)
+      res.json({ comments })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  router.post('/api/components/:id/comments', (req, res) => {
+    const { text } = req.body || {}
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      res.status(400).json({ error: 'text required' }); return
+    }
+    try {
+      const userId = (req as any).userId as string | undefined
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new ComponentsStore(db)
+      const comment = store.addComment(String(req.params.id), text.trim(), userId)
+      closeDb(db)
+      res.status(201).json(comment)
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  router.delete('/api/components/:id/comments/:commentId', (req, res) => {
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new ComponentsStore(db)
+      store.deleteComment(String(req.params.commentId))
+      closeDb(db)
+      res.json({ ok: true })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   // Design Systems
   router.get('/api/design-systems', (_req, res) => {
     try {

@@ -88,6 +88,15 @@ export interface ComponentSearchResult {
   rank: number
 }
 
+export interface ComponentComment {
+  id: string
+  componentId: string
+  userId?: string
+  userEmail?: string
+  text: string
+  createdAt: string
+}
+
 export interface DesignSystemScan {
   id: string
   project: string
@@ -219,6 +228,35 @@ export class ComponentsStore {
 
   deleteComponent(id: string): void {
     this.db.prepare('DELETE FROM ui_components WHERE id = ?').run(id)
+  }
+
+  // ── Component Comments ────────────────────────────
+
+  addComment(componentId: string, text: string, userId?: string, userEmail?: string): ComponentComment {
+    const id = `CC-${randomId()}`
+    const createdAt = new Date().toISOString()
+    this.db.prepare(`
+      INSERT INTO component_comments (id, component_id, user_id, user_email, text, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, componentId, userId ?? null, userEmail ?? null, text, createdAt)
+    return { id, componentId, userId, userEmail, text, createdAt }
+  }
+
+  listComments(componentId: string): ComponentComment[] {
+    return (this.db.prepare(
+      'SELECT * FROM component_comments WHERE component_id = ? ORDER BY created_at ASC'
+    ).all(componentId) as any[]).map((r) => ({
+      id: r.id,
+      componentId: r.component_id,
+      userId: r.user_id ?? undefined,
+      userEmail: r.user_email ?? undefined,
+      text: r.text,
+      createdAt: r.created_at,
+    }))
+  }
+
+  deleteComment(commentId: string): void {
+    this.db.prepare('DELETE FROM component_comments WHERE id = ?').run(commentId)
   }
 
   componentStats(): { total: number; byProject: Record<string, number>; bySectionType: Record<string, number> } {

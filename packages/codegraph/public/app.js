@@ -14,7 +14,7 @@ import {
   renderMemories, searchMemories, openMemoryDetail,
   renderSessions, renderProjects, renderProjectDetail,
   renderProjectTab, loadEnvVars, searchGlobal, renderWorkLog,
-  renderComponents, openComponentDetail,
+  renderComponents, openComponentDetail as renderOpenComponentDetail,
   renderDesignSystems, openDesignSystemDetail, renderScanReview,
   renderReview,
   renderWhiteboards,
@@ -90,6 +90,35 @@ function openDetail(title, html) {
 function closeDetail() {
   $('#detail-panel').classList.add('hidden')
 }
+
+// ── Component detail ──
+async function openComponentDetail(id) {
+  await renderOpenComponentDetail(id, openDetail)
+}
+window.openComponentDetail = openComponentDetail
+
+async function addComponentComment(componentId) {
+  const input = document.getElementById(`comment-input-${componentId}`)
+  const text = input?.value?.trim()
+  if (!text) return
+  const r = await fetch(`/api/components/${encodeURIComponent(componentId)}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  if (!r.ok) { alert('Failed to add comment'); return }
+  if (input) input.value = ''
+  await openComponentDetail(componentId)
+}
+window.addComponentComment = addComponentComment
+
+async function deleteComponentComment(componentId, commentId) {
+  if (!confirm('Delete this comment?')) return
+  const r = await fetch(`/api/components/${encodeURIComponent(componentId)}/comments/${encodeURIComponent(commentId)}`, { method: 'DELETE' })
+  if (!r.ok) { alert('Delete failed'); return }
+  await openComponentDetail(componentId)
+}
+window.deleteComponentComment = deleteComponentComment
 
 // ── Project detail ──
 async function openProjectDetail(name) {
