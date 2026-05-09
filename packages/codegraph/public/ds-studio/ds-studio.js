@@ -316,6 +316,21 @@ function collectAssets() {
 }
 
 // ── Preview ──
+const GENERIC_FAMILIES = new Set(['sans-serif','serif','monospace','cursive','fantasy','system-ui','-apple-system','blinkmacsystemfont'])
+
+function buildGoogleFontsLink() {
+  const raw = [
+    ...Object.values(tokens.fonts ?? {}),
+    ...Object.values(tokens.typography?.families ?? {}),
+  ]
+  const names = [...new Set(raw)]
+    .filter(f => typeof f === 'string' && f.trim() && !GENERIC_FAMILIES.has(f.trim().toLowerCase()))
+    .filter(f => !/^\d/.test(f)) // exclude baseSize, lineHeight values
+  if (!names.length) return ''
+  const params = names.map(f => `family=${encodeURIComponent(f)}:wght@400;500;600;700`).join('&')
+  return `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${params}&display=swap">`
+}
+
 function buildPreviewHtml() {
   const pal = tokens.palette ?? {}
   const paletteVars = Object.entries(pal).flatMap(([g, shades]) =>
@@ -334,7 +349,9 @@ function buildPreviewHtml() {
     `<div style="display:inline-block;padding:8px 16px;background:#fff;border-radius:6px;box-shadow:${val};font-size:11px;color:#666">${name}</div>`
   ).join('')
 
-  return `<!DOCTYPE html><html><head><style>
+  return `<!DOCTYPE html><html><head>
+  ${buildGoogleFontsLink()}
+  <style>
     :root { ${vars} }
     * { margin:0; padding:0; box-sizing:border-box }
     body { font-family: var(--f-sans, var(--f-heading, sans-serif)); background: var(--c-background, #fff); color: var(--c-text, #111); padding: 20px; display:flex; flex-direction:column; gap:16px }
