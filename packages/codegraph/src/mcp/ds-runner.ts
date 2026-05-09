@@ -25,17 +25,17 @@ Return ONLY the JSON object. No explanation, no markdown, no code fences.
 The JSON must have exactly this shape:
 {
   "colors": {
-    "primary": "#...",
-    "secondary": "#...",
-    "accent": "#...",
-    "background": "#...",
-    "surface": "#...",
-    "text": "#...",
-    "textMuted": "#...",
-    "border": "#...",
-    "error": "#...",
-    "success": "#...",
-    "warning": "#..."
+    "primary": "#6d28d9",
+    "secondary": "#0ea5e9",
+    "accent": "#f59e0b",
+    "background": "#ffffff",
+    "surface": "#f8fafc",
+    "text": "#0f172a",
+    "textMuted": "#64748b",
+    "border": "#e2e8f0",
+    "error": "#ef4444",
+    "success": "#22c55e",
+    "warning": "#f59e0b"
   },
   "fonts": {
     "sans": "Inter",
@@ -58,8 +58,130 @@ The JSON must have exactly this shape:
     "lg": "16px",
     "full": "9999px"
   },
+  "palette": {
+    "brand": {
+      "50": "#f5f3ff",
+      "100": "#ede9fe",
+      "200": "#ddd6fe",
+      "300": "#c4b5fd",
+      "400": "#a78bfa",
+      "500": "#8b5cf6",
+      "600": "#7c3aed",
+      "700": "#6d28d9",
+      "800": "#5b21b6",
+      "900": "#4c1d95"
+    },
+    "neutral": {
+      "50": "#f8fafc",
+      "100": "#f1f5f9",
+      "200": "#e2e8f0",
+      "300": "#cbd5e1",
+      "400": "#94a3b8",
+      "500": "#64748b",
+      "600": "#475569",
+      "700": "#334155",
+      "800": "#1e293b",
+      "900": "#0f172a"
+    }
+  },
+  "semanticColors": {
+    "text": {
+      "primary": "#0f172a",
+      "secondary": "#334155",
+      "muted": "#64748b",
+      "disabled": "#94a3b8",
+      "inverse": "#ffffff",
+      "link": "#7c3aed"
+    },
+    "bg": {
+      "base": "#ffffff",
+      "surface": "#f8fafc",
+      "elevated": "#ffffff",
+      "overlay": "rgba(0,0,0,0.5)"
+    },
+    "border": {
+      "default": "#e2e8f0",
+      "strong": "#cbd5e1",
+      "focus": "#7c3aed"
+    },
+    "feedback": {
+      "error": "#ef4444",
+      "success": "#22c55e",
+      "warning": "#f59e0b",
+      "info": "#0ea5e9"
+    }
+  },
+  "shadows": {
+    "sm": "0 1px 2px rgba(0,0,0,0.05)",
+    "md": "0 4px 6px rgba(0,0,0,0.07)",
+    "lg": "0 10px 15px rgba(0,0,0,0.10)",
+    "xl": "0 20px 25px rgba(0,0,0,0.10)",
+    "focus": "0 0 0 3px rgba(109,40,217,0.3)"
+  },
+  "typography": {
+    "families": {
+      "sans": "Inter",
+      "mono": "JetBrains Mono",
+      "heading": "Inter"
+    },
+    "scale": {
+      "xs":   { "size": "0.75rem",  "leading": "1rem" },
+      "sm":   { "size": "0.875rem", "leading": "1.25rem" },
+      "base": { "size": "1rem",     "leading": "1.5rem" },
+      "lg":   { "size": "1.125rem", "leading": "1.75rem" },
+      "xl":   { "size": "1.25rem",  "leading": "1.75rem" },
+      "2xl":  { "size": "1.5rem",   "leading": "2rem" },
+      "3xl":  { "size": "1.875rem", "leading": "2.25rem" },
+      "4xl":  { "size": "2.25rem",  "leading": "2.5rem" }
+    },
+    "weights": {
+      "normal":   "400",
+      "medium":   "500",
+      "semibold": "600",
+      "bold":     "700"
+    }
+  },
+  "effects": {
+    "aurora":   { "preset": "none",   "customCss": "" },
+    "particles":{ "preset": "none",   "customCss": "" },
+    "glow":     { "preset": "none",   "customCss": "" },
+    "glassmorphism": { "preset": "none", "customCss": "" }
+  },
+  "components": {
+    "button": {
+      "radius": "0.375rem",
+      "paddingX": "1rem",
+      "paddingY": "0.5rem",
+      "fontWeight": "600",
+      "fontSize": "0.875rem"
+    },
+    "input": {
+      "radius": "0.375rem",
+      "borderWidth": "1px",
+      "paddingX": "0.75rem",
+      "paddingY": "0.5rem",
+      "fontSize": "0.875rem"
+    },
+    "card": {
+      "radius": "0.75rem",
+      "padding": "1.5rem",
+      "shadow": "md"
+    },
+    "badge": {
+      "radius": "9999px",
+      "paddingX": "0.5rem",
+      "paddingY": "0.125rem",
+      "fontSize": "0.75rem",
+      "fontWeight": "500"
+    }
+  },
+  "assets": {
+    "logoUrl": "",
+    "logoWordmark": "",
+    "iconLibrary": "lucide"
+  },
   "animations": [],
-  "darkMode": true,
+  "darkMode": false,
   "colorFormat": "hex"
 }
 
