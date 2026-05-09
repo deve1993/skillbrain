@@ -49,6 +49,7 @@ import { createWhiteboardsRouter } from './routes/whiteboards.js'
 import { createStudioRouter } from './routes/studio.js'
 import { createStudioExportRouter } from './routes/studio-export.js'
 import { createStudioConnectorsRouter } from './routes/studio-connectors.js'
+import { createStudioDsRouter } from './routes/studio-ds.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -643,6 +644,7 @@ export async function startHttpServer(port: number, authToken?: string): Promise
   app.use(createStudioRouter(routeCtx))
   app.use(createStudioExportRouter(routeCtx))
   app.use(createStudioConnectorsRouter(routeCtx))
+  app.use(createStudioDsRouter(routeCtx))
 
   // ── Static files (dashboard SPA) ──
   const publicDir = path.resolve(__dirname, '..', '..', 'public')
