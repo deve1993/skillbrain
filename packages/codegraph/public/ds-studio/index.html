@@ -83,6 +83,52 @@ textarea { resize:vertical }
 .import-footer { display:flex; gap:8px; justify-content:flex-end; margin-top:4px }
 .btn-cancel { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer }
 .btn-import { background:var(--accent2); color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer }
+
+/* Palette shade grid */
+.shade-group { margin-bottom:10px }
+.shade-group-name { font-size:11px; font-weight:600; color:var(--text-dim); margin-bottom:5px; display:flex; align-items:center; gap:6px }
+.shade-grid { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px }
+.shade-cell { display:flex; flex-direction:column; align-items:center; gap:2px }
+.shade-cell input[type=color] { width:36px; height:30px; border:none; border-radius:4px; cursor:pointer; padding:0; background:none }
+.shade-cell span { font-size:9px; color:var(--text-muted) }
+.del-group-btn { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:13px; margin-left:auto }
+.del-group-btn:hover { color:var(--red) }
+
+/* Semantic color rows */
+.sem-category { margin-bottom:10px }
+.sem-cat-name { font-size:11px; font-weight:600; color:var(--text-dim); margin-bottom:5px }
+
+/* Shadow rows */
+.shadow-row { display:flex; align-items:center; gap:8px; margin-bottom:6px }
+.shadow-name { width:70px; font-size:12px; color:var(--text-dim) }
+.shadow-value { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 7px; font-size:11px; font-family:monospace }
+.shadow-preview { width:60px; height:24px; background:var(--card); border-radius:4px }
+
+/* Typography scale rows */
+.scale-row { display:grid; grid-template-columns:48px 1fr 1fr; gap:4px; align-items:center; margin-bottom:4px }
+.scale-step { font-size:11px; color:var(--text-dim) }
+
+/* Effects rows */
+.effect-row { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px; margin-bottom:8px }
+.effect-name { font-size:11px; font-weight:600; color:var(--text-dim); margin-bottom:6px }
+.effect-row select { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:4px; padding:3px 7px; font-size:11px; width:100%; margin-bottom:6px }
+.effect-row textarea { height:48px; font-size:11px; font-family:monospace }
+
+/* Component token grid */
+.comp-group { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px; margin-bottom:8px }
+.comp-group-name { font-size:11px; font-weight:600; color:var(--text-dim); margin-bottom:6px }
+
+/* Assets section */
+.asset-row { display:flex; flex-direction:column; gap:2px; margin-bottom:8px }
+.asset-row label { font-size:10px; color:var(--text-dim) }
+.asset-row input { background:var(--surface); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:4px 7px; font-size:12px }
+
+/* Collapsible token sections */
+details.token-section summary { list-style:none; outline:none }
+details.token-section summary::-webkit-details-marker { display:none }
+details.token-section summary h3 { cursor:pointer }
+details.token-section summary h3::before { content:'▸ '; font-size:9px; color:var(--text-muted) }
+details.token-section[open] summary h3::before { content:'▾ '; font-size:9px }
 </style>
 </head>
 <body>
@@ -142,6 +188,71 @@ textarea { resize:vertical }
     <h3>Border Radius</h3>
     <div class="token-grid" id="radius-grid"></div>
   </div>
+
+  <details class="token-section" id="palette-section">
+    <summary style="cursor:pointer;user-select:none">
+      <h3 style="display:inline-flex;gap:8px;align-items:center">
+        Color Palette
+        <button class="btn-sm" onclick="event.preventDefault();addPaletteGroup()" style="font-size:10px;padding:3px 8px">+ Group</button>
+      </h3>
+    </summary>
+    <div id="palette-list" style="margin-top:10px"></div>
+  </details>
+
+  <details class="token-section" id="semantic-section">
+    <summary style="cursor:pointer;user-select:none"><h3>Semantic Colors</h3></summary>
+    <div id="semantic-list" style="margin-top:10px"></div>
+  </details>
+
+  <details class="token-section" id="shadows-section">
+    <summary style="cursor:pointer;user-select:none">
+      <h3 style="display:inline-flex;gap:8px;align-items:center">
+        Shadows
+        <button class="btn-sm" onclick="event.preventDefault();addShadow()" style="font-size:10px;padding:3px 8px">+ Add</button>
+      </h3>
+    </summary>
+    <div id="shadows-list" style="margin-top:10px"></div>
+  </details>
+
+  <details class="token-section" id="typography-section">
+    <summary style="cursor:pointer;user-select:none"><h3>Typography</h3></summary>
+    <div style="margin-top:10px">
+      <div class="l-label" style="margin-bottom:8px">Font Families</div>
+      <div class="token-grid" id="typo-families-grid"></div>
+      <div class="l-label" style="margin:12px 0 8px">Type Scale</div>
+      <div id="typo-scale-list"></div>
+      <div class="l-label" style="margin:12px 0 8px">Font Weights</div>
+      <div class="token-grid" id="typo-weights-grid"></div>
+    </div>
+  </details>
+
+  <details class="token-section" id="effects-section">
+    <summary style="cursor:pointer;user-select:none"><h3>Effects</h3></summary>
+    <div id="effects-list" style="margin-top:10px"></div>
+  </details>
+
+  <details class="token-section" id="components-section">
+    <summary style="cursor:pointer;user-select:none"><h3>Component Tokens</h3></summary>
+    <div id="components-list" style="margin-top:10px"></div>
+  </details>
+
+  <details class="token-section" id="assets-section">
+    <summary style="cursor:pointer;user-select:none"><h3>Assets</h3></summary>
+    <div style="margin-top:10px">
+      <div class="asset-row">
+        <label>Logo URL</label>
+        <input id="asset-logoUrl" type="url" placeholder="https://…/logo.svg">
+      </div>
+      <div class="asset-row">
+        <label>Logo Wordmark URL</label>
+        <input id="asset-logoWordmark" type="url" placeholder="https://…/wordmark.svg">
+      </div>
+      <div class="asset-row">
+        <label>Icon Library</label>
+        <input id="asset-iconLibrary" type="text" placeholder="lucide">
+      </div>
+    </div>
+  </details>
 
   <div id="preview-section">
     <div class="preview-header">
