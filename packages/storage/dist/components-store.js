@@ -156,15 +156,25 @@ export class ComponentsStore {
                 colorFormat: input.colorFormat ?? existing.colorFormat,
                 tailwindConfig: input.tailwindConfig ?? existing.tailwindConfig,
                 notes: input.notes ?? existing.notes,
+                palette: input.palette ?? existing.palette,
+                semanticColors: input.semanticColors ?? existing.semanticColors,
+                shadows: input.shadows ?? existing.shadows,
+                typography: input.typography ?? existing.typography,
+                effects: input.effects ?? existing.effects,
+                components: input.components ?? existing.components,
+                assets: input.assets ?? existing.assets,
                 updatedAt: now,
             };
             this.db.prepare(`
         UPDATE design_systems SET
           client_name = ?, colors = ?, fonts = ?, spacing = ?, radius = ?,
           animations = ?, dark_mode = ?, color_format = ?, tailwind_config = ?,
-          notes = ?, updated_at = ?
+          notes = ?,
+          palette = ?, semantic_colors = ?, shadows = ?, typography = ?,
+          effects = ?, components = ?, assets = ?,
+          updated_at = ?
         WHERE project = ?
-      `).run(updated.clientName ?? null, JSON.stringify(updated.colors), JSON.stringify(updated.fonts), JSON.stringify(updated.spacing), JSON.stringify(updated.radius), JSON.stringify(updated.animations), updated.darkMode ? 1 : 0, updated.colorFormat, updated.tailwindConfig ?? null, updated.notes ?? null, updated.updatedAt, updated.project);
+      `).run(updated.clientName ?? null, JSON.stringify(updated.colors), JSON.stringify(updated.fonts), JSON.stringify(updated.spacing), JSON.stringify(updated.radius), JSON.stringify(updated.animations), updated.darkMode ? 1 : 0, updated.colorFormat, updated.tailwindConfig ?? null, updated.notes ?? null, JSON.stringify(updated.palette ?? {}), JSON.stringify(updated.semanticColors ?? {}), JSON.stringify(updated.shadows ?? {}), JSON.stringify(updated.typography ?? {}), JSON.stringify(updated.effects ?? {}), JSON.stringify(updated.components ?? {}), JSON.stringify(updated.assets ?? {}), updated.updatedAt, updated.project);
             return updated;
         }
         const ds = {
@@ -180,14 +190,24 @@ export class ComponentsStore {
             colorFormat: input.colorFormat ?? 'hex',
             tailwindConfig: input.tailwindConfig,
             notes: input.notes,
+            palette: input.palette ?? {},
+            semanticColors: input.semanticColors ?? {},
+            shadows: input.shadows ?? {},
+            typography: input.typography ?? {},
+            effects: input.effects ?? {},
+            components: input.components ?? {},
+            assets: input.assets ?? {},
             createdAt: now,
             updatedAt: now,
         };
         this.db.prepare(`
       INSERT INTO design_systems
-        (id, project, client_name, colors, fonts, spacing, radius, animations, dark_mode, color_format, tailwind_config, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(ds.id, ds.project, ds.clientName ?? null, JSON.stringify(ds.colors), JSON.stringify(ds.fonts), JSON.stringify(ds.spacing), JSON.stringify(ds.radius), JSON.stringify(ds.animations), ds.darkMode ? 1 : 0, ds.colorFormat, ds.tailwindConfig ?? null, ds.notes ?? null, ds.createdAt, ds.updatedAt);
+        (id, project, client_name, colors, fonts, spacing, radius, animations,
+         dark_mode, color_format, tailwind_config, notes,
+         palette, semantic_colors, shadows, typography, effects, components, assets,
+         created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(ds.id, ds.project, ds.clientName ?? null, JSON.stringify(ds.colors), JSON.stringify(ds.fonts), JSON.stringify(ds.spacing), JSON.stringify(ds.radius), JSON.stringify(ds.animations), ds.darkMode ? 1 : 0, ds.colorFormat, ds.tailwindConfig ?? null, ds.notes ?? null, JSON.stringify(ds.palette ?? {}), JSON.stringify(ds.semanticColors ?? {}), JSON.stringify(ds.shadows ?? {}), JSON.stringify(ds.typography ?? {}), JSON.stringify(ds.effects ?? {}), JSON.stringify(ds.components ?? {}), JSON.stringify(ds.assets ?? {}), ds.createdAt, ds.updatedAt);
         return ds;
     }
     getDesignSystem(project) {
@@ -248,6 +268,13 @@ export class ComponentsStore {
             colorFormat: pri.colorFormat,
             tailwindConfig: pri.tailwindConfig ?? ali.tailwindConfig,
             notes: [pri.notes, ali.notes].filter(Boolean).join('\n\n') || undefined,
+            palette: { ...(ali.palette ?? {}), ...(pri.palette ?? {}) },
+            semanticColors: { ...(ali.semanticColors ?? {}), ...(pri.semanticColors ?? {}) },
+            shadows: { ...(ali.shadows ?? {}), ...(pri.shadows ?? {}) },
+            typography: { ...(ali.typography ?? {}), ...(pri.typography ?? {}) },
+            effects: { ...(ali.effects ?? {}), ...(pri.effects ?? {}) },
+            components: { ...(ali.components ?? {}), ...(pri.components ?? {}) },
+            assets: { ...(ali.assets ?? {}), ...(pri.assets ?? {}) },
         };
         const result = this.upsertDesignSystem(merged);
         this.db.prepare('DELETE FROM design_systems WHERE project = ?').run(alias);
@@ -308,6 +335,13 @@ export class ComponentsStore {
             colorFormat: row.color_format,
             tailwindConfig: row.tailwind_config ?? undefined,
             notes: row.notes ?? undefined,
+            palette: JSON.parse(row.palette || '{}'),
+            semanticColors: JSON.parse(row.semantic_colors || '{}'),
+            shadows: JSON.parse(row.shadows || '{}'),
+            typography: JSON.parse(row.typography || '{}'),
+            effects: JSON.parse(row.effects || '{}'),
+            components: JSON.parse(row.components || '{}'),
+            assets: JSON.parse(row.assets || '{}'),
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };

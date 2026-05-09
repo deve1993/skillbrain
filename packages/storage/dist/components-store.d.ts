@@ -45,6 +45,13 @@ export interface DesignSystem {
     colorFormat: 'hex' | 'oklch' | 'hsl';
     tailwindConfig?: string;
     notes?: string;
+    palette?: Record<string, Record<string, string>>;
+    semanticColors?: Record<string, Record<string, string>>;
+    shadows?: Record<string, string>;
+    typography?: Record<string, unknown>;
+    effects?: Record<string, unknown>;
+    components?: Record<string, Record<string, string>>;
+    assets?: Record<string, unknown>;
     createdAt: string;
     updatedAt: string;
 }
@@ -60,6 +67,13 @@ export interface DesignSystemInput {
     colorFormat?: 'hex' | 'oklch' | 'hsl';
     tailwindConfig?: string;
     notes?: string;
+    palette?: Record<string, Record<string, string>>;
+    semanticColors?: Record<string, Record<string, string>>;
+    shadows?: Record<string, string>;
+    typography?: Record<string, unknown>;
+    effects?: Record<string, unknown>;
+    components?: Record<string, Record<string, string>>;
+    assets?: Record<string, unknown>;
 }
 export interface ComponentSearchResult {
     component: UiComponent;
