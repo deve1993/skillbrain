@@ -69,8 +69,14 @@ export function createStudioDsRouter(ctx: RouteContext): Router {
         return
       }
 
-      const unsubscribe = subscribeDsJob(jobId, res)
-      req.on('close', unsubscribe)
+      let unsubscribe: () => void = () => {}
+      req.on('close', () => unsubscribe())
+      try {
+        unsubscribe = subscribeDsJob(jobId, res)
+      } catch (err: unknown) {
+        try { res.write(`data: ${JSON.stringify({ type: 'error', message: (err as Error).message })}\n\n`) } catch { /* disconnected */ }
+        res.end()
+      }
     } catch (e) {
       res.status(500).json({ error: (e as Error).message })
     }
@@ -148,6 +154,7 @@ export function createStudioDsRouter(ctx: RouteContext): Router {
   })
 
   // ── Export: CSS ─────────────────────────────────────────────────────────────
+  // /export/* suffix prevents shadowing by /:project route in projects.ts
 
   router.get('/api/design-systems/:project/export/css', (req, res) => {
     try {
