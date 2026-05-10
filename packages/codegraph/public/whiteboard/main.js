@@ -1159,6 +1159,7 @@ function bindUI() {
   const btnDark = $('#btn-dark')
   if (btnDark) {
     const container = document.getElementById('wb-canvas-container')
+    if (!container) return
     const applyDark = (on) => {
       container.classList.toggle('wb-dark-canvas', on)
       btnDark.textContent = on ? '☀️' : '🌙'
