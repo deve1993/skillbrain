@@ -1229,24 +1229,6 @@ body.wb-readonly #wb-name { pointer-events: none; background: transparent !impor
 }
 .wb-comment .reply-btn:hover { text-decoration: underline; }
 
-/* Inline-editable frame label */
-.wb-frame-label.editing {
-  outline: 2px solid #6366f1;
-  outline-offset: 1px;
-}
-.wb-frame-label-input {
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: #1e293b;
-  background: #fff;
-  border: none;
-  outline: none;
-  padding: 4px 10px;
-  border-radius: 6px;
-  width: 200px;
-}
-
 /* ── Panels ── */
 .wb-panel {
   position: fixed;
