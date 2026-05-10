@@ -972,8 +972,9 @@ async function doSave() {
   savingNow = true
   const stateJson = serialize()
   const expectedVersion = getState().stateVersion
+  const thumbnailDataUrl = generateThumbnailSvg()
   try {
-    const { board } = await wb.save(boardId, { stateJson, expectedVersion })
+    const { board } = await wb.save(boardId, { stateJson, expectedVersion, thumbnailDataUrl })
     update({ stateVersion: board.stateVersion })
     setSaveState('saved')
   } catch (err) {
@@ -989,6 +990,61 @@ async function doSave() {
   } finally {
     savingNow = false
   }
+}
+
+function generateThumbnailSvg() {
+  const { nodes, connectors } = getState()
+  if (!nodes.length) return null
+
+  const W = 200, H = 100
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const n of nodes) {
+    minX = Math.min(minX, n.x); minY = Math.min(minY, n.y)
+    maxX = Math.max(maxX, n.x + n.w); maxY = Math.max(maxY, n.y + n.h)
+  }
+  const worldW = Math.max(1, maxX - minX)
+  const worldH = Math.max(1, maxY - minY)
+  const pad = 0.05
+  const scaleX = W * (1 - 2 * pad) / worldW
+  const scaleY = H * (1 - 2 * pad) / worldH
+  const scale = Math.min(scaleX, scaleY)
+
+  const toX = x => ((x - minX) * scale + W * pad).toFixed(1)
+  const toY = y => ((y - minY) * scale + H * pad).toFixed(1)
+  const toW = w => Math.max(2, (w * scale)).toFixed(1)
+  const toH = h => Math.max(2, (h * scale)).toFixed(1)
+
+  const NODE_COLORS = {
+    sticky: '#fde68a', frame: 'rgba(99,102,241,0.15)', code: '#334155',
+    'sb-card': '#6366f1', shape: '#a5b4fc', image: '#94a3b8',
+    emoji: '#fde68a', group: 'rgba(168,85,247,0.2)', pen: '#64748b',
+  }
+
+  let rects = ''
+  for (const n of nodes.filter(n => n.type === 'frame')) {
+    const fill = n.color ? `${n.color}26` : 'rgba(99,102,241,0.1)'
+    const stroke = n.color ? `${n.color}66` : 'rgba(99,102,241,0.4)'
+    rects += `<rect x="${toX(n.x)}" y="${toY(n.y)}" width="${toW(n.w)}" height="${toH(n.h)}" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="0.8"/>`
+    const headerH = Math.max(4, n.h * scale * 0.14)
+    rects += `<rect x="${toX(n.x)}" y="${toY(n.y)}" width="${toW(n.w)}" height="${headerH.toFixed(1)}" rx="3" fill="${n.color ? n.color + '40' : 'rgba(99,102,241,0.25)'}"/>`
+  }
+  for (const n of nodes.filter(n => n.type !== 'frame')) {
+    const fill = n.color || NODE_COLORS[n.type] || '#94a3b8'
+    rects += `<rect x="${toX(n.x)}" y="${toY(n.y)}" width="${toW(n.w)}" height="${toH(n.h)}" rx="2" fill="${fill}" opacity="0.85"/>`
+  }
+  const nodeMap = new Map(nodes.map(n => [n.id, n]))
+  let lines = ''
+  for (const c of connectors) {
+    const a = nodeMap.get(c.from), b = nodeMap.get(c.to)
+    if (!a || !b) continue
+    const ax = parseFloat(toX(a.x + a.w / 2)), ay = parseFloat(toY(a.y + a.h / 2))
+    const bx = parseFloat(toX(b.x + b.w / 2)), by = parseFloat(toY(b.y + b.h / 2))
+    const stroke = c.color || '#64748b'
+    lines += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="${stroke}" stroke-width="0.8" stroke-opacity="0.55"/>`
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="#0f172a"/>${lines}${rects}</svg>`
+  return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)))
 }
 
 function setSaveState(s) {
