@@ -295,7 +295,7 @@ function updateInspectorDrawer() {
     el.addEventListener('click', () => {
       const c = el.dataset.inspColor
       sel.forEach(id => patchNode(id, { color: c }))
-      scheduleSave()
+      commitHistory(); scheduleSave()
       updateInspectorDrawer()
     })
   })
@@ -306,8 +306,8 @@ function updateInspectorDrawer() {
     picker.addEventListener('click', () => pickerInput.click())
     pickerInput.addEventListener('input', () => {
       sel.forEach(id => patchNode(id, { color: pickerInput.value }))
-      scheduleSave()
     })
+    pickerInput.addEventListener('change', () => { commitHistory(); scheduleSave() })
   }
 
   const fsSlider = drawer.querySelector('#wb-insp-fontsize')
