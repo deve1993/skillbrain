@@ -74,6 +74,7 @@ function scheduleRender() {
     highlightCode()
     updateEmptyState()
     updateFloatingToolbar()
+    updateInspectorDrawer()
     updateMinimap()
   })
 }
@@ -210,6 +211,138 @@ function updateFloatingToolbar() {
     scheduleSave()
   }))
   el.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => handleToolbarAction(b.dataset.act, sel)))
+}
+
+const INSPECTOR_PALETTE = ['#fef3c7','#dcfce7','#dbeafe','#fce7f3','#e0e7ff','#fed7aa','#fff','#1e293b']
+const BORDER_STYLES = ['none','solid','dashed','dotted']
+
+function updateInspectorDrawer() {
+  const drawer = document.getElementById('wb-inspector-drawer')
+  if (!drawer) return
+  const sel = [...getState().selection]
+  if (!sel.length || isReadOnly) { drawer.style.display = 'none'; return }
+
+  const nodes = getState().nodes
+  const selected = sel.map(id => nodes.find(n => n.id === id)).filter(Boolean)
+  if (!selected.length) { drawer.style.display = 'none'; return }
+  if (selected.some(n => n.editing)) { drawer.style.display = 'none'; return }
+
+  const primary = selected[0]
+  const type = primary.type
+
+  let html = ''
+
+  // BG color swatches (sticky, frame, sb-card, shape)
+  if (['sticky','frame','sb-card','shape'].includes(type)) {
+    const curColor = primary.color || ''
+    html += `<span class="wb-insp-label">BG</span>`
+    html += `<div class="wb-insp-colors">`
+    for (const c of INSPECTOR_PALETTE) {
+      const active = curColor === c ? ' active' : ''
+      const borderStyle = c === '#fff' ? 'border-color:#cbd5e1' : ''
+      html += `<span class="wb-insp-swatch${active}" data-insp-color="${c}" style="background:${c};${borderStyle}" title="${c}"></span>`
+    }
+    html += `<input type="color" class="wb-insp-color-input" id="wb-insp-color-picker" value="${curColor && curColor.startsWith('#') ? curColor : '#fef3c7'}">`
+    html += `<span class="wb-insp-swatch custom" data-insp-color-picker title="Custom color"></span>`
+    html += `</div>`
+    html += `<span class="wb-insp-divider"></span>`
+  }
+
+  // Font size slider (sticky only)
+  if (type === 'sticky') {
+    const fs = primary.fontSize ?? 13
+    html += `<span class="wb-insp-label">Size</span>`
+    html += `<div class="wb-insp-slider-wrap">`
+    html += `<input type="range" class="wb-insp-slider" id="wb-insp-fontsize" min="8" max="32" step="1" value="${fs}">`
+    html += `<span class="wb-insp-val" id="wb-insp-fontsize-val">${fs}</span>`
+    html += `</div>`
+    html += `<span class="wb-insp-divider"></span>`
+  }
+
+  // Opacity slider (frame)
+  if (type === 'frame') {
+    const op = Math.round((primary.opacity ?? 0.08) * 100)
+    html += `<span class="wb-insp-label">Fill</span>`
+    html += `<div class="wb-insp-slider-wrap">`
+    html += `<input type="range" class="wb-insp-slider" id="wb-insp-opacity" min="0" max="40" step="2" value="${op}">`
+    html += `<span class="wb-insp-val" id="wb-insp-opacity-val">${op}%</span>`
+    html += `</div>`
+    html += `<span class="wb-insp-divider"></span>`
+  }
+
+  // Border style (sticky, frame)
+  if (['sticky','frame'].includes(type)) {
+    const curStyle = primary.borderStyle || (primary.borderColor ? 'solid' : 'none')
+    html += `<span class="wb-insp-label">Border</span>`
+    html += `<div class="wb-insp-seg">`
+    const labels = { none: '—', solid: '▬', dashed: '╌', dotted: '···' }
+    for (const s of BORDER_STYLES) {
+      const active = curStyle === s ? ' active' : ''
+      html += `<button class="wb-insp-seg-btn${active}" data-insp-border="${s}" title="${s}">${labels[s]}</button>`
+    }
+    html += `</div>`
+    html += `<span class="wb-insp-divider"></span>`
+  }
+
+  // Type badge
+  html += `<span class="wb-insp-tag">${type}</span>`
+
+  drawer.innerHTML = html
+  drawer.style.display = 'flex'
+
+  // Wire events
+  drawer.querySelectorAll('[data-insp-color]').forEach(el => {
+    el.addEventListener('click', () => {
+      const c = el.dataset.inspColor
+      sel.forEach(id => patchNode(id, { color: c }))
+      scheduleSave()
+      updateInspectorDrawer()
+    })
+  })
+
+  const picker = drawer.querySelector('[data-insp-color-picker]')
+  const pickerInput = drawer.querySelector('#wb-insp-color-picker')
+  if (picker && pickerInput) {
+    picker.addEventListener('click', () => pickerInput.click())
+    pickerInput.addEventListener('input', () => {
+      sel.forEach(id => patchNode(id, { color: pickerInput.value }))
+      scheduleSave()
+    })
+  }
+
+  const fsSlider = drawer.querySelector('#wb-insp-fontsize')
+  const fsVal = drawer.querySelector('#wb-insp-fontsize-val')
+  if (fsSlider) {
+    fsSlider.addEventListener('input', () => {
+      const v = parseInt(fsSlider.value)
+      if (fsVal) fsVal.textContent = v
+      sel.forEach(id => patchNode(id, { fontSize: v }))
+    })
+    fsSlider.addEventListener('change', () => { commitHistory(); scheduleSave() })
+  }
+
+  const opSlider = drawer.querySelector('#wb-insp-opacity')
+  const opVal = drawer.querySelector('#wb-insp-opacity-val')
+  if (opSlider) {
+    opSlider.addEventListener('input', () => {
+      const v = parseInt(opSlider.value)
+      if (opVal) opVal.textContent = v + '%'
+      sel.forEach(id => patchNode(id, { opacity: v / 100 }))
+    })
+    opSlider.addEventListener('change', () => { commitHistory(); scheduleSave() })
+  }
+
+  drawer.querySelectorAll('[data-insp-border]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = btn.dataset.inspBorder
+      sel.forEach(id => {
+        if (s === 'none') patchNode(id, { borderStyle: 'none', borderColor: undefined })
+        else patchNode(id, { borderStyle: s, borderColor: primary.borderColor || '#6366f1' })
+      })
+      commitHistory(); scheduleSave()
+      updateInspectorDrawer()
+    })
+  })
 }
 
 function patchNodeColor(id, color) {
