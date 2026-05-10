@@ -993,7 +993,7 @@ async function doSave() {
 }
 
 function generateThumbnailSvg() {
-  const { nodes, connectors } = getState()
+  const { nodes, connectors = [] } = getState()
   if (!nodes.length) return null
 
   const W = 200, H = 100
