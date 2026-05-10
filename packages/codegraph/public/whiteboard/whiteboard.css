@@ -233,6 +233,32 @@ body.wb-sidebar-collapsed .wb-sidebar-collapse-toggle button { transform: rotate
 
 /* Push canvas down a bit so the dock doesn't cover content at bottom */
 #wb-canvas-container { padding-bottom: 0; }
+
+/* ── Dark canvas mode ── */
+#wb-canvas-container.wb-dark-canvas {
+  background: #0f172a;
+}
+#wb-canvas-container.wb-dark-canvas #wb-grid {
+  background-image: radial-gradient(circle, rgba(99,102,241,0.3) 1px, transparent 1px);
+}
+#wb-canvas-container.wb-dark-canvas .wb-node {
+  border-color: rgba(255,255,255,0.08);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+#wb-canvas-container.wb-dark-canvas .wb-node:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+#wb-canvas-container.wb-dark-canvas .wb-node.selected {
+  outline-color: #818cf8;
+}
+#wb-canvas-container.wb-dark-canvas .wb-empty-card {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+#wb-canvas-container.wb-dark-canvas .wb-empty-card h2 { color: #f1f5f9; }
+#wb-canvas-container.wb-dark-canvas .wb-empty-card p { color: #94a3b8; }
+#wb-canvas-container.wb-dark-canvas .wb-empty-card li { color: #cbd5e1; }
 .wb-back {
   display: inline-flex;
   align-items: center;

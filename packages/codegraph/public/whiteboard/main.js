@@ -1155,6 +1155,23 @@ function bindUI() {
     else document.exitFullscreen?.().catch(() => {})
   }
 
+  // ── Dark canvas mode ──
+  const btnDark = $('#btn-dark')
+  if (btnDark) {
+    const container = document.getElementById('wb-canvas-container')
+    const applyDark = (on) => {
+      container.classList.toggle('wb-dark-canvas', on)
+      btnDark.textContent = on ? '☀️' : '🌙'
+      btnDark.title = on ? 'Light canvas mode' : 'Dark canvas mode'
+    }
+    applyDark(localStorage.getItem('wb-dark') === '1')
+    btnDark.addEventListener('click', () => {
+      const next = !container.classList.contains('wb-dark-canvas')
+      applyDark(next)
+      localStorage.setItem('wb-dark', next ? '1' : '0')
+    })
+  }
+
   // ── Export ──
   $('#btn-export').addEventListener('click', () => {
     $('#wb-export-status').textContent = ''
