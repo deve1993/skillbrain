@@ -158,7 +158,7 @@ function renderNode(n, selected, isMatch, voting, childCount = 0) {
     const headerBg = n.color ? hexToRgba(n.color, 0.18) : 'rgba(99,102,241,0.12)'
     const headerBorder = n.color ? hexToRgba(n.color, 0.25) : 'rgba(99,102,241,0.2)'
     const iconBg = n.color ? hexToRgba(n.color, 0.55) : 'rgba(99,102,241,0.5)'
-    const labelColor = n.color ? (getLuminance(n.color) > 0.4 ? '#374151' : '#1e293b') : '#4338ca'
+    const labelColor = n.color ? getContrastColor(n.color) : '#4338ca'
     const countHtml = childCount > 0
       ? `<span class="wb-frame-count">${childCount}</span>`
       : ''
