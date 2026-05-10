@@ -98,7 +98,18 @@ export function render() {
 function renderNodes() {
   const { nodes, selection, matches, voting } = getState()
   const matchSet = new Set(matches)
-  const html = nodes.map((n) => renderNode(n, selection.has(n.id), matchSet.has(n.id), voting)).join('')
+  // Pre-compute how many non-frame nodes overlap each frame
+  const frameChildCount = {}
+  const frames = nodes.filter(n => n.type === 'frame')
+  for (const f of frames) {
+    frameChildCount[f.id] = nodes.filter(n =>
+      n.id !== f.id && n.type !== 'frame' &&
+      n.x >= f.x && n.y >= f.y &&
+      n.x + n.w <= f.x + f.w + 20 &&
+      n.y + n.h <= f.y + f.h + 20
+    ).length
+  }
+  const html = nodes.map((n) => renderNode(n, selection.has(n.id), matchSet.has(n.id), voting, frameChildCount[n.id] ?? 0)).join('')
   $nodes.innerHTML = html
 }
 
@@ -117,7 +128,7 @@ function getContrastColor(hex) {
   return getLuminance(hex) < 0.35 ? '#ffffff' : '#1e293b'
 }
 
-function renderNode(n, selected, isMatch, voting) {
+function renderNode(n, selected, isMatch, voting, childCount = 0) {
   const cls = ['wb-node']
   if (selected) cls.push('selected')
   if (isMatch) cls.push('match')
@@ -144,7 +155,21 @@ function renderNode(n, selected, isMatch, voting) {
   let body = ''
   if (n.type === 'frame') {
     if (n.borderColor) cls.push('wb-frame-custom-border')
-    body = `<div class="wb-frame-label">${escHtml(n.name || 'Frame')}</div>`
+    const headerBg = n.color ? hexToRgba(n.color, 0.18) : 'rgba(99,102,241,0.12)'
+    const headerBorder = n.color ? hexToRgba(n.color, 0.25) : 'rgba(99,102,241,0.2)'
+    const iconBg = n.color ? hexToRgba(n.color, 0.55) : 'rgba(99,102,241,0.5)'
+    const labelColor = n.color ? (getLuminance(n.color) > 0.4 ? '#374151' : '#1e293b') : '#4338ca'
+    const countHtml = childCount > 0
+      ? `<span class="wb-frame-count">${childCount}</span>`
+      : ''
+    body = `
+      <div class="wb-frame-header" style="background:${headerBg};border-bottom:1.5px solid ${headerBorder}">
+        <span class="wb-frame-icon" style="background:${iconBg}"></span>
+        <span class="wb-frame-name" style="color:${labelColor}">${escHtml(n.name || 'Frame')}</span>
+        ${countHtml}
+      </div>
+      <div class="wb-frame-body"></div>
+    `
   } else if (n.type === 'group') {
     cls.push('group')
     body = `<div class="wb-group-label">${escHtml(n.name || 'Group')}</div>`

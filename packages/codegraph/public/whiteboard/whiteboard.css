@@ -547,24 +547,62 @@ body.wb-sidebar-collapsed #wb-canvas-container { left: 56px; }
 
 /* Frame */
 .wb-frame {
-  border: 2px dashed rgba(15,23,42,0.25) !important;
+  border: 1.5px solid rgba(99,102,241,0.4) !important;
   border-radius: 12px;
   padding: 0 !important;
   cursor: grab;
-  overflow: visible !important;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
 }
 .wb-frame.selected { border-color: #6366f1 !important; border-style: solid !important; }
 .wb-frame.wb-frame-custom-border { border: var(--wb-custom-border) !important; }
-.wb-frame-label {
-  position: absolute;
-  top: 6px; left: 10px;
-  font-size: 12px;
-  font-weight: 600;
+
+/* Frame header strip (replaces .wb-frame-label) */
+.wb-frame-header {
+  height: 26px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+}
+.wb-frame-icon {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.wb-frame-name {
+  font-size: 11px;
+  font-weight: 700;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-frame-count {
+  font-size: 9px;
+  opacity: 0.65;
+  font-feature-settings: 'tnum';
+}
+.wb-frame-body {
+  flex: 1;
+}
+
+/* Remove old floating label (keep for inline rename input) */
+.wb-frame-label { display: none; }
+.wb-frame-label.editing { display: block; }
+.wb-frame-label-input {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
   color: #1e293b;
-  background: rgba(255,255,255,0.85);
-  padding: 4px 10px;
-  border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  background: #fff;
+  border: none;
+  outline: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  width: 180px;
 }
 
 /* SB Card (memory/skill/session/project link card) */

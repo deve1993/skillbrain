@@ -282,32 +282,23 @@ function duplicateSelection(ids) {
 
 // ── Inline frame rename ──
 function startInlineFrameRename(id) {
-  const labelEl = document.querySelector(`[data-id="${id}"] .wb-frame-label`)
-  if (!labelEl) return
-  const node = getState().nodes.find((n) => n.id === id)
-  if (!node || node.type !== 'frame') return
+  const el = document.querySelector(`.wb-node[data-id="${id}"] .wb-frame-name`)
+  if (!el) return
+  el.style.display = 'none'
   const input = document.createElement('input')
-  input.type = 'text'
   input.className = 'wb-frame-label-input'
-  input.value = node.name || ''
-  labelEl.classList.add('editing')
-  labelEl.innerHTML = ''
-  labelEl.appendChild(input)
+  input.value = getState().nodes.find(n => n.id === id)?.name || ''
+  el.parentElement.insertBefore(input, el)
   input.focus()
   input.select()
-  const finish = (commit) => {
-    if (commit) {
-      patchNode(id, { name: input.value })
-      scheduleSave()
-    }
-    labelEl.classList.remove('editing')
-    scheduleRender()
+  const finish = () => {
+    patchNode(id, { name: input.value })
+    input.remove()
+    el.style.display = ''
+    commitHistory(); scheduleSave()
   }
-  input.addEventListener('blur', () => finish(true))
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); input.blur() }
-    else if (e.key === 'Escape') { input.value = node.name || ''; input.blur() }
-  })
+  input.addEventListener('blur', finish)
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur() } if (e.key === 'Escape') { input.remove(); el.style.display = '' } })
 }
 
 // ── Code editor modal ──
