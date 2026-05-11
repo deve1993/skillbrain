@@ -10,7 +10,7 @@ ARG ENCRYPTION_KEY
 ARG LEGACY_TOKEN_USER_EMAIL
 
 # Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Build tools for native deps (better-sqlite3, sharp)
@@ -40,7 +40,7 @@ RUN pnpm --filter codegraph build
 RUN pnpm --filter codegraph deploy --prod --legacy /deploy
 
 # Stage 2: Production
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 RUN apk add --no-cache sqlite libstdc++ curl
