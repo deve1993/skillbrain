@@ -3,20 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "description": "SkillBrain — Self-hosted AI memory platform (monorepo root)",
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "backfill:embeddings": "pnpm --filter @skillbrain/storage backfill:embeddings"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "esbuild",
-      "onnxruntime-node",
-      "protobufjs",
-      "sharp"
-    ]
   },
   "author": "Daniel De Vecchi",
   "license": "AGPL-3.0-or-later"
