@@ -65,6 +65,11 @@ Progetti/*/.turbo/
 # ─── GitNexus (indice locale — non committare) ────────────────────────────────
 .gitnexus/
 
+# ─── SkillBrain runtime data (locale — non committare) ───────────────────────
+.codegraph/
+.superpowers/
+packages/codegraph/.codegraph/
+
 # ─── Configurazione personale (non committare nel repo pubblico) ──────────────
 .opencode/
 .sisyphus/
