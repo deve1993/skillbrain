@@ -377,7 +377,7 @@ export async function renderProjects() {
       <button onclick="openNewProjectModal()" style="padding:6px 14px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer">+ New Project</button>
     </div>
 
-    <input type="search" id="proj-search" placeholder="Search projects..." autocomplete="off"
+    <input type="search" id="proj-search" placeholder="Search projects..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"
       style="width:100%;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box"
       oninput="filterProjects(this.value)">
 
@@ -1261,7 +1261,7 @@ export async function renderWhiteboards() {
     <div class="page-header">
       <h1>Whiteboards</h1>
       <div style="display:flex;gap:8px;align-items:center">
-        <input id="wb-search" type="search" placeholder="Search by name/description..." style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-size:13px;min-width:240px">
+        <input id="wb-search" type="search" placeholder="Search by name/description..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-size:13px;min-width:240px">
         <select id="wb-filter-scope" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text);font-size:13px">
           <option value="">All scopes</option>
           <option value="team">Team</option>
