@@ -72,6 +72,10 @@ export async function openEditProjectModal(name) {
           ${editField('description', 'Descrizione', meta.description, 'Breve descrizione progetto', 'textarea')}
           ${editSelect('category', 'Categoria', meta.category, ['landing','ecommerce','app','dashboard','corporate-site','blog','portfolio','other'])}
           ${editSelect('status', 'Status', meta.status, ['active','paused','archived','completed'])}
+          <div>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Stack (comma-separated)</label>
+            <input type="text" name="stackRaw" value="${escHtml((meta.stack || []).join(', '))}" placeholder="Next.js, Tailwind, Supabase" style="width:100%;padding:8px 12px;background:#111118;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box">
+          </div>
         </div>
 
         <div class="form-section">
@@ -131,6 +135,11 @@ export async function saveProject(event, name, onSaved) {
   const fields = {}
   for (const [k, v] of fd.entries()) {
     if (v !== '') fields[k] = v
+  }
+  // Parse stack from comma-separated string
+  if (fields.stackRaw !== undefined) {
+    fields.stack = fields.stackRaw.split(',').map(s => s.trim()).filter(Boolean)
+    delete fields.stackRaw
   }
   // Collect team members
   const rows = document.querySelectorAll('#team-members-list .member-row')

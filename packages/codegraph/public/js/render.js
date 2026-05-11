@@ -332,50 +332,123 @@ export async function renderSessions() {
 // ── Projects ──
 
 export async function renderProjects() {
-  const data = await api.get('/api/projects')
-  const projects = data.projects || []
+  const [actData, metaData] = await Promise.all([
+    api.get('/api/projects').catch(() => ({ projects: [] })),
+    api.get('/api/projects-meta').catch(() => ({ projects: [] })),
+  ])
+  const actList = actData.projects || []
+  const metaList = metaData.projects || []
+
+  const metaMap = {}
+  for (const m of metaList) metaMap[m.name.toLowerCase()] = m
+
+  const merged = []
+  const seen = new Set()
+  for (const p of actList) {
+    const key = p.name.toLowerCase()
+    seen.add(key)
+    const m = metaMap[key] || {}
+    merged.push({ ...p, _meta: m })
+  }
+  for (const m of metaList) {
+    const key = m.name.toLowerCase()
+    if (!seen.has(key)) merged.push({ name: m.name, totalSessions: 0, totalMemories: 0, _meta: m })
+  }
+
+  const statusOrder = { 'active': 0, 'in-progress': 1, 'paused': 2, 'completed': 3, 'archived': 4, 'unknown': 5 }
+  merged.sort((a, b) => {
+    const sa = statusOrder[a._meta?.status || a.lastSession?.status || 'unknown'] ?? 5
+    const sb = statusOrder[b._meta?.status || b.lastSession?.status || 'unknown'] ?? 5
+    if (sa !== sb) return sa - sb
+    const da = a.lastSession?.date || ''
+    const db = b.lastSession?.date || ''
+    return db.localeCompare(da)
+  })
 
   const statusColors = {
     'in-progress': 'var(--blue)', 'completed': 'var(--green)',
-    'paused': 'var(--yellow)', 'blocked': 'var(--red)', 'unknown': 'var(--text-muted)'
+    'paused': 'var(--yellow)', 'blocked': 'var(--red)',
+    'active': 'var(--green)', 'archived': 'var(--text-muted)', 'unknown': 'var(--text-muted)'
   }
 
   document.getElementById('page').innerHTML = `
-    <div class="section-title">Projects <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${projects.length} projects</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="section-title" style="margin-bottom:0">Projects <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${merged.length}</span></div>
+      <button onclick="openNewProjectModal()" style="padding:6px 14px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer">+ New Project</button>
+    </div>
 
-    ${projects.length === 0 ? '<p style="color:var(--text-muted);font-size:13px">No projects yet. Projects are auto-created when you use <code>session_start</code> with a project name.</p>' : ''}
+    <input type="search" id="proj-search" placeholder="Search projects..." autocomplete="off"
+      style="width:100%;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box"
+      oninput="filterProjects(this.value)">
 
-    <div class="item-list">
-      ${projects.map(p => {
-        const status = p.lastSession?.status || 'unknown'
+    ${merged.length === 0 ? '<p style="color:var(--text-muted);font-size:13px">No projects yet. Use <code>session_start</code> or click "+ New Project".</p>' : ''}
+
+    <div class="item-list" id="proj-list">
+      ${merged.map(p => {
+        const m = p._meta || {}
+        const status = m.status || p.lastSession?.status || 'unknown'
         const statusColor = statusColors[status] || 'var(--text-muted)'
+        const displayName = m.displayName || p.name
         const date = p.lastSession?.date?.split('T')[0] || 'never'
+        const categoryColors = { landing:'#6366f1', ecommerce:'#10b981', app:'#3b82f6', dashboard:'#8b5cf6', 'corporate-site':'#f59e0b', blog:'#ec4899', portfolio:'#14b8a6', other:'#6b7280' }
+        const catColor = categoryColors[m.category] || '#6b7280'
         return `
-        <div class="item" onclick="openProjectDetail('${p.name}')">
-          <div class="item-header">
-            <span class="item-name">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusColor};margin-right:8px"></span>
-              ${p.name}
-            </span>
-            <span class="item-meta">${p.totalSessions} sessions &middot; ${p.totalMemories} memories</span>
-          </div>
-          <div style="display:flex;gap:16px;margin-top:6px;font-size:12px">
-            <span style="color:var(--text-muted)">Status: <strong style="color:${statusColor}">${status}</strong></span>
-            <span style="color:var(--text-muted)">Last: ${date}</span>
-            ${p.lastBranch ? `<span style="color:var(--text-muted)">Branch: <code>${p.lastBranch}</code></span>` : ''}
-          </div>
-          ${p.lastSession?.task ? `<div class="item-desc" style="margin-top:4px">Task: ${escHtml(p.lastSession.task)}</div>` : ''}
-          ${p.lastSession?.nextSteps ? `<div style="margin-top:4px;font-size:12px;color:var(--green)">Next: ${escHtml(p.lastSession.nextSteps)}</div>` : ''}
-          ${p.blockers ? `<div style="margin-top:4px;font-size:12px;color:var(--red)">Blocker: ${escHtml(p.blockers)}</div>` : ''}
-          ${Object.keys(p.memoriesByType || {}).length ? `
-            <div class="tags" style="margin-top:6px">
-              ${Object.entries(p.memoriesByType).map(([t,c]) => `<span class="tag">${t}: ${c}</span>`).join('')}
+        <div class="item proj-card" data-search="${(displayName + ' ' + (m.clientName||'') + ' ' + p.name).toLowerCase()}"
+          style="cursor:pointer;position:relative">
+          <div onclick="openProjectDetail('${escHtml(p.name)}')" style="flex:1">
+            <div class="item-header">
+              <span class="item-name" style="display:flex;align-items:center;gap:8px">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0"></span>
+                <span style="font-size:15px;font-weight:600">${escHtml(displayName)}</span>
+                ${m.category ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${catColor}22;color:${catColor};text-transform:uppercase;letter-spacing:.5px">${escHtml(m.category)}</span>` : ''}
+              </span>
+              <span class="item-meta">${p.totalSessions} sessions &middot; ${p.totalMemories} memories</span>
             </div>
-          ` : ''}
+            ${m.clientName ? `<div style="font-size:12px;color:var(--text-muted);margin-top:3px">Client: <strong style="color:var(--text-dim)">${escHtml(m.clientName)}</strong></div>` : ''}
+            <div style="display:flex;gap:16px;margin-top:6px;font-size:12px">
+              <span style="color:var(--text-muted)">Status: <strong style="color:${statusColor}">${status}</strong></span>
+              ${p.totalSessions > 0 ? `<span style="color:var(--text-muted)">Last: ${date}</span>` : ''}
+              ${p.lastBranch ? `<span style="color:var(--text-muted)">Branch: <code>${p.lastBranch}</code></span>` : ''}
+            </div>
+            ${p.lastSession?.nextSteps ? `<div style="margin-top:4px;font-size:12px;color:var(--green)">Next: ${escHtml(p.lastSession.nextSteps)}</div>` : ''}
+          </div>
+          <button onclick="event.stopPropagation();deleteProject('${escHtml(p.name)}')"
+            title="Delete project"
+            style="position:absolute;top:10px;right:10px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:var(--red);font-size:11px;border-radius:4px;cursor:pointer;opacity:0;transition:opacity .15s"
+            class="proj-delete-btn">✕</button>
         </div>`
       }).join('')}
     </div>
   `
+
+  document.querySelectorAll('.proj-card').forEach(card => {
+    const btn = card.querySelector('.proj-delete-btn')
+    card.addEventListener('mouseenter', () => { if (btn) btn.style.opacity = '1' })
+    card.addEventListener('mouseleave', () => { if (btn) btn.style.opacity = '0' })
+  })
+}
+
+export async function checkForDuplicates(name) {
+  const container = document.getElementById('proj-tab-content')
+  if (!container) return
+  let data
+  try {
+    data = await api.get(`/api/projects-meta/${encodeURIComponent(name)}/similar`)
+  } catch { return }
+  const similar = data?.similar || []
+  if (similar.length === 0) return
+  const banner = document.createElement('div')
+  banner.id = 'dup-banner'
+  banner.style.cssText = 'margin-bottom:12px;padding:10px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.35);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:12px'
+  banner.innerHTML = `
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12px;font-weight:600;color:var(--yellow);margin-bottom:3px">Possible duplicates detected</div>
+      <div style="font-size:11px;color:var(--text-muted)">Similar projects: ${similar.map(s => `<button onclick="openProjectDetail('${escHtml(s)}')" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0;text-decoration:underline">${escHtml(s)}</button>`).join(', ')}</div>
+    </div>
+    <button onclick="showMergeDialog('${escHtml(name)}')" style="padding:4px 10px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:var(--yellow);font-size:11px;border-radius:4px;cursor:pointer;white-space:nowrap">Merge</button>
+    <button onclick="document.getElementById('dup-banner').remove()" style="padding:4px 8px;background:none;border:1px solid var(--border);color:var(--text-muted);font-size:11px;border-radius:4px;cursor:pointer">Dismiss</button>
+  `
+  container.insertBefore(banner, container.firstChild)
 }
 
 export async function renderProjectDetail(name, openDetailFn) {
@@ -392,7 +465,6 @@ export async function renderProjectDetail(name, openDetailFn) {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div id="proj-tabs" style="display:flex;gap:4px;border-bottom:1px solid var(--border);flex:1">
         <button class="proj-tab active" data-tab="overview" onclick="switchProjectTab('overview','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--accent);border-bottom:2px solid var(--accent);font-size:13px;cursor:pointer">Overview</button>
-        <button class="proj-tab" data-tab="admin" onclick="switchProjectTab('admin','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Admin</button>
         <button class="proj-tab" data-tab="env" onclick="switchProjectTab('env','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Env Vars</button>
         <button class="proj-tab" data-tab="activity" onclick="switchProjectTab('activity','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Activity</button>
       </div>
@@ -406,13 +478,16 @@ export async function renderProjectDetail(name, openDetailFn) {
   `
   openDetailFn(name, html)
 
-  // Store data for tab switching
-  window._projData = { name, activity, meta, sessions, memories, last }
-  renderProjectTab('overview', name)
+  // Store data for tab switching (kept for switchProjectTab in app.js)
+  const projData = { name, activity, meta, sessions, memories, last }
+  window._projData = projData
+  renderProjectTab('overview', name, projData)
+  checkForDuplicates(name)
 }
 
-export function renderProjectTab(tab, name) {
-  const { meta, last, sessions, memories } = window._projData || {}
+export function renderProjectTab(tab, name, data) {
+  const resolved = data || window._projData || {}
+  const { meta, last, sessions, memories } = resolved
   const container = document.getElementById('proj-tab-content')
   if (!container) return
 
@@ -422,7 +497,8 @@ export function renderProjectTab(tab, name) {
   if (tab === 'overview') {
     const displayName = M.displayName || name
     const sc = statusColors[M.status || (last?.status)] || 'var(--text-muted)'
-    container.innerHTML = `
+
+    let html = `
       <div class="card">
         <div style="font-size:18px;font-weight:600;margin-bottom:4px">${escHtml(displayName)}</div>
         <div style="color:var(--text-muted);font-size:12px;margin-bottom:12px">
@@ -432,93 +508,83 @@ export function renderProjectTab(tab, name) {
         </div>
         ${M.description ? `<div style="color:var(--text-dim);font-size:13px;margin-bottom:12px">${escHtml(M.description)}</div>` : ''}
         ${M.stack?.length ? `<div class="tags">${M.stack.map((s) => `<span class="tag">${escHtml(s)}</span>`).join('')}</div>` : ''}
-      </div>
+      </div>`
 
-      ${M.teamLead || (M.teamMembers && M.teamMembers.length) ? `
-      <div class="card">
+    if (M.teamLead || M.teamMembers?.length) {
+      html += `<div class="card">
         <div class="card-title">Team</div>
         ${M.teamLead ? `<div class="row"><span class="row-label">Lead</span><span class="row-val"><strong>${escHtml(M.teamLead)}</strong></span></div>` : ''}
         ${(M.teamMembers || []).map((m) => `
           <div class="row">
             <span class="row-label">${escHtml(m.name)}</span>
             <span class="row-val" style="font-size:12px;color:var(--text-muted)">${escHtml(m.role || '')}${m.email ? ' · ' + escHtml(m.email) : ''}</span>
-          </div>
-        `).join('')}
-      </div>` : ''}
+          </div>`).join('')}
+      </div>`
+    }
 
-      ${M.repoUrl || M.liveUrl ? `
-      <div class="card">
+    if (M.repoUrl || M.liveUrl) {
+      html += `<div class="card">
         <div class="card-title">Links</div>
         ${M.liveUrl ? `<div class="row"><span class="row-label">Live</span><a href="${escHtml(M.liveUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.liveUrl)}</a></div>` : ''}
         ${M.repoUrl ? `<div class="row"><span class="row-label">Repo</span><a href="${escHtml(M.repoUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.repoUrl)}</a></div>` : ''}
         ${M.mainBranch ? `<div class="row"><span class="row-label">Branch</span><span class="row-val"><code>${escHtml(M.mainBranch)}</code></span></div>` : ''}
-      </div>` : ''}
+      </div>`
+    }
 
-      ${last ? `
-      <div class="card">
+    const hasInfra = M.dbType || M.cmsType || M.deployPlatform || M.domainPrimary
+    if (hasInfra) {
+      html += `<div class="card"><div class="card-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px">Stack &amp; Infra</div>`
+      if (M.dbType || M.dbReference || M.dbAdminUrl) {
+        html += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:4px">Database</div>`
+        if (M.dbType) html += `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.dbType)}</span></div>`
+        if (M.dbReference) html += `<div class="row"><span class="row-label">Reference</span><span class="row-val">${escHtml(M.dbReference)}</span></div>`
+        if (M.dbAdminUrl) html += `<div class="row"><span class="row-label">Admin</span><a href="${escHtml(M.dbAdminUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.dbAdminUrl)}</a></div>`
+      }
+      if (M.cmsType || M.cmsAdminUrl) {
+        html += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">CMS</div>`
+        if (M.cmsType) html += `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.cmsType)}</span></div>`
+        if (M.cmsAdminUrl) html += `<div class="row"><span class="row-label">Admin</span><a href="${escHtml(M.cmsAdminUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.cmsAdminUrl)}</a></div>`
+      }
+      if (M.deployPlatform) {
+        html += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">Deploy</div>`
+        html += `<div class="row"><span class="row-label">Platform</span><span class="row-val">${escHtml(M.deployPlatform)}</span></div>`
+        if (M.hasCi) html += `<div class="row"><span class="row-label">CI/CD</span><span class="row-val">✅ GitHub Actions</span></div>`
+      }
+      if (M.domainPrimary) {
+        html += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">Domains</div>`
+        html += `<div class="row"><span class="row-label">Primary</span><span class="row-val">${escHtml(M.domainPrimary)}</span></div>`;
+        (M.domainsExtra || []).forEach(d => { html += `<div class="row"><span class="row-label">Extra</span><span class="row-val">${escHtml(d)}</span></div>` })
+      }
+      html += `</div>`
+    }
+
+    if (last) {
+      html += `<div class="card">
         <div class="card-title">Last Activity</div>
         <div class="row"><span class="row-label">Date</span><span class="row-val">${last.startedAt?.split('T')[0] || '?'}</span></div>
         ${last.taskDescription ? `<div class="row"><span class="row-label">Task</span><span class="row-val">${escHtml(last.taskDescription)}</span></div>` : ''}
         ${last.nextSteps ? `<div style="margin-top:8px;padding:8px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.2);border-radius:6px;font-size:12px;color:var(--green)">Next: ${escHtml(last.nextSteps)}</div>` : ''}
         ${last.blockers ? `<div style="margin-top:6px;padding:8px;background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.2);border-radius:6px;font-size:12px;color:var(--red)">Blocker: ${escHtml(last.blockers)}</div>` : ''}
-      </div>` : ''}
+      </div>`
+    }
 
-      ${!meta ? `
-      <div class="card" style="border-color:var(--yellow)">
-        <div style="color:var(--yellow);font-size:13px;margin-bottom:8px">Metadata not scanned yet</div>
-        <div style="color:var(--text-muted);font-size:12px">Run <code>project_scan</code> from Claude Code to auto-detect stack, repo, CMS, DB, etc.</div>
-      </div>` : ''}
-    `
-  }
+    if (M.notes) {
+      html += `<div class="card">
+        <div class="card-title">Notes</div>
+        <div style="font-size:13px;color:var(--text-dim);white-space:pre-wrap">${escHtml(M.notes)}</div>
+      </div>`
+    }
 
-  if (tab === 'admin') {
-    container.innerHTML = `
-      ${M.dbType || M.dbReference || M.dbAdminUrl ? `
-      <div class="card">
-        <div class="card-title">Database</div>
-        ${M.dbType ? `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.dbType)}</span></div>` : ''}
-        ${M.dbReference ? `<div class="row"><span class="row-label">Reference</span><span class="row-val">${escHtml(M.dbReference)}</span></div>` : ''}
-        ${M.dbAdminUrl ? `<div class="row"><span class="row-label">Admin</span><a href="${escHtml(M.dbAdminUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.dbAdminUrl)}</a></div>` : ''}
-      </div>` : ''}
+    if (!meta) {
+      html += `
+      <div class="card" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.03)">
+        <div style="color:var(--yellow);font-size:13px;font-weight:600;margin-bottom:6px">No metadata yet</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-bottom:12px">Run <code style="background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px">project_scan</code> in Claude Code, or fill manually.</div>
+        <button onclick="openEditProjectModal('${escHtml(name)}')" style="padding:6px 14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;border-radius:6px;cursor:pointer">Edit metadata</button>
+      </div>`
+    }
 
-      ${M.cmsType || M.cmsAdminUrl ? `
-      <div class="card">
-        <div class="card-title">CMS</div>
-        ${M.cmsType ? `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.cmsType)}</span></div>` : ''}
-        ${M.cmsAdminUrl ? `<div class="row"><span class="row-label">Admin</span><a href="${escHtml(M.cmsAdminUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.cmsAdminUrl)}</a></div>` : ''}
-      </div>` : ''}
-
-      ${M.deployPlatform ? `
-      <div class="card">
-        <div class="card-title">Deploy</div>
-        <div class="row"><span class="row-label">Platform</span><span class="row-val">${escHtml(M.deployPlatform)}</span></div>
-        ${M.lastDeploy ? `<div class="row"><span class="row-label">Last deploy</span><span class="row-val">${escHtml(M.lastDeploy)}</span></div>` : ''}
-        <div class="row"><span class="row-label">CI/CD</span><span class="row-val">${M.hasCi ? '✅ GitHub Actions' : '—'}</span></div>
-      </div>` : ''}
-
-      ${M.domainPrimary || (M.domainsExtra && M.domainsExtra.length) ? `
-      <div class="card">
-        <div class="card-title">Domains</div>
-        ${M.domainPrimary ? `<div class="row"><span class="row-label">Primary</span><span class="row-val">${escHtml(M.domainPrimary)}</span></div>` : ''}
-        ${(M.domainsExtra || []).map((d) => `<div class="row"><span class="row-label">Extra</span><span class="row-val">${escHtml(d)}</span></div>`).join('')}
-      </div>` : ''}
-
-      ${M.integrations && Object.keys(M.integrations).length ? `
-      <div class="card">
-        <div class="card-title">Integrations</div>
-        ${Object.entries(M.integrations).map(([k, v]) => `<div class="row"><span class="row-label">${escHtml(k)}</span><span class="row-val">${escHtml(String(v))}</span></div>`).join('')}
-      </div>` : ''}
-
-      ${M.legalCookieBanner || M.legalPrivacyUrl ? `
-      <div class="card">
-        <div class="card-title">Legal</div>
-        ${M.legalCookieBanner ? `<div class="row"><span class="row-label">Cookie banner</span><span class="row-val">${escHtml(M.legalCookieBanner)}</span></div>` : ''}
-        ${M.legalPrivacyUrl ? `<div class="row"><span class="row-label">Privacy</span><a href="${escHtml(M.legalPrivacyUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.legalPrivacyUrl)}</a></div>` : ''}
-        ${M.legalTermsUrl ? `<div class="row"><span class="row-label">Terms</span><a href="${escHtml(M.legalTermsUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.legalTermsUrl)}</a></div>` : ''}
-      </div>` : ''}
-
-      ${!meta ? `<p style="color:var(--text-muted);font-size:13px">Scan this project first to populate admin info.</p>` : ''}
-    `
+    container.innerHTML = html
   }
 
   if (tab === 'env') {

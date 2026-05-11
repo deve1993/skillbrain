@@ -201,6 +201,40 @@ export function createProjectsRouter(ctx: RouteContext): Router {
     }
   })
 
+  // GET /api/projects-meta/:name/similar — returns projects with similar names
+  router.get('/api/projects-meta/:name/similar', (req, res) => {
+    const { name } = req.params
+    let allProjects: string[] = []
+    let allActivity: string[] = []
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const projStore = new ProjectsStore(db)
+      const memStore = new MemoryStore(db)
+      allProjects = ((projStore.listSanitized() as any[]) || []).map((p: any) => p.name).filter(Boolean)
+      allActivity = ((memStore.listProjects() as any[]) || []).map((p: any) => p.name).filter(Boolean)
+      closeDb(db)
+    } catch { /* ignore */ }
+
+    const normalize = (s: string) => s.toLowerCase().replace(/[-_\s]/g, '')
+    const target = normalize(name)
+    const similar: string[] = []
+    const candidates = [...allProjects, ...allActivity]
+    const seen = new Set<string>()
+
+    for (const candidate of candidates) {
+      if (candidate === name) continue
+      if (seen.has(candidate)) continue
+      seen.add(candidate)
+      const norm = normalize(candidate)
+      if (norm === target) { similar.push(candidate); continue }
+      if (norm.includes(target) || target.includes(norm)) { similar.push(candidate); continue }
+      if (norm.length >= 6 && target.length >= 6 && norm.slice(0, 6) === target.slice(0, 6)) {
+        similar.push(candidate)
+      }
+    }
+    res.json({ similar })
+  })
+
   // Worklog
   router.get('/api/worklog', (_req, res) => {
     try {

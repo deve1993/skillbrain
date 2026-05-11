@@ -129,6 +129,7 @@ main {
   background: rgba(167,139,250,.03);
 }
 #global-search::placeholder { color: var(--text-muted); }
+#global-search::-webkit-search-cancel-button { display: none; }
 
 /* Stats grid */
 .stats-grid {
@@ -322,6 +323,20 @@ main {
 }
 
 .item:hover { border-color: var(--border-hover); }
+
+.proj-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.proj-card .item-header {
+  align-items: flex-start;
+}
+
+.proj-card:hover .proj-delete-btn {
+  opacity: 1 !important;
+}
 
 .item-header {
   display: flex;
