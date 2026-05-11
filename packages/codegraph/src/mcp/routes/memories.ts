@@ -47,6 +47,37 @@ export function createMemoriesRouter(ctx: RouteContext): Router {
     }
   })
 
+  router.post('/api/memories', (req, res) => {
+    const userId = (req as any).userId as string | undefined
+    const { type, context, problem, solution, reason, tags, project, skill, scope, confidence, importance, status } = req.body || {}
+    if (!type || !context || !problem || !solution || !reason) {
+      res.status(400).json({ error: 'type, context, problem, solution, reason are required' })
+      return
+    }
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new MemoryStore(db)
+      const tagList = Array.isArray(tags)
+        ? tags
+        : (typeof tags === 'string' ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [])
+      const memory = store.add({
+        type, context, problem, solution, reason,
+        tags: tagList,
+        project: project || undefined,
+        skill: skill || undefined,
+        scope: scope || 'team',
+        confidence: confidence != null ? parseInt(String(confidence), 10) : undefined,
+        importance: importance != null ? parseInt(String(importance), 10) : undefined,
+        status: status || undefined,
+        createdByUserId: userId,
+      })
+      closeDb(db)
+      res.json({ memory })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   router.get('/api/memories/:id', (req, res) => {
     try {
       const db = openDb(ctx.skillbrainRoot)

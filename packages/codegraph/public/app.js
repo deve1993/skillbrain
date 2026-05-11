@@ -31,7 +31,9 @@ let currentPage = 'home'
 // ── Router ──
 function route() {
   const hash = location.hash.slice(1) || '/'
-  const page = hash.split('/')[1] || 'home'
+  const parts = hash.split('/')
+  const page = parts[1] || 'home'
+  const arg = parts[2] ? decodeURIComponent(parts[2]) : null
   currentPage = page
 
   $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page))
@@ -48,8 +50,8 @@ function route() {
   switch (page) {
     case 'projects': renderProjects(); break
     case 'worklog': renderWorkLog(); break
-    case 'skills': renderSkills(); break
-    case 'memories': renderMemories(); break
+    case 'skills': renderSkills(arg); break
+    case 'memories': renderMemories(arg); break
     case 'sessions': renderSessions(); break
     case 'whiteboards': renderWhiteboards(); break
     case 'components': renderComponents(); break
@@ -1110,6 +1112,68 @@ document.getElementById('btn-confirm-import-env')?.addEventListener('click', asy
 window.revealMyEnv = revealMyEnv
 window.editMyEnv = editMyEnv
 window.deleteMyEnv = deleteMyEnv
+
+// ── Quick Capture Memory (Hub modal) ──
+function openQuickMemoryModal() {
+  const m = document.getElementById('modal-quick-memory')
+  if (!m) return
+  for (const id of ['qm-context', 'qm-problem', 'qm-solution', 'qm-reason', 'qm-tags', 'qm-project']) {
+    const el = document.getElementById(id); if (el) el.value = ''
+  }
+  document.getElementById('qm-type').value = 'Pattern'
+  document.getElementById('qm-error').style.display = 'none'
+  m.showModal()
+  setTimeout(() => document.getElementById('qm-context')?.focus(), 50)
+}
+window.openQuickMemoryModal = openQuickMemoryModal
+
+document.getElementById('btn-cancel-qm')?.addEventListener('click', () => {
+  document.getElementById('modal-quick-memory').close()
+})
+
+document.getElementById('btn-save-qm')?.addEventListener('click', async () => {
+  const errEl = document.getElementById('qm-error')
+  errEl.style.display = 'none'
+
+  const body = {
+    type: document.getElementById('qm-type').value,
+    context: document.getElementById('qm-context').value.trim(),
+    problem: document.getElementById('qm-problem').value.trim(),
+    solution: document.getElementById('qm-solution').value.trim(),
+    reason: document.getElementById('qm-reason').value.trim(),
+    tags: document.getElementById('qm-tags').value.trim(),
+    project: document.getElementById('qm-project').value.trim() || undefined,
+  }
+
+  if (!body.context || !body.problem || !body.solution || !body.reason) {
+    errEl.textContent = 'Context, problem, solution and reason are required'
+    errEl.style.display = 'block'
+    return
+  }
+  const tagCount = body.tags.split(',').map(t => t.trim()).filter(Boolean).length
+  if (tagCount < 2 || tagCount > 5) {
+    errEl.textContent = 'Tags must be 2-5 comma-separated values'
+    errEl.style.display = 'block'
+    return
+  }
+
+  try {
+    const res = await fetch('/api/memories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: 'Save failed' }))
+      throw new Error(error)
+    }
+    document.getElementById('modal-quick-memory').close()
+    if (currentPage === 'home') route()
+  } catch (err) {
+    errEl.textContent = err.message || 'Save failed'
+    errEl.style.display = 'block'
+  }
+})
 
 // ── Logout ──
 document.getElementById('btn-logout')?.addEventListener('click', () => {

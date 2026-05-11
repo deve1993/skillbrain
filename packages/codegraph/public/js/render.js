@@ -55,9 +55,69 @@ const SAFE = (p) => p.catch(() => ({}))
 function greetingLine(name) {
   const now = new Date()
   const h = now.getHours()
-  const salute = h < 5 ? 'Buonanotte' : h < 12 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera'
-  const date = now.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
-  return `${salute} ${name} · ${date}`
+  const salute = h < 5 ? 'Late night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  return `${salute}, ${name} · ${date}`
+}
+
+// Inline keydown handler — makes a div with onclick keyboard-accessible (Enter/Space → click)
+const KEY_CLICK = `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"`
+
+let _hubRefreshTimer = null
+
+function clearHubRefresh() {
+  if (_hubRefreshTimer) { clearInterval(_hubRefreshTimer); _hubRefreshTimer = null }
+}
+
+async function refreshHubLive() {
+  const hash = location.hash || '#/'
+  if (hash !== '#/' && hash !== '#' && hash !== '#/home') { clearHubRefresh(); return }
+  try {
+    const [health, review] = await Promise.all([
+      SAFE(api.get('/api/health')),
+      SAFE(api.get('/api/review/pending')),
+    ])
+    const memVal = document.querySelector('.hub-kpi-purple .hub-kpi-val')
+    if (memVal) memVal.textContent = health.memories || 0
+    const sessVal = document.querySelector('.hub-kpi-pink .hub-kpi-val')
+    if (sessVal) sessVal.textContent = health.activeSessions || 0
+    const reviewTotal = (review.memories?.length || 0) + (review.skills?.length || 0) +
+      (review.components?.length || 0) + (review.proposals?.length || 0) + (review.dsScans?.length || 0)
+    const reviewRow = document.querySelector('[data-health="review"]')
+    if (reviewRow) {
+      reviewRow.querySelector('.health-row-val').textContent = reviewTotal
+      const dot = reviewRow.querySelector('.health-dot')
+      dot.className = 'health-dot ' + (reviewTotal === 0 ? 'health-dot-ok' : reviewTotal <= 5 ? 'health-dot-warn' : 'health-dot-crit')
+    }
+    const uptimeStrong = document.querySelector('.health-footer span:first-child strong')
+    if (uptimeStrong) uptimeStrong.textContent = formatUptime(health.uptime || 0)
+    const statusEl = document.getElementById('server-status')
+    if (statusEl) statusEl.textContent = `${formatUptime(health.uptime || 0)} uptime`
+  } catch { /* ignore transient errors */ }
+}
+
+function hubSkeleton() {
+  return `
+    <section class="hub-hero">
+      <div class="hub-greeting-line" style="opacity:.4">Loading workspace…</div>
+      <div class="hub-actions">
+        <div class="hub-skel hub-skel-chip"></div>
+        <div class="hub-skel hub-skel-chip"></div>
+        <div class="hub-skel hub-skel-chip"></div>
+      </div>
+      <div class="hub-kpi-row">
+        <div class="hub-skel hub-skel-kpi"></div>
+        <div class="hub-skel hub-skel-kpi"></div>
+        <div class="hub-skel hub-skel-kpi"></div>
+      </div>
+    </section>
+    <section class="hub-grid">
+      <div class="hub-col-main"><div class="hub-skel hub-skel-card" style="height:280px"></div></div>
+      <aside class="hub-col-side">
+        <div class="hub-skel hub-skel-card" style="height:140px"></div>
+        <div class="hub-skel hub-skel-card" style="height:180px"></div>
+      </aside>
+    </section>`
 }
 
 function timeAgo(iso) {
@@ -106,6 +166,11 @@ const HUB_ICONS = {
 // ── Home ──
 
 export async function renderHome() {
+  clearHubRefresh()
+
+  const pageEl = document.getElementById('page')
+  pageEl.innerHTML = hubSkeleton()
+
   const [health, data, me, memR, sessR, review, skillsR] = await Promise.all([
     SAFE(api.get('/api/health')),
     SAFE(api.get('/api/data')),
@@ -155,7 +220,10 @@ export async function renderHome() {
 
   const activityRow = (e) => {
     if (e.kind === 'session') {
-      return `<div class="activity-row" onclick="location.hash='#/sessions'">
+      const openSess = e.project
+        ? `openProjectDetail('${escHtml(e.project)}')`
+        : `location.hash='#/sessions'`
+      return `<div class="activity-row" tabindex="0" role="button" aria-label="Session ${escHtml(e.title)}" onclick="${openSess}" ${KEY_CLICK}>
         <span class="activity-icon activity-icon-session">${HUB_ICONS.session}</span>
         <div class="activity-body">
           <div class="activity-title"><span class="activity-kind">Session</span> ${escHtml(e.title)}${e.project ? ` <span class="activity-tag">${escHtml(e.project)}</span>` : ''}</div>
@@ -164,7 +232,7 @@ export async function renderHome() {
         <span class="activity-time">${timeAgo(e.ts)}</span>
       </div>`
     }
-    return `<div class="activity-row" onclick="openMemoryDetail('${escHtml(e.id)}')">
+    return `<div class="activity-row" tabindex="0" role="button" aria-label="${escHtml(e.type)} memory" onclick="openMemoryDetail('${escHtml(e.id)}')" ${KEY_CLICK}>
       <span class="activity-icon activity-icon-memory">${HUB_ICONS.memory}</span>
       <div class="activity-body">
         <div class="activity-title">${badge(e.type)} <span class="activity-context">${escHtml((e.desc || '').slice(0, 110))}</span></div>
@@ -183,7 +251,7 @@ export async function renderHome() {
   // ── Knowledge Snapshot ──
   const maxByType = Math.max(1, ...Object.values(byType))
   const snapshotHtml = Object.entries(byType).map(([t, c]) => `
-    <div class="snapshot-row" onclick="location.hash='#/memories';setTimeout(()=>renderMemories('${t}'),0)">
+    <div class="snapshot-row" tabindex="0" role="button" aria-label="Filter memories by ${escHtml(t)}" onclick="location.hash='#/memories/${encodeURIComponent(t)}'" ${KEY_CLICK}>
       <span class="snapshot-label">${badge(t)}</span>
       <div class="snapshot-bar"><div class="snapshot-bar-fill" style="width:${(c / maxByType) * 100}%"></div></div>
       <span class="snapshot-count">${c}</span>
@@ -202,11 +270,15 @@ export async function renderHome() {
   const dotClass = (n) => n === 0 ? 'health-dot-ok' : n <= 5 ? 'health-dot-warn' : 'health-dot-crit'
 
   const resumeDisabled = !recentSession
+  const resumeProject = recentSession?.project
   const resumeTitle = recentSession
-    ? `Resume: ${recentSession.session || recentSession.name || recentSession.id || ''}${recentSession.summary ? ' — ' + recentSession.summary.slice(0, 60) : ''}`
+    ? `Resume: ${resumeProject || recentSession.session || recentSession.sessionName || recentSession.id || ''}${recentSession.summary ? ' — ' + recentSession.summary.slice(0, 60) : ''}`
     : 'No recent session yet'
+  const resumeOnClick = resumeProject
+    ? `openProjectDetail('${escHtml(resumeProject)}')`
+    : recentSession ? `location.hash='#/sessions'` : ''
 
-  document.getElementById('page').innerHTML = `
+  pageEl.innerHTML = `
     <section class="hub-hero">
       <div class="hub-greeting-line">${escHtml(greetingLine(userName))}</div>
 
@@ -214,11 +286,14 @@ export async function renderHome() {
         <button class="hub-chip hub-chip-primary" onclick="openNewProjectModal()">
           <span class="hub-chip-icon">${HUB_ICONS.plus}</span>New project
         </button>
-        <a class="hub-chip${resumeDisabled ? ' hub-chip-disabled' : ''}"
-           href="${resumeDisabled ? '#/' : '#/sessions'}"
-           title="${escHtml(resumeTitle)}">
-          <span class="hub-chip-icon">${HUB_ICONS.play}</span>Resume last session
-        </a>
+        <button class="hub-chip${resumeDisabled ? ' hub-chip-disabled' : ''}"
+                ${resumeDisabled ? 'disabled' : `onclick="${resumeOnClick}"`}
+                title="${escHtml(resumeTitle)}">
+          <span class="hub-chip-icon">${HUB_ICONS.play}</span>Resume last session${resumeProject ? ` · <span style="opacity:.7">${escHtml(resumeProject)}</span>` : ''}
+        </button>
+        <button class="hub-chip" onclick="openQuickMemoryModal()">
+          <span class="hub-chip-icon">${HUB_ICONS.plus}</span>Capture memory
+        </button>
         <a class="hub-chip" href="#/skills">
           <span class="hub-chip-icon">${HUB_ICONS.skill}</span>Browse skills
         </a>
@@ -263,17 +338,17 @@ export async function renderHome() {
         </div>
         <div class="card hub-health">
           <div class="card-title">System health</div>
-          <div class="health-row" onclick="location.hash='#/memories'">
+          <div class="health-row" tabindex="0" role="button" aria-label="Decay alerts: ${decayCount}" onclick="location.hash='#/memories'" ${KEY_CLICK}>
             <span class="health-dot ${dotClass(decayCount)}"></span>
             <span class="health-row-label">Decay alerts <span class="health-row-hint">(conf &lt; 4)</span></span>
             <span class="health-row-val">${decayCount}</span>
           </div>
-          <div class="health-row" onclick="location.hash='#/review'">
+          <div class="health-row" data-health="review" tabindex="0" role="button" aria-label="Pending reviews: ${reviewTotal}" onclick="location.hash='#/review'" ${KEY_CLICK}>
             <span class="health-dot ${dotClass(reviewTotal)}"></span>
             <span class="health-row-label">Pending reviews</span>
             <span class="health-row-val">${reviewTotal}</span>
           </div>
-          <div class="health-row" onclick="location.hash='#/memories'">
+          <div class="health-row" tabindex="0" role="button" aria-label="Stale memories: ${staleCount}" onclick="location.hash='#/memories'" ${KEY_CLICK}>
             <span class="health-dot ${dotClass(staleCount)}"></span>
             <span class="health-row-label">Stale memories <span class="health-row-hint">(&gt;90d)</span></span>
             <span class="health-row-val">${staleCount}</span>
@@ -289,6 +364,9 @@ export async function renderHome() {
   `
 
   document.getElementById('server-status').textContent = `${formatUptime(health.uptime || 0)} uptime`
+
+  // Live refresh every 30s — auto-clears when user navigates away
+  _hubRefreshTimer = setInterval(refreshHubLive, 30000)
 }
 
 // ── Skills ──

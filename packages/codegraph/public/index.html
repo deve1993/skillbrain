@@ -269,6 +269,55 @@
     </div>
   </dialog>
 
+  <!-- Quick Capture Memory modal (triggered from Hub) -->
+  <dialog id="modal-quick-memory" style="max-width:520px">
+    <h2>Capture memory</h2>
+    <div class="form-field" style="display:flex;gap:8px">
+      <div style="flex:1">
+        <label>Type</label>
+        <select id="qm-type">
+          <option value="Pattern">Pattern</option>
+          <option value="BugFix">BugFix</option>
+          <option value="AntiPattern">AntiPattern</option>
+          <option value="Fact">Fact</option>
+          <option value="Decision">Decision</option>
+          <option value="Preference">Preference</option>
+          <option value="Goal">Goal</option>
+          <option value="Todo">Todo</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Project <span style="opacity:.5">(optional)</span></label>
+        <input id="qm-project" type="text" placeholder="e.g. SkillBrain" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Context</label>
+      <input id="qm-context" type="text" placeholder="In X, when Y..." autocomplete="off">
+    </div>
+    <div class="form-field">
+      <label>Problem</label>
+      <input id="qm-problem" type="text" placeholder="What went wrong / was unclear" autocomplete="off">
+    </div>
+    <div class="form-field">
+      <label>Solution</label>
+      <textarea id="qm-solution" rows="3" placeholder="Actionable steps (min 10 words)" style="width:100%;font-family:var(--font);font-size:13px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);resize:vertical"></textarea>
+    </div>
+    <div class="form-field">
+      <label>Reason</label>
+      <input id="qm-reason" type="text" placeholder="WHY it works (not just WHAT)" autocomplete="off">
+    </div>
+    <div class="form-field">
+      <label>Tags <span style="opacity:.5">(comma-separated, 2-5)</span></label>
+      <input id="qm-tags" type="text" placeholder="synapse, dashboard, hub" autocomplete="off">
+    </div>
+    <div id="qm-error" style="color:#f87171;font-size:12px;display:none"></div>
+    <div class="modal-actions">
+      <button id="btn-cancel-qm" class="btn-ghost">Cancel</button>
+      <button id="btn-save-qm" class="btn-primary">Save</button>
+    </div>
+  </dialog>
+
   <script type="module" src="/app.js"></script>
 </body>
 </html>
