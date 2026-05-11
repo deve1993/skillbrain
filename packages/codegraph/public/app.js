@@ -65,6 +65,14 @@ function route() {
 
 window.addEventListener('hashchange', route)
 
+// Re-render when clicking the already-active nav item (hash doesn't change → no hashchange event)
+document.querySelectorAll('.nav-item').forEach(n => n.addEventListener('click', (e) => {
+  if (n.dataset.page === currentPage) {
+    e.preventDefault()
+    route()
+  }
+}))
+
 // ── Search ──
 let searchTimeout
 $('#global-search')?.addEventListener('input', (e) => {
@@ -330,6 +338,31 @@ async function updateReviewBadge() {
     }
   } catch { /* non-blocking */ }
 }
+
+// ── Project list helpers ──
+function filterProjects(query) {
+  const q = query.toLowerCase().trim()
+  document.querySelectorAll('.proj-card').forEach(card => {
+    const match = !q || card.dataset.search.includes(q)
+    card.style.display = match ? '' : 'none'
+  })
+}
+window.filterProjects = filterProjects
+
+async function deleteProject(name) {
+  if (!confirm(`Delete project "${name}"?\n\nThis removes the metadata record. Sessions and memories are kept but the project won't appear in the list until a new session is started.\n\nContinue?`)) return
+  const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`, { method: 'DELETE' })
+  if (r.ok) renderProjects()
+  else alert('Delete failed')
+}
+window.deleteProject = deleteProject
+
+function openNewProjectModal() {
+  const name = prompt('Project name (will be the internal key, use kebab-case):')
+  if (!name || !name.trim()) return
+  openEditProjectModal(name.trim())
+}
+window.openNewProjectModal = openNewProjectModal
 
 // ── Team page ──
 async function renderTeam() {
