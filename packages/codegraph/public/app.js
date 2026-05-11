@@ -1128,3 +1128,10 @@ document.getElementById('btn-logout')?.addEventListener('click', () => {
 })()
 route()
 updateReviewBadge()
+
+// Chrome ignores autocomplete="off" when password fields exist on the page.
+// Force-clear the search input after autofill has a chance to run.
+setTimeout(() => {
+  const s = document.getElementById('global-search')
+  if (s) s.value = ''
+}, 50)
