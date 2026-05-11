@@ -36,8 +36,8 @@ RUN pnpm --filter @skillbrain/storage build
 # Build codegraph (package name is "codegraph", not scoped)
 RUN pnpm --filter codegraph build
 
-# Deploy: resolve workspace deps into a self-contained folder (--legacy required by pnpm v10)
-RUN pnpm --filter codegraph deploy --prod --legacy /deploy
+# Deploy: resolve workspace deps into a self-contained folder
+RUN pnpm --filter codegraph deploy --prod /deploy
 
 # Stage 2: Production
 FROM node:22-alpine AS runner
