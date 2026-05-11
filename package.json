@@ -9,6 +9,15 @@
     "typecheck": "pnpm -r typecheck",
     "backfill:embeddings": "pnpm --filter @skillbrain/storage backfill:embeddings"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "onnxruntime-node",
+      "protobufjs",
+      "sharp"
+    ]
+  },
   "author": "Daniel De Vecchi",
   "license": "AGPL-3.0-or-later"
 }
