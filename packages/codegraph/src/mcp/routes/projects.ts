@@ -87,6 +87,10 @@ export function createProjectsRouter(ctx: RouteContext): Router {
     try {
       const db = openDb(ctx.skillbrainRoot)
       const store = new ProjectsStore(db)
+      // Upsert an 'archived' record before deleting metadata so that
+      // listProjects() (sessions-based) excludes this project via its
+      // status filter: AND (p.name IS NULL OR p.status NOT IN ('archived','completed'))
+      store.upsertArchived(req.params.name)
       store.delete(req.params.name)
       closeDb(db)
       res.json({ ok: true })

@@ -169,6 +169,16 @@ export class ProjectsStore {
     this.db.prepare('DELETE FROM projects WHERE name = ?').run(name)
   }
 
+  // Insert a minimal archived record so listProjects() (session-based) hides
+  // this project via its status filter, even after the main record is deleted.
+  upsertArchived(name: string): void {
+    this.db.prepare(`
+      INSERT INTO projects (name, status, updated_at)
+      VALUES (?, 'archived', datetime('now'))
+      ON CONFLICT(name) DO UPDATE SET status = 'archived', updated_at = datetime('now')
+    `).run(name)
+  }
+
   /**
    * Merge aliases into a primary project.
    * Moves sessions/memories/env-vars from aliases → primary, then deletes alias rows.
