@@ -27,9 +27,12 @@ function resolveMemoryRepo(nameOrPath?: string): { path: string; name: string } 
   }
   const entry = getRegistryEntry(MEMORY_REPO_NAME)
   if (entry) return { path: entry.path, name: entry.name }
+  // SKILLBRAIN_ROOT takes priority over single-repo fallback: registered repos are
+  // code analysis repos, not the memory store. Without this order, production would
+  // write memories into the code repo's .codegraph dir instead of the main DB.
+  if (SKILLBRAIN_ROOT) return { path: SKILLBRAIN_ROOT, name: 'skillbrain' }
   const entries = loadRegistry()
   if (entries.length === 1) return { path: entries[0].path, name: entries[0].name }
-  if (SKILLBRAIN_ROOT) return { path: SKILLBRAIN_ROOT, name: 'skillbrain' }
   return null
 }
 
