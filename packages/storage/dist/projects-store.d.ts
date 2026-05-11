@@ -66,6 +66,7 @@ export declare class ProjectsStore {
     get(name: string): Project | undefined;
     list(): Project[];
     delete(name: string): void;
+    upsertArchived(name: string): void;
     /**
      * Merge aliases into a primary project.
      * Moves sessions/memories/env-vars from aliases → primary, then deletes alias rows.

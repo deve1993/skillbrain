@@ -1111,9 +1111,11 @@ function bindUI() {
   $('#wb-notif-mark-all').addEventListener('click', async () => {
     try { await wb.notif.markAllRead(); refreshNotifBadge(); loadNotifications() } catch {}
   })
-  // Initial badge + periodic refresh
-  refreshNotifBadge()
-  setInterval(refreshNotifBadge, 60_000)
+  // Initial badge + periodic refresh (skip in read-only: no auth, no user context)
+  if (!isReadOnly) {
+    refreshNotifBadge()
+    setInterval(refreshNotifBadge, 60_000)
+  }
 
   // ── Presence: send heartbeat every 30s, refresh active editors avatars ──
   if (!isReadOnly) {
@@ -1124,8 +1126,10 @@ function bindUI() {
     setInterval(refreshPresence, 30_000)
     setTimeout(refreshPresence, 1000)
   }
-  // Mark board as opened (server bumps last_opened_at)
-  fetch('/api/whiteboards/' + encodeURIComponent(boardId) + '/opened', { method: 'POST', credentials: 'include' }).catch(() => {})
+  // Mark board as opened (server bumps last_opened_at) — only in edit mode
+  if (!isReadOnly) {
+    fetch('/api/whiteboards/' + encodeURIComponent(boardId) + '/opened', { method: 'POST', credentials: 'include' }).catch(() => {})
+  }
 
   // ── Onboarding tour (first visit only, persisted in localStorage) ──
   if (!isReadOnly && !localStorage.getItem('wb-onboarding-done')) {

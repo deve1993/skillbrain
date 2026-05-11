@@ -8,7 +8,10 @@ async function req(path, options = {}) {
     ...options,
   })
   if (res.status === 401) {
-    window.location.href = '/login.html?return_to=' + encodeURIComponent(location.pathname + location.search)
+    // Don't redirect away from a shared (read-only) board view
+    if (!new URLSearchParams(location.search).get('share')) {
+      window.location.href = '/login.html?return_to=' + encodeURIComponent(location.pathname + location.search)
+    }
     throw new Error('unauthorized')
   }
   if (!res.ok) {

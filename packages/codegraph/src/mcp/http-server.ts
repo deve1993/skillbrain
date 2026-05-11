@@ -347,7 +347,10 @@ export async function startHttpServer(port: number, authToken?: string): Promise
     p.startsWith('/.well-known/') ||
     p.startsWith('/telemetry/') ||
     p.startsWith('/api/whiteboards/shared/') ||
-    p === '/api/studio/form-submit'
+    p === '/api/studio/form-submit' ||
+    // Static assets required to render the whiteboard share page (no auth needed)
+    p.startsWith('/whiteboard/') ||
+    p.startsWith('/vendor/')
 
   if (authEnabled) {
     app.use((req, res, next) => {

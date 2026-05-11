@@ -21,17 +21,37 @@ export function cosine(a, b) {
 }
 export class EmbeddingService {
     static _instance;
+    static _disabled = false;
     pipeline;
     static get() {
         if (!EmbeddingService._instance)
             EmbeddingService._instance = new EmbeddingService();
         return EmbeddingService._instance;
     }
+    static async warmup() {
+        if (EmbeddingService._disabled)
+            return;
+        try {
+            await EmbeddingService.get().embed('warmup', 'query');
+        }
+        catch {
+            // Ignore warmup failures; embed() already handles fallback behavior.
+        }
+    }
     async embed(text, kind) {
+        if (EmbeddingService._disabled)
+            return null;
         try {
             if (!this.pipeline) {
-                const { pipeline } = await import('@huggingface/transformers');
-                this.pipeline = await pipeline('feature-extraction', 'Xenova/multilingual-e5-small');
+                try {
+                    const { pipeline } = await import('@huggingface/transformers');
+                    this.pipeline = await pipeline('feature-extraction', 'Xenova/multilingual-e5-small');
+                }
+                catch {
+                    EmbeddingService._disabled = true;
+                    console.warn('[embedding-service] onnxruntime failed to load — embeddings disabled, using BM25 fallback');
+                    return null;
+                }
             }
             const prefix = kind === 'query' ? 'query: ' : 'passage: ';
             const out = await this.pipeline(prefix + text, { pooling: 'mean', normalize: true });

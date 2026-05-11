@@ -3,8 +3,10 @@ export declare function blobToVector(b: Buffer): Float32Array;
 export declare function cosine(a: Float32Array, b: Float32Array): number;
 export declare class EmbeddingService {
     private static _instance?;
+    private static _disabled;
     private pipeline?;
     static get(): EmbeddingService;
+    static warmup(): Promise<void>;
     embed(text: string, kind: 'query' | 'passage'): Promise<Float32Array | null>;
     embedMany(texts: string[], kind: 'passage'): Promise<(Float32Array | null)[]>;
 }
