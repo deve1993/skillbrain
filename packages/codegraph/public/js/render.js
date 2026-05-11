@@ -48,66 +48,247 @@ export function simpleMarkdown(md) {
     })
 }
 
+// ── Hub helpers ──
+
+const SAFE = (p) => p.catch(() => ({}))
+
+function greetingLine(name) {
+  const now = new Date()
+  const h = now.getHours()
+  const salute = h < 5 ? 'Buonanotte' : h < 12 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera'
+  const date = now.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
+  return `${salute} ${name} · ${date}`
+}
+
+function timeAgo(iso) {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const ms = Date.now() - t
+  if (ms < 0) return 'now'
+  const min = Math.floor(ms / 60000)
+  if (min < 1) return 'now'
+  if (min < 60) return `${min}m`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `${h}h`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d}d`
+  return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+}
+
+function dayGroup(iso) {
+  if (!iso) return 'Earlier'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'Earlier'
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const yest = new Date(today); yest.setDate(yest.getDate() - 1)
+  const start = new Date(d); start.setHours(0, 0, 0, 0)
+  if (start.getTime() === today.getTime()) return 'Today'
+  if (start.getTime() === yest.getTime()) return 'Yesterday'
+  return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+function daysSince(iso) {
+  if (!iso) return 0
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return 0
+  return Math.floor((Date.now() - t) / 86400000)
+}
+
+const HUB_ICONS = {
+  session: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  memory: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-1.07-4.54A2.5 2.5 0 0 1 6.5 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 3-2.48z"/></svg>',
+  skill: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+}
+
 // ── Home ──
 
 export async function renderHome() {
-  const [health, data] = await Promise.all([
-    api.get('/api/health'),
-    api.get('/api/data'),
+  const [health, data, me, memR, sessR, review, skillsR] = await Promise.all([
+    SAFE(api.get('/api/health')),
+    SAFE(api.get('/api/data')),
+    SAFE(api.get('/api/me')),
+    SAFE(api.get('/api/memories?limit=100')),
+    SAFE(api.get('/api/sessions?limit=20')),
+    SAFE(api.get('/api/review/pending')),
+    SAFE(api.get('/api/skills?limit=1')),
   ])
 
-  let skillTotal = 0
-  try {
-    const sr = await api.get('/api/skills?limit=1')
-    skillTotal = sr.total || 0
-  } catch {}
+  const userName = (me.user?.name?.split(' ')[0]) || 'Daniel'
+  const memories = memR.memories || []
+  const sessions = sessR.sessions || []
+  const skillsTotal = skillsR.total || 0
+  const byType = data.memoryGraph?.byType || {}
+  const recentSession = sessions[0] || data.memoryGraph?.recentSessions?.[0] || null
 
-  const mg = data.memoryGraph || {}
-  const sessions = mg.recentSessions || []
+  // ── Activity Feed: merge memories + sessions, sort desc, group by day ──
+  const events = []
+  for (const s of sessions.slice(0, 15)) {
+    events.push({
+      kind: 'session',
+      ts: s.started || s.startedAt || s.created_at || s.createdAt,
+      title: s.session || s.name || s.id || 'session',
+      desc: s.summary || '',
+      project: s.project,
+    })
+  }
+  for (const m of memories.slice(0, 25)) {
+    events.push({
+      kind: 'memory',
+      ts: m.createdAt || m.created_at || m.updatedAt || m.updated_at,
+      type: m.type || 'Fact',
+      desc: m.context || '',
+      id: m.id,
+    })
+  }
+  events.sort((a, b) => new Date(b.ts || 0) - new Date(a.ts || 0))
+  const top = events.filter(e => e.ts).slice(0, 25)
+
+  const groups = {}
+  for (const e of top) {
+    const k = dayGroup(e.ts)
+    if (!groups[k]) groups[k] = []
+    groups[k].push(e)
+  }
+
+  const activityRow = (e) => {
+    if (e.kind === 'session') {
+      return `<div class="activity-row" onclick="location.hash='#/sessions'">
+        <span class="activity-icon activity-icon-session">${HUB_ICONS.session}</span>
+        <div class="activity-body">
+          <div class="activity-title"><span class="activity-kind">Session</span> ${escHtml(e.title)}${e.project ? ` <span class="activity-tag">${escHtml(e.project)}</span>` : ''}</div>
+          <div class="activity-desc">${escHtml((e.desc || 'session opened').slice(0, 110))}</div>
+        </div>
+        <span class="activity-time">${timeAgo(e.ts)}</span>
+      </div>`
+    }
+    return `<div class="activity-row" onclick="openMemoryDetail('${escHtml(e.id)}')">
+      <span class="activity-icon activity-icon-memory">${HUB_ICONS.memory}</span>
+      <div class="activity-body">
+        <div class="activity-title">${badge(e.type)} <span class="activity-context">${escHtml((e.desc || '').slice(0, 110))}</span></div>
+      </div>
+      <span class="activity-time">${timeAgo(e.ts)}</span>
+    </div>`
+  }
+
+  const activityHtml = Object.entries(groups).map(([day, items]) => `
+    <div class="activity-day">
+      <div class="activity-day-label">${escHtml(day)}</div>
+      ${items.map(activityRow).join('')}
+    </div>
+  `).join('') || '<p style="color:var(--text-muted);font-size:13px;padding:8px 0">No recent activity yet.</p>'
+
+  // ── Knowledge Snapshot ──
+  const maxByType = Math.max(1, ...Object.values(byType))
+  const snapshotHtml = Object.entries(byType).map(([t, c]) => `
+    <div class="snapshot-row" onclick="location.hash='#/memories';setTimeout(()=>renderMemories('${t}'),0)">
+      <span class="snapshot-label">${badge(t)}</span>
+      <div class="snapshot-bar"><div class="snapshot-bar-fill" style="width:${(c / maxByType) * 100}%"></div></div>
+      <span class="snapshot-count">${c}</span>
+    </div>
+  `).join('') || '<p style="color:var(--text-muted);font-size:12px">No memories yet.</p>'
+
+  // ── System Health ──
+  const decayCount = memories.filter(m => (m.confidence ?? 10) < 4).length
+  const staleCount = memories.filter(m => {
+    const ts = m.updatedAt || m.updated_at || m.createdAt || m.created_at
+    return ts && daysSince(ts) > 90
+  }).length
+  const reviewTotal = (review.memories?.length || 0) + (review.skills?.length || 0) +
+    (review.components?.length || 0) + (review.proposals?.length || 0) + (review.dsScans?.length || 0)
+
+  const dotClass = (n) => n === 0 ? 'health-dot-ok' : n <= 5 ? 'health-dot-warn' : 'health-dot-crit'
+
+  const resumeDisabled = !recentSession
+  const resumeTitle = recentSession
+    ? `Resume: ${recentSession.session || recentSession.name || recentSession.id || ''}${recentSession.summary ? ' — ' + recentSession.summary.slice(0, 60) : ''}`
+    : 'No recent session yet'
 
   document.getElementById('page').innerHTML = `
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-val">${health.memories || 0}</div><div class="stat-label">Memories</div></div>
-      <div class="stat-card"><div class="stat-val">${skillTotal}</div><div class="stat-label">Skills</div></div>
-      <div class="stat-card"><div class="stat-val">${health.memoryEdges || 0}</div><div class="stat-label">Edges</div></div>
-      <div class="stat-card"><div class="stat-val">${health.activeSessions || 0}</div><div class="stat-label">MCP Sessions</div></div>
-      <div class="stat-card"><div class="stat-val">${formatUptime(health.uptime || 0)}</div><div class="stat-label">Uptime</div></div>
-      <div class="stat-card"><div class="stat-val">${health.repos || 0}</div><div class="stat-label">Repos</div></div>
-    </div>
+    <section class="hub-hero">
+      <div class="hub-greeting-line">${escHtml(greetingLine(userName))}</div>
 
-    <div class="card">
-      <div class="card-title">Memory Graph <span class="count">${health.memories} active</span></div>
-      ${Object.entries(mg.byType || {}).map(([t, c]) => `
-        <div class="row">
-          <span class="row-label">${badge(t)} ${t}</span>
-          <span class="row-val">${c}</span>
-        </div>
-      `).join('')}
-    </div>
+      <div class="hub-actions">
+        <button class="hub-chip hub-chip-primary" onclick="openNewProjectModal()">
+          <span class="hub-chip-icon">${HUB_ICONS.plus}</span>New project
+        </button>
+        <a class="hub-chip${resumeDisabled ? ' hub-chip-disabled' : ''}"
+           href="${resumeDisabled ? '#/' : '#/sessions'}"
+           title="${escHtml(resumeTitle)}">
+          <span class="hub-chip-icon">${HUB_ICONS.play}</span>Resume last session
+        </a>
+        <a class="hub-chip" href="#/skills">
+          <span class="hub-chip-icon">${HUB_ICONS.skill}</span>Browse skills
+        </a>
+      </div>
 
-    <div class="card">
-      <div class="card-title">Recent Memories <span class="count">top 5</span></div>
-      ${(mg.topMemories || []).slice(0, 5).map(m => `
-        <div class="row" onclick="openMemoryDetail('${m.id}')">
-          <span class="row-label">${badge(m.type)} ${m.context?.slice(0, 80) || ''}</span>
-          <span class="row-val">${confBar(m.confidence)}</span>
-        </div>
-      `).join('')}
-    </div>
+      <div class="hub-kpi-row">
+        <a class="hub-kpi hub-kpi-purple" href="#/memories">
+          <span class="hub-kpi-icon">${HUB_ICONS.memory}</span>
+          <div>
+            <div class="hub-kpi-val">${health.memories || 0}</div>
+            <div class="hub-kpi-label">Memories</div>
+          </div>
+        </a>
+        <a class="hub-kpi hub-kpi-green" href="#/skills">
+          <span class="hub-kpi-icon">${HUB_ICONS.skill}</span>
+          <div>
+            <div class="hub-kpi-val">${skillsTotal}</div>
+            <div class="hub-kpi-label">Skills</div>
+          </div>
+        </a>
+        <a class="hub-kpi hub-kpi-pink" href="#/sessions">
+          <span class="hub-kpi-icon">${HUB_ICONS.session}</span>
+          <div>
+            <div class="hub-kpi-val">${health.activeSessions || 0}</div>
+            <div class="hub-kpi-label">Active sessions</div>
+          </div>
+        </a>
+      </div>
+    </section>
 
-    ${sessions.length ? `
-    <div class="card">
-      <div class="card-title">Recent Sessions <span class="count">${sessions.length}</span></div>
-      ${sessions.map(s => `
-        <div class="row">
-          <span class="row-label"><strong>${s.session}</strong> &mdash; ${s.summary || 'no summary'}</span>
-          <span class="row-val" style="font-size:11px;color:var(--text-muted)">${s.started?.split('T')[0] || ''}</span>
+    <section class="hub-grid">
+      <div class="hub-col-main">
+        <div class="card hub-activity">
+          <div class="card-title">Recent activity <span class="count">${top.length}</span></div>
+          ${activityHtml}
         </div>
-      `).join('')}
-    </div>` : ''}
+      </div>
+      <aside class="hub-col-side">
+        <div class="card hub-snapshot">
+          <div class="card-title">Memory by type</div>
+          ${snapshotHtml}
+        </div>
+        <div class="card hub-health">
+          <div class="card-title">System health</div>
+          <div class="health-row" onclick="location.hash='#/memories'">
+            <span class="health-dot ${dotClass(decayCount)}"></span>
+            <span class="health-row-label">Decay alerts <span class="health-row-hint">(conf &lt; 4)</span></span>
+            <span class="health-row-val">${decayCount}</span>
+          </div>
+          <div class="health-row" onclick="location.hash='#/review'">
+            <span class="health-dot ${dotClass(reviewTotal)}"></span>
+            <span class="health-row-label">Pending reviews</span>
+            <span class="health-row-val">${reviewTotal}</span>
+          </div>
+          <div class="health-row" onclick="location.hash='#/memories'">
+            <span class="health-dot ${dotClass(staleCount)}"></span>
+            <span class="health-row-label">Stale memories <span class="health-row-hint">(&gt;90d)</span></span>
+            <span class="health-row-val">${staleCount}</span>
+          </div>
+          <div class="health-footer">
+            <span><strong>${formatUptime(health.uptime || 0)}</strong> uptime</span>
+            <span><strong>${health.repos || 0}</strong> repos</span>
+            <span><strong>${health.memoryEdges || 0}</strong> edges</span>
+          </div>
+        </div>
+      </aside>
+    </section>
   `
 
-  document.getElementById('server-status').textContent = `${formatUptime(health.uptime)} uptime`
+  document.getElementById('server-status').textContent = `${formatUptime(health.uptime || 0)} uptime`
 }
 
 // ── Skills ──
