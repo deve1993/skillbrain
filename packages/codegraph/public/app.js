@@ -431,6 +431,7 @@ function applyProjectFiltersAndRender() {
   window.applyProjectFilters()
   if (typeof window._renderProjectsFiltersOnly === 'function') window._renderProjectsFiltersOnly()
   if (typeof window._renderProjectsStats === 'function') window._renderProjectsStats()
+  if (typeof window._renderProjectsPinned === 'function') window._renderProjectsPinned()
   renderProjectsBodyPlaceholder()
 }
 
@@ -443,6 +444,16 @@ function toggleStatusFromStats(status) {
   applyProjectFiltersAndRender()
 }
 window.toggleStatusFromStats = toggleStatusFromStats
+
+function toggleProjectPin(name) {
+  const s = window._projectsState
+  if (!s) return
+  if (s.pinned.has(name)) s.pinned.delete(name)
+  else s.pinned.add(name)
+  try { localStorage.setItem('synapse.projects.pinned', JSON.stringify([...s.pinned])) } catch {}
+  applyProjectFiltersAndRender()
+}
+window.toggleProjectPin = toggleProjectPin
 
 function renderProjectsBodyPlaceholder() {
   const s = window._projectsState

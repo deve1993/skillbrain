@@ -1282,3 +1282,36 @@ dialog details pre {
 .proj-stats-segment.stat-paused .dot { background: var(--yellow); }
 .proj-stats-segment.stat-completed .dot { background: var(--blue); }
 .proj-stats-segment.stat-archived .dot { background: var(--text-muted); }
+
+.proj-pinned-section {
+  background: linear-gradient(180deg, rgba(167,139,250,.04), transparent);
+  border: 1px solid rgba(167,139,250,.18);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 4px;
+}
+.proj-pinned-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--accent);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.proj-pinned-section-title .star { color: var(--yellow); }
+
+.proj-card-pin {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 1;
+  transition: color .15s;
+}
+.proj-card-pin:hover { color: var(--yellow); }
+.proj-card-pin.pinned { color: var(--yellow); }

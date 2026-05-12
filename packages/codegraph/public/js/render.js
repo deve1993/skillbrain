@@ -746,6 +746,8 @@ export async function renderProjects() {
   window._renderProjectsFiltersOnly = renderProjectsFiltersOnly
   renderProjectsStats()
   window._renderProjectsStats = renderProjectsStats
+  renderProjectsPinned()
+  window._renderProjectsPinned = renderProjectsPinned
 
   // Stats/pinned/body all rendered in subsequent tasks.
   // For now, show a placeholder body so we can verify the shell renders.
@@ -876,6 +878,33 @@ function renderProjectsStats() {
       <span>${seg.label}</span>
     </button>`
   }).join('')
+}
+
+function renderProjectsPinned() {
+  const s = getProjectsState()
+  const el = document.getElementById('proj-pinned')
+  if (!el) return
+  const pinnedList = s.filtered.filter(p => s.pinned.has(p.name))
+  if (pinnedList.length === 0) { el.innerHTML = ''; return }
+  el.innerHTML = `
+    <div class="proj-pinned-section">
+      <div class="proj-pinned-section-title"><span class="star" aria-hidden="true">★</span> Pinned (${pinnedList.length})</div>
+      <div id="proj-pinned-cards"></div>
+    </div>
+  `
+  // Placeholder rendering until Task 5 introduces the real card v2 renderer.
+  // For Task 4, just list pinned projects compactly so the section is visibly populated.
+  const cards = document.getElementById('proj-pinned-cards')
+  if (cards) {
+    cards.innerHTML = pinnedList.map(p => {
+      const name = p._meta?.displayName || p.name
+      return `<div style="padding:4px 0;font-size:13px;color:var(--text)">
+        <button class="proj-card-pin pinned" aria-label="Unpin ${escAttr(name)}" title="Unpin"
+          onclick="toggleProjectPin('${escAttr(p.name)}')">★</button>
+        ${escHtml(name)}
+      </div>`
+    }).join('')
+  }
 }
 
 // Debounced search dispatcher (200 ms) — closure over a single timeout
