@@ -1572,31 +1572,75 @@ export function renderProjectTab(tab, name, data) {
   }
 
   if (tab === 'activity') {
-    let html = ''
-    if (sessions?.length) {
-      html += `<div class="card"><div class="card-title">Sessions <span class="count">${sessions.length}</span></div><div class="timeline">`
-      for (const s of sessions) {
-        const date = s.startedAt?.replace('T', ' ').slice(0, 16) || '?'
-        html += `<div class="timeline-item">
-          <div class="timeline-name">${escHtml(s.sessionName)} <span style="font-size:11px;color:var(--text-muted)">[${s.status}]</span></div>
-          <div class="timeline-date">${date}</div>
-          <div class="timeline-summary">${escHtml(s.summary || s.taskDescription || 'No summary')}</div>
+    const filter = window._activityFilter || 'all'
+    const items = []
+    if (filter === 'all' || filter === 'sessions') {
+      for (const sn of (sessions || [])) {
+        items.push({ kind: 'session', date: sn.startedAt || '', data: sn })
+      }
+    }
+    if (filter === 'all' || filter === 'memories') {
+      for (const mm of (memories || [])) {
+        items.push({ kind: 'memory', date: mm.createdAt || mm.created_at || '', data: mm })
+      }
+    }
+    // Most recent first
+    items.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
+    // Group by day (YYYY-MM-DD) — items with no date go into "—" bucket at the bottom
+    const days = {}
+    const dayOrder = []
+    for (const it of items) {
+      const day = (it.date || '').slice(0, 10) || '—'
+      if (!(day in days)) { days[day] = []; dayOrder.push(day) }
+      days[day].push(it)
+    }
+
+    let html = `
+      <div class="proj-activity-filter" role="tablist" aria-label="Activity filter">
+        <button type="button" role="tab" aria-selected="${filter==='all'}" class="${filter==='all'?'active':''}" onclick="setActivityFilter('all','${escAttr(name)}')">All (${items.length})</button>
+        <button type="button" role="tab" aria-selected="${filter==='sessions'}" class="${filter==='sessions'?'active':''}" onclick="setActivityFilter('sessions','${escAttr(name)}')">Sessions (${(sessions || []).length})</button>
+        <button type="button" role="tab" aria-selected="${filter==='memories'}" class="${filter==='memories'?'active':''}" onclick="setActivityFilter('memories','${escAttr(name)}')">Memories (${(memories || []).length})</button>
+      </div>
+    `
+
+    if (items.length === 0) {
+      html += `<p style="color:var(--text-muted);font-size:13px">No activity yet.</p>`
+    } else {
+      for (const day of dayOrder) {
+        html += `<div class="proj-activity-day">
+          <div class="proj-activity-day-header">${escHtml(day)}</div>
+          ${days[day].map(renderActivityItem).join('')}
         </div>`
       }
-      html += '</div></div>'
     }
-    if (memories?.length) {
-      html += `<div class="card"><div class="card-title">Memories <span class="count">${memories.length}</span></div>`
-      for (const m of memories) {
-        html += `<div class="row" onclick="event.stopPropagation();openMemoryDetail('${m.id}')">
-          <span class="row-label">${badge(m.type)} ${escHtml((m.context || '').slice(0, 80))}</span>
-          <span class="row-val">${confBar(m.confidence)}</span>
-        </div>`
-      }
-      html += '</div>'
-    }
-    container.innerHTML = html || '<p style="color:var(--text-muted);font-size:13px">No activity yet.</p>'
+    container.innerHTML = html
   }
+}
+
+function renderActivityItem(it) {
+  if (it.kind === 'session') {
+    const s = it.data
+    const when = (s.startedAt || '').replace('T', ' ').slice(0, 16)
+    return `<div class="proj-activity-item">
+      <span class="proj-activity-icon" aria-hidden="true">🗓</span>
+      <div class="proj-activity-content">
+        <div class="proj-activity-title">${escHtml(s.sessionName || 'Session')} <span style="font-size:10px;color:var(--text-muted)">[${escHtml(s.status || '')}]</span></div>
+        <div class="proj-activity-meta">${escHtml(when)} · ${escHtml(s.summary || s.taskDescription || 'No summary')}</div>
+      </div>
+    </div>`
+  }
+  // memory
+  const m = it.data
+  return `<div class="proj-activity-item clickable" role="button" tabindex="0"
+    onclick="event.stopPropagation();openMemoryDetail('${escAttr(m.id)}')"
+    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openMemoryDetail('${escAttr(m.id)}')}">
+    <span class="proj-activity-icon" aria-hidden="true">💭</span>
+    <div class="proj-activity-content">
+      <div class="proj-activity-title">${badge(m.type)} ${escHtml((m.context || '').slice(0, 80))}</div>
+      <div class="proj-activity-meta">${confBar(m.confidence)} · ${escHtml((m.createdAt || m.created_at || '').slice(0,10))}</div>
+    </div>
+  </div>`
 }
 
 // ── Env Vars ──

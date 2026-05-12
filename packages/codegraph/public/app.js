@@ -146,6 +146,14 @@ function switchProjectTab(tab, name) {
   renderProjectTab(tab, name)
 }
 
+function setActivityFilter(filter, name) {
+  window._activityFilter = filter
+  if (typeof window._renderProjectTab === 'function') {
+    window._renderProjectTab('activity', name)
+  }
+}
+window.setActivityFilter = setActivityFilter
+
 // ── Memory actions ──
 async function deleteMemory(id) {
   if (!confirm('Delete this memory permanently?')) return
