@@ -1468,3 +1468,33 @@ dialog details pre {
 }
 .proj-card-v2:hover .proj-card-select,
 .proj-card-v2.selected .proj-card-select { opacity: 1; }
+
+.proj-menu-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 25;
+  background: #111118;
+  border: 1px solid var(--border-hover);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.6);
+  min-width: 160px;
+  padding: 4px;
+}
+.proj-menu-pop button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+.proj-menu-pop button:hover { background: rgba(255,255,255,.05); }
+.proj-menu-pop button.danger:hover { background: rgba(248,113,113,.1); color: var(--red); }
+.proj-menu-pop .sep { height: 1px; background: var(--border); margin: 4px 0; }

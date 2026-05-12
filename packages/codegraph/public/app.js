@@ -456,15 +456,119 @@ function toggleProjectPin(name) {
 window.toggleProjectPin = toggleProjectPin
 
 function toggleCardMenu(name, btn) {
-  alert(`Menu for ${name} — full menu coming in Task 6`)
+  // Close any existing menu first
+  document.querySelectorAll('.proj-menu-pop').forEach(m => m.remove())
+  const wrap = btn.parentElement
+  if (!wrap) return
+  const menu = document.createElement('div')
+  menu.className = 'proj-menu-pop'
+  menu.setAttribute('role', 'menu')
+  menu.innerHTML = `
+    <button type="button" role="menuitem" onclick="cardAction('archive','${escAttrJs(name)}')">📦 Archive</button>
+    <button type="button" role="menuitem" onclick="cardAction('duplicate','${escAttrJs(name)}')">📑 Duplicate</button>
+    <button type="button" role="menuitem" onclick="cardAction('export','${escAttrJs(name)}')">⬇ Export JSON</button>
+    <div class="sep" role="separator"></div>
+    <button type="button" role="menuitem" class="danger" onclick="cardAction('delete','${escAttrJs(name)}')">✕ Delete</button>
+  `
+  wrap.appendChild(menu)
+  // Defer outside-click registration so the click that opened the menu doesn't immediately close it
+  setTimeout(() => document.addEventListener('click', closeMenuOnClick, { once: true }), 0)
 }
+
+// Lightweight quote-safe attribute->JS escape (mirrors render.js' escAttr but defined here for app.js scope)
+function escAttrJs(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function closeMenuOnClick(e) {
+  if (!e.target.closest('.proj-menu-pop') && !e.target.closest('.menu-btn')) {
+    document.querySelectorAll('.proj-menu-pop').forEach(m => m.remove())
+  } else {
+    // Re-arm if click was inside a menu/menu-btn but didn't trigger an action
+    setTimeout(() => document.addEventListener('click', closeMenuOnClick, { once: true }), 0)
+  }
+}
+
+async function cardAction(action, name) {
+  document.querySelectorAll('.proj-menu-pop').forEach(m => m.remove())
+  if (action === 'archive') return archiveProject(name)
+  if (action === 'duplicate') return duplicateProject(name)
+  if (action === 'export') return exportProject(name)
+  if (action === 'delete') return deleteProject(name)
+}
+
+async function archiveProject(name) {
+  if (!confirm(`Archive "${name}"?`)) return
+  try {
+    const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'archived' }),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    renderProjects()
+  } catch (err) { alert('Archive failed: ' + (err.message || err)) }
+}
+
+async function duplicateProject(name) {
+  const suggested = name + '-copy'
+  const newName = prompt(`Duplicate "${name}"\n\nNew project name (kebab-case):`, suggested)
+  if (!newName || !newName.trim()) return
+  const target = newName.trim()
+  if (target === name) { alert('New name must differ from the original.'); return }
+  try {
+    const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`)
+    if (!r.ok) throw new Error('Source project not found')
+    const meta = await r.json()
+    // Strip identifying / time-bound fields
+    const body = { ...meta }
+    delete body.name; delete body.id; delete body.createdAt; delete body.updatedAt
+    body.status = 'active' // reset to active
+    if (body.displayName) body.displayName = body.displayName + ' (copy)'
+    const r2 = await fetch(`/api/projects-meta/${encodeURIComponent(target)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!r2.ok) throw new Error(`HTTP ${r2.status}`)
+    renderProjects()
+  } catch (err) { alert('Duplicate failed: ' + (err.message || err)) }
+}
+
+async function exportProject(name) {
+  try {
+    const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`)
+    if (!r.ok) throw new Error('Project not found')
+    const meta = await r.json()
+    const blob = new Blob([JSON.stringify(meta, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    // Sanitize filename — only allow safe chars
+    const safeName = String(name).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100) || 'project'
+    a.download = `${safeName}.meta.json`
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+  } catch (err) { alert('Export failed: ' + (err.message || err)) }
+}
+
+window.toggleCardMenu = toggleCardMenu
+window.cardAction = cardAction
+window.archiveProject = archiveProject
+window.duplicateProject = duplicateProject
+window.exportProject = exportProject
+
 function toggleProjectSelection(name, checked) {
   const s = window._projectsState
   if (!s) return
   if (checked) s.selection.add(name); else s.selection.delete(name)
   if (typeof window._renderProjectsBody === 'function') window._renderProjectsBody()
 }
-window.toggleCardMenu = toggleCardMenu
 window.toggleProjectSelection = toggleProjectSelection
 
 // Close filter menus on outside click
