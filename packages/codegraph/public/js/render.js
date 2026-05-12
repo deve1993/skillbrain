@@ -1076,6 +1076,16 @@ function applyHashOverrides(state) {
   if (p.showArchived) state.filters.showArchived = p.showArchived === '1'
 }
 
+// Track the last hash we applied so we don't re-import our own writes from syncProjectHash.
+// Without this, every renderProjects() reads the URL and reverts state changes that haven't
+// been synced to the URL yet (e.g., a fresh view click).
+let _lastAppliedHash = null
+function applyHashOverridesIfChanged(state) {
+  if (location.hash === _lastAppliedHash) return
+  _lastAppliedHash = location.hash
+  applyHashOverrides(state)
+}
+
 export async function renderProjects() {
   // Loading state — show immediately so the user sees feedback while the API calls run
   const page = document.getElementById('page')
@@ -1107,7 +1117,7 @@ export async function renderProjects() {
 
   const state = getProjectsState()
   state.merged = merged
-  applyHashOverrides(state)
+  applyHashOverridesIfChanged(state)
   applyProjectFilters() // computes state.filtered
 
   document.getElementById('page').innerHTML = `
@@ -1374,6 +1384,7 @@ function syncProjectHash() {
   const newHash = '#/projects' + q
   if (location.hash !== newHash && location.hash.startsWith('#/projects')) {
     history.replaceState(null, '', newHash)
+    _lastAppliedHash = newHash // remember our own write so applyHashOverridesIfChanged skips it
   }
   // Persist filters — guarded against Safari Private mode / quota errors
   try {
