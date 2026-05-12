@@ -58,6 +58,20 @@ export interface EnvVar {
     createdAt: string;
     updatedAt: string;
 }
+export interface SummaryProject {
+    name: string;
+    displayName?: string;
+    status: string;
+    category?: string;
+    clientName?: string;
+    totalSessions: number;
+    totalMemories: number;
+    lastActivity?: string;
+    stack: string[];
+    pinned: boolean;
+    hasBlockers: boolean;
+    isStale: boolean;
+}
 export declare class ProjectsStore {
     private db;
     constructor(db: Database.Database);
@@ -66,6 +80,12 @@ export declare class ProjectsStore {
     }): Project;
     get(name: string): Project | undefined;
     list(): Project[];
+    /**
+     * Light payload for project listing pages (4 views in Phase 1 Synapse dashboard).
+     * Joins projects + session_log + memories; computes isStale server-side.
+     * Sort: pinned first, then by lastActivity desc (fallback updated_at).
+     */
+    listSummary(): SummaryProject[];
     delete(name: string): void;
     /**
      * Atomically toggle the pinned flag for a project.

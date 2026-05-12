@@ -84,6 +84,52 @@ export class ProjectsStore {
         const rows = this.db.prepare('SELECT * FROM projects ORDER BY updated_at DESC').all();
         return rows.map(this.rowToProject);
     }
+    /**
+     * Light payload for project listing pages (4 views in Phase 1 Synapse dashboard).
+     * Joins projects + session_log + memories; computes isStale server-side.
+     * Sort: pinned first, then by lastActivity desc (fallback updated_at).
+     */
+    listSummary() {
+        const rows = this.db.prepare(`
+      SELECT
+        p.name, p.display_name, p.status, p.category, p.client_name,
+        p.stack, p.pinned,
+        (SELECT COUNT(*) FROM session_log WHERE project = p.name) AS total_sessions,
+        (SELECT COUNT(*) FROM memories WHERE project = p.name) AS total_memories,
+        (SELECT MAX(started_at) FROM session_log WHERE project = p.name) AS last_activity,
+        (SELECT EXISTS(SELECT 1 FROM session_log WHERE project = p.name AND blockers IS NOT NULL AND blockers != '')) AS has_blockers
+      FROM projects p
+      ORDER BY p.pinned DESC, COALESCE(
+        (SELECT MAX(started_at) FROM session_log WHERE project = p.name),
+        p.updated_at
+      ) DESC
+    `).all();
+        const now = Date.now();
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        return rows.map((r) => {
+            const lastActivity = r.last_activity || null;
+            const isStale = !lastActivity || (now - new Date(lastActivity).getTime() > THIRTY_DAYS_MS);
+            let stack = [];
+            try {
+                stack = JSON.parse(r.stack || '[]');
+            }
+            catch { }
+            return {
+                name: r.name,
+                displayName: r.display_name || undefined,
+                status: r.status,
+                category: r.category || undefined,
+                clientName: r.client_name || undefined,
+                totalSessions: r.total_sessions || 0,
+                totalMemories: r.total_memories || 0,
+                lastActivity: lastActivity || undefined,
+                stack,
+                pinned: r.pinned === 1 || r.pinned === true,
+                hasBlockers: r.has_blockers === 1,
+                isStale,
+            };
+        });
+    }
     delete(name) {
         this.db.prepare('DELETE FROM projects WHERE name = ?').run(name);
     }
