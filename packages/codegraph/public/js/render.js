@@ -613,6 +613,13 @@ function escAttr(s) {
     .replace(/>/g, '&gt;')
 }
 
+function safeUrl(url) {
+  if (typeof url !== 'string' || !url) return null
+  // Allow only http(s) and protocol-relative; reject javascript:, data:, vbscript:, etc.
+  if (/^(https?:)?\/\//i.test(url)) return url
+  return null
+}
+
 const CATEGORY_ICONS = {
   landing: '🚀', ecommerce: '🛒', app: '📱', dashboard: '📊',
   'corporate-site': '💼', blog: '📝', portfolio: '🎨', other: '📦',
@@ -672,7 +679,7 @@ function renderCardGrid(p) {
   return `<div class="proj-card-v2 ${stateClass ? 'state-'+stateClass : ''} ${isSelected ? 'selected' : ''}"
     role="button" tabindex="0"
     data-name="${escAttr(p.name)}" onclick="${onCardClick}"
-    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProjectDetail('${escAttr(p.name)}')}">
+    onkeydown="if(event.target.closest('.proj-card-actions,.proj-card-pin,.proj-card-select,.proj-menu-pop'))return;if(event.key==='Enter'){event.preventDefault();this.click()}else if(event.key===' '){event.preventDefault()}">
     <input type="checkbox" class="proj-card-select" ${isSelected ? 'checked' : ''}
       aria-label="Select ${escAttr(displayName)}"
       onclick="event.stopPropagation();toggleProjectSelection('${escAttr(p.name)}',this.checked)">
@@ -683,7 +690,7 @@ function renderCardGrid(p) {
       <span class="status-dot" style="background:${statusColor}" title="${escAttr(status)}"></span>
       <span class="name" title="${escAttr(displayName)}">${escHtml(displayName)}</span>
       ${stateBadge}
-      ${m.liveUrl ? `<a class="live" href="${escAttr(m.liveUrl)}" target="_blank" rel="noopener" title="Open live site" onclick="event.stopPropagation()">↗</a>` : ''}
+      ${(() => { const u = safeUrl(m.liveUrl); return u ? `<a class="live" href="${escAttr(u)}" target="_blank" rel="noopener" title="Open live site" onclick="event.stopPropagation()">↗</a>` : '' })()}
       <div class="proj-card-actions" style="position:relative">
         <button class="menu-btn" title="More actions" aria-label="More actions for ${escAttr(displayName)}"
           onclick="event.stopPropagation();toggleCardMenu('${escAttr(p.name)}',this)">⋯</button>
