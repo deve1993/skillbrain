@@ -1412,17 +1412,27 @@ export async function renderProjectDetail(name, openDetailFn) {
   const memories = activity.memories || []
   const last = sessions[0]
 
+  // Update detail index in state for prev/next navigation
+  const s = getProjectsState()
+  s.detailIndex = s.filtered.findIndex(p => p.name === name)
+  const hasPrev = s.detailIndex > 0
+  const hasNext = s.detailIndex >= 0 && s.detailIndex < s.filtered.length - 1
+
   const html = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div id="proj-tabs" style="display:flex;gap:4px;border-bottom:1px solid var(--border);flex:1">
-        <button class="proj-tab active" data-tab="overview" onclick="switchProjectTab('overview','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--accent);border-bottom:2px solid var(--accent);font-size:13px;cursor:pointer">Overview</button>
-        <button class="proj-tab" data-tab="env" onclick="switchProjectTab('env','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Env Vars</button>
-        <button class="proj-tab" data-tab="activity" onclick="switchProjectTab('activity','${name}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Activity</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap">
+      <div class="proj-detail-nav" role="group" aria-label="Detail navigation">
+        <button type="button" onclick="projectDetailNav(-1)" ${!hasPrev ? 'disabled' : ''} title="Previous project" aria-label="Previous project">←</button>
+        <button type="button" onclick="projectDetailNav(1)" ${!hasNext ? 'disabled' : ''} title="Next project" aria-label="Next project">→</button>
       </div>
-      <div style="display:flex;gap:6px;margin-left:8px">
-        <button onclick="openProjectBoard('${name}')" title="Open or create the project's home whiteboard (auto-populated with Memorie + Sessioni + Skills)" style="padding:6px 12px;border-radius:6px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;font-size:12px;font-weight:600;cursor:pointer">🗂 Project board</button>
-        <button onclick="openEditProjectModal('${name}')" style="padding:6px 12px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Edit</button>
-        <button onclick="showMergeDialog('${name}')" style="padding:6px 12px;border-radius:6px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer">Merge</button>
+      <div id="proj-tabs" style="display:flex;gap:4px;border-bottom:1px solid var(--border);flex:1;min-width:0">
+        <button class="proj-tab active" data-tab="overview" onclick="switchProjectTab('overview','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--accent);border-bottom:2px solid var(--accent);font-size:13px;cursor:pointer">Overview</button>
+        <button class="proj-tab" data-tab="env" onclick="switchProjectTab('env','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Env Vars</button>
+        <button class="proj-tab" data-tab="activity" onclick="switchProjectTab('activity','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Activity</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-left:8px;flex-wrap:wrap">
+        <button onclick="openProjectBoard('${escAttr(name)}')" title="Open or create the project's home whiteboard (auto-populated with Memorie + Sessioni + Skills)" style="padding:6px 12px;border-radius:6px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;font-size:12px;font-weight:600;cursor:pointer">🗂 Project board</button>
+        <button onclick="openEditProjectModal('${escAttr(name)}')" style="padding:6px 12px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Edit</button>
+        <button onclick="showMergeDialog('${escAttr(name)}')" style="padding:6px 12px;border-radius:6px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer">Merge</button>
       </div>
     </div>
     <div id="proj-tab-content"></div>
@@ -1432,6 +1442,8 @@ export async function renderProjectDetail(name, openDetailFn) {
   // Store data for tab switching (kept for switchProjectTab in app.js)
   const projData = { name, activity, meta, sessions, memories, last }
   window._projData = projData
+  // Expose renderProjectTab for Task 12 (activity filter chips need to re-render the active tab)
+  window._renderProjectTab = renderProjectTab
   renderProjectTab('overview', name, projData)
   checkForDuplicates(name)
 }
@@ -1449,80 +1461,96 @@ export function renderProjectTab(tab, name, data) {
     const displayName = M.displayName || name
     const sc = statusColors[M.status || (last?.status)] || 'var(--text-muted)'
 
+    // Header card (full width)
     let html = `
       <div class="card">
         <div style="font-size:18px;font-weight:600;margin-bottom:4px">${escHtml(displayName)}</div>
         <div style="color:var(--text-muted);font-size:12px;margin-bottom:12px">
           ${M.clientName ? `Client: <strong>${escHtml(M.clientName)}</strong> &middot; ` : ''}
           ${M.category ? `${escHtml(M.category)} &middot; ` : ''}
-          <span style="color:${sc}">${M.status || (last?.status || 'unknown')}</span>
+          <span style="color:${sc}">${escHtml(M.status || (last?.status || 'unknown'))}</span>
         </div>
         ${M.description ? `<div style="color:var(--text-dim);font-size:13px;margin-bottom:12px">${escHtml(M.description)}</div>` : ''}
-        ${M.stack?.length ? `<div class="tags">${M.stack.map((s) => `<span class="tag">${escHtml(s)}</span>`).join('')}</div>` : ''}
+        ${M.stack?.length ? `<div class="tags">${M.stack.map((t) => `<span class="tag">${escHtml(t)}</span>`).join('')}</div>` : ''}
       </div>`
 
+    // Two-column grid: left = Team + Notes, right = Links + Infra + Last Activity
+    const leftCol = []
+    const rightCol = []
+
     if (M.teamLead || M.teamMembers?.length) {
-      html += `<div class="card">
+      leftCol.push(`<div class="card">
         <div class="card-title">Team</div>
         ${M.teamLead ? `<div class="row"><span class="row-label">Lead</span><span class="row-val"><strong>${escHtml(M.teamLead)}</strong></span></div>` : ''}
-        ${(M.teamMembers || []).map((m) => `
+        ${(M.teamMembers || []).map((mb) => `
           <div class="row">
-            <span class="row-label">${escHtml(m.name)}</span>
-            <span class="row-val" style="font-size:12px;color:var(--text-muted)">${escHtml(m.role || '')}${m.email ? ' · ' + escHtml(m.email) : ''}</span>
+            <span class="row-label">${escHtml(mb.name)}</span>
+            <span class="row-val" style="font-size:12px;color:var(--text-muted)">${escHtml(mb.role || '')}${mb.email ? ' · ' + escHtml(mb.email) : ''}</span>
           </div>`).join('')}
-      </div>`
+      </div>`)
+    }
+
+    if (M.notes) {
+      leftCol.push(`<div class="card">
+        <div class="card-title">Notes</div>
+        <div style="font-size:13px;color:var(--text-dim);white-space:pre-wrap">${escHtml(M.notes)}</div>
+      </div>`)
     }
 
     if (M.repoUrl || M.liveUrl) {
-      html += `<div class="card">
+      // liveUrl gets safeUrl (scheme-validated); other user-pasted external URLs get escAttr.
+      // Scheme validation for repo/admin URLs could be unified under safeUrl in Task 15.
+      const liveSafe = safeUrl(M.liveUrl)
+      rightCol.push(`<div class="card">
         <div class="card-title">Links</div>
-        ${M.liveUrl ? `<div class="row"><span class="row-label">Live</span><a href="${escHtml(M.liveUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.liveUrl)}</a></div>` : ''}
-        ${M.repoUrl ? `<div class="row"><span class="row-label">Repo</span><a href="${escHtml(M.repoUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.repoUrl)}</a></div>` : ''}
+        ${liveSafe ? `<div class="row"><span class="row-label">Live</span><a href="${escAttr(liveSafe)}" target="_blank" rel="noopener" style="color:var(--accent)">${escHtml(M.liveUrl)}</a></div>` : ''}
+        ${M.repoUrl ? `<div class="row"><span class="row-label">Repo</span><a href="${escAttr(M.repoUrl)}" target="_blank" rel="noopener" style="color:var(--accent)">${escHtml(M.repoUrl)}</a></div>` : ''}
         ${M.mainBranch ? `<div class="row"><span class="row-label">Branch</span><span class="row-val"><code>${escHtml(M.mainBranch)}</code></span></div>` : ''}
-      </div>`
+      </div>`)
     }
 
     const hasInfra = M.dbType || M.cmsType || M.deployPlatform || M.domainPrimary
     if (hasInfra) {
-      html += `<div class="card"><div class="card-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px">Stack &amp; Infra</div>`
+      let infraHtml = `<div class="card"><div class="card-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px">Stack &amp; Infra</div>`
       if (M.dbType || M.dbReference || M.dbAdminUrl) {
-        html += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:4px">Database</div>`
-        if (M.dbType) html += `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.dbType)}</span></div>`
-        if (M.dbReference) html += `<div class="row"><span class="row-label">Reference</span><span class="row-val">${escHtml(M.dbReference)}</span></div>`
-        if (M.dbAdminUrl) html += `<div class="row"><span class="row-label">Admin</span><a href="${escHtml(M.dbAdminUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.dbAdminUrl)}</a></div>`
+        infraHtml += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:4px">Database</div>`
+        if (M.dbType) infraHtml += `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.dbType)}</span></div>`
+        if (M.dbReference) infraHtml += `<div class="row"><span class="row-label">Reference</span><span class="row-val">${escHtml(M.dbReference)}</span></div>`
+        if (M.dbAdminUrl) infraHtml += `<div class="row"><span class="row-label">Admin</span><a href="${escAttr(M.dbAdminUrl)}" target="_blank" rel="noopener" style="color:var(--accent)">${escHtml(M.dbAdminUrl)}</a></div>`
       }
       if (M.cmsType || M.cmsAdminUrl) {
-        html += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">CMS</div>`
-        if (M.cmsType) html += `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.cmsType)}</span></div>`
-        if (M.cmsAdminUrl) html += `<div class="row"><span class="row-label">Admin</span><a href="${escHtml(M.cmsAdminUrl)}" target="_blank" style="color:var(--accent)">${escHtml(M.cmsAdminUrl)}</a></div>`
+        infraHtml += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">CMS</div>`
+        if (M.cmsType) infraHtml += `<div class="row"><span class="row-label">Type</span><span class="row-val">${escHtml(M.cmsType)}</span></div>`
+        if (M.cmsAdminUrl) infraHtml += `<div class="row"><span class="row-label">Admin</span><a href="${escAttr(M.cmsAdminUrl)}" target="_blank" rel="noopener" style="color:var(--accent)">${escHtml(M.cmsAdminUrl)}</a></div>`
       }
       if (M.deployPlatform) {
-        html += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">Deploy</div>`
-        html += `<div class="row"><span class="row-label">Platform</span><span class="row-val">${escHtml(M.deployPlatform)}</span></div>`
-        if (M.hasCi) html += `<div class="row"><span class="row-label">CI/CD</span><span class="row-val">✅ GitHub Actions</span></div>`
+        infraHtml += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">Deploy</div>`
+        infraHtml += `<div class="row"><span class="row-label">Platform</span><span class="row-val">${escHtml(M.deployPlatform)}</span></div>`
+        if (M.hasCi) infraHtml += `<div class="row"><span class="row-label">CI/CD</span><span class="row-val">✅ GitHub Actions</span></div>`
       }
       if (M.domainPrimary) {
-        html += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">Domains</div>`
-        html += `<div class="row"><span class="row-label">Primary</span><span class="row-val">${escHtml(M.domainPrimary)}</span></div>`;
-        (M.domainsExtra || []).forEach(d => { html += `<div class="row"><span class="row-label">Extra</span><span class="row-val">${escHtml(d)}</span></div>` })
+        infraHtml += `<div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;margin-top:12px">Domains</div>`
+        infraHtml += `<div class="row"><span class="row-label">Primary</span><span class="row-val">${escHtml(M.domainPrimary)}</span></div>`;
+        (M.domainsExtra || []).forEach(d => { infraHtml += `<div class="row"><span class="row-label">Extra</span><span class="row-val">${escHtml(d)}</span></div>` })
       }
-      html += `</div>`
+      infraHtml += `</div>`
+      rightCol.push(infraHtml)
     }
 
     if (last) {
-      html += `<div class="card">
+      rightCol.push(`<div class="card">
         <div class="card-title">Last Activity</div>
-        <div class="row"><span class="row-label">Date</span><span class="row-val">${last.startedAt?.split('T')[0] || '?'}</span></div>
+        <div class="row"><span class="row-label">Date</span><span class="row-val">${escHtml(last.startedAt?.split('T')[0] || '?')}</span></div>
         ${last.taskDescription ? `<div class="row"><span class="row-label">Task</span><span class="row-val">${escHtml(last.taskDescription)}</span></div>` : ''}
         ${last.nextSteps ? `<div style="margin-top:8px;padding:8px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.2);border-radius:6px;font-size:12px;color:var(--green)">Next: ${escHtml(last.nextSteps)}</div>` : ''}
         ${last.blockers ? `<div style="margin-top:6px;padding:8px;background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.2);border-radius:6px;font-size:12px;color:var(--red)">Blocker: ${escHtml(last.blockers)}</div>` : ''}
-      </div>`
+      </div>`)
     }
 
-    if (M.notes) {
-      html += `<div class="card">
-        <div class="card-title">Notes</div>
-        <div style="font-size:13px;color:var(--text-dim);white-space:pre-wrap">${escHtml(M.notes)}</div>
+    if (leftCol.length || rightCol.length) {
+      html += `<div class="proj-detail-grid">
+        <div>${leftCol.join('')}</div>
+        <div>${rightCol.join('')}</div>
       </div>`
     }
 
@@ -1531,7 +1559,7 @@ export function renderProjectTab(tab, name, data) {
       <div class="card" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.03)">
         <div style="color:var(--yellow);font-size:13px;font-weight:600;margin-bottom:6px">No metadata yet</div>
         <div style="color:var(--text-muted);font-size:12px;margin-bottom:12px">Run <code style="background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px">project_scan</code> in Claude Code, or fill manually.</div>
-        <button onclick="openEditProjectModal('${escHtml(name)}')" style="padding:6px 14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;border-radius:6px;cursor:pointer">Edit metadata</button>
+        <button onclick="openEditProjectModal('${escAttr(name)}')" style="padding:6px 14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;border-radius:6px;cursor:pointer">Edit metadata</button>
       </div>`
     }
 

@@ -468,6 +468,17 @@ function toggleProjectPin(name) {
 }
 window.toggleProjectPin = toggleProjectPin
 
+function projectDetailNav(delta) {
+  const s = window._projectsState
+  if (!s) return
+  const next = s.detailIndex + delta
+  if (next < 0 || next >= s.filtered.length) return
+  s.detailIndex = next
+  const name = s.filtered[next].name
+  if (typeof window.openProjectDetail === 'function') window.openProjectDetail(name)
+}
+window.projectDetailNav = projectDetailNav
+
 function toggleCardMenu(name, btn) {
   // Close any existing menu first
   document.querySelectorAll('.proj-menu-pop').forEach(m => m.remove())

@@ -1667,3 +1667,31 @@ dialog details pre {
 .proj-bulk-toolbar button.danger { color: var(--red); border-color: rgba(248,113,113,.3); }
 .proj-bulk-toolbar button.danger:hover { background: rgba(248,113,113,.08); }
 .proj-bulk-toolbar button.cancel { color: var(--text-muted); }
+
+/* ── Project detail panel: prev/next nav + 2-col overview ── */
+.proj-detail-nav {
+  display: flex;
+  gap: 4px;
+  margin-right: 8px;
+}
+.proj-detail-nav button {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.proj-detail-nav button:hover:not(:disabled) { border-color: var(--accent2); color: var(--accent); }
+.proj-detail-nav button:disabled { opacity: .3; cursor: not-allowed; }
+
+.proj-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.proj-detail-grid > div { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 900px) { .proj-detail-grid { grid-template-columns: 1fr; } }
