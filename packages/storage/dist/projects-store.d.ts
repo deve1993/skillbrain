@@ -72,6 +72,21 @@ export interface SummaryProject {
     hasBlockers: boolean;
     isStale: boolean;
 }
+export interface ProjectInsights {
+    sessionsPerWeek: {
+        week: string;
+        count: number;
+    }[];
+    memoriesByType: Record<string, number>;
+    topSkills: {
+        name: string;
+        usage: number;
+    }[];
+    avgConfidence: number | null;
+    daysSinceLastActivity: number | null;
+    totalSessions: number;
+    totalMemories: number;
+}
 export declare class ProjectsStore {
     private db;
     constructor(db: Database.Database);
@@ -86,6 +101,11 @@ export declare class ProjectsStore {
      * Sort: pinned first, then by lastActivity desc (fallback updated_at).
      */
     listSummary(): SummaryProject[];
+    /**
+     * Aggregate insights for a project's Insights detail tab.
+     * Returns null if the project doesn't exist.
+     */
+    getInsights(name: string): ProjectInsights | null;
     delete(name: string): void;
     /**
      * Atomically toggle the pinned flag for a project.

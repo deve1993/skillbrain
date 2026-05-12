@@ -89,6 +89,16 @@ export interface SummaryProject {
   isStale: boolean
 }
 
+export interface ProjectInsights {
+  sessionsPerWeek: { week: string; count: number }[]
+  memoriesByType: Record<string, number>
+  topSkills: { name: string; usage: number }[]
+  avgConfidence: number | null
+  daysSinceLastActivity: number | null
+  totalSessions: number
+  totalMemories: number
+}
+
 export class ProjectsStore {
   constructor(private db: Database.Database) {}
 
@@ -226,6 +236,83 @@ export class ProjectsStore {
         isStale,
       }
     })
+  }
+
+  /**
+   * Aggregate insights for a project's Insights detail tab.
+   * Returns null if the project doesn't exist.
+   */
+  getInsights(name: string): ProjectInsights | null {
+    if (!this.get(name)) return null
+
+    // Sessions per ISO week, last 12 weeks
+    const weekRows = this.db.prepare(`
+      SELECT strftime('%Y-W%W', started_at) AS week, COUNT(*) AS count
+      FROM session_log
+      WHERE project = ? AND started_at IS NOT NULL
+        AND started_at >= datetime('now', '-12 weeks')
+      GROUP BY week
+      ORDER BY week ASC
+    `).all(name) as { week: string; count: number }[]
+
+    // Memories by type
+    const typeRows = this.db.prepare(`
+      SELECT type, COUNT(*) AS count
+      FROM memories
+      WHERE project = ? AND type IS NOT NULL
+      GROUP BY type
+    `).all(name) as { type: string; count: number }[]
+    const memoriesByType: Record<string, number> = {}
+    for (const r of typeRows) memoriesByType[r.type] = r.count
+
+    // Top skills (defensive — skill_usage table may not exist in all DBs)
+    let topSkills: { name: string; usage: number }[] = []
+    try {
+      topSkills = this.db.prepare(`
+        SELECT skill_name AS name, COUNT(*) AS usage
+        FROM skill_usage
+        WHERE project = ?
+        GROUP BY skill_name
+        ORDER BY usage DESC
+        LIMIT 10
+      `).all(name) as { name: string; usage: number }[]
+    } catch { topSkills = [] }
+
+    // Average confidence
+    const conf = this.db.prepare(`
+      SELECT AVG(confidence) AS avg
+      FROM memories
+      WHERE project = ? AND confidence IS NOT NULL
+    `).get(name) as { avg: number | null }
+    const avgConfidence = conf?.avg ?? null
+
+    // Days since last activity
+    const last = this.db.prepare(`
+      SELECT MAX(started_at) AS last
+      FROM session_log
+      WHERE project = ?
+    `).get(name) as { last: string | null }
+    let daysSinceLastActivity: number | null = null
+    if (last?.last) {
+      const diff = Date.now() - new Date(last.last).getTime()
+      daysSinceLastActivity = Math.floor(diff / (24 * 60 * 60 * 1000))
+    }
+
+    const totals = this.db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM session_log WHERE project = ?) AS s,
+        (SELECT COUNT(*) FROM memories WHERE project = ?) AS m
+    `).get(name, name) as { s: number; m: number }
+
+    return {
+      sessionsPerWeek: weekRows,
+      memoriesByType,
+      topSkills,
+      avgConfidence,
+      daysSinceLastActivity,
+      totalSessions: totals.s,
+      totalMemories: totals.m,
+    }
   }
 
   delete(name: string): void {

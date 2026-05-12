@@ -130,6 +130,80 @@ export class ProjectsStore {
             };
         });
     }
+    /**
+     * Aggregate insights for a project's Insights detail tab.
+     * Returns null if the project doesn't exist.
+     */
+    getInsights(name) {
+        if (!this.get(name))
+            return null;
+        // Sessions per ISO week, last 12 weeks
+        const weekRows = this.db.prepare(`
+      SELECT strftime('%Y-W%W', started_at) AS week, COUNT(*) AS count
+      FROM session_log
+      WHERE project = ? AND started_at IS NOT NULL
+        AND started_at >= datetime('now', '-12 weeks')
+      GROUP BY week
+      ORDER BY week ASC
+    `).all(name);
+        // Memories by type
+        const typeRows = this.db.prepare(`
+      SELECT type, COUNT(*) AS count
+      FROM memories
+      WHERE project = ? AND type IS NOT NULL
+      GROUP BY type
+    `).all(name);
+        const memoriesByType = {};
+        for (const r of typeRows)
+            memoriesByType[r.type] = r.count;
+        // Top skills (defensive — skill_usage table may not exist in all DBs)
+        let topSkills = [];
+        try {
+            topSkills = this.db.prepare(`
+        SELECT skill_name AS name, COUNT(*) AS usage
+        FROM skill_usage
+        WHERE project = ?
+        GROUP BY skill_name
+        ORDER BY usage DESC
+        LIMIT 10
+      `).all(name);
+        }
+        catch {
+            topSkills = [];
+        }
+        // Average confidence
+        const conf = this.db.prepare(`
+      SELECT AVG(confidence) AS avg
+      FROM memories
+      WHERE project = ? AND confidence IS NOT NULL
+    `).get(name);
+        const avgConfidence = conf?.avg ?? null;
+        // Days since last activity
+        const last = this.db.prepare(`
+      SELECT MAX(started_at) AS last
+      FROM session_log
+      WHERE project = ?
+    `).get(name);
+        let daysSinceLastActivity = null;
+        if (last?.last) {
+            const diff = Date.now() - new Date(last.last).getTime();
+            daysSinceLastActivity = Math.floor(diff / (24 * 60 * 60 * 1000));
+        }
+        const totals = this.db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM session_log WHERE project = ?) AS s,
+        (SELECT COUNT(*) FROM memories WHERE project = ?) AS m
+    `).get(name, name);
+        return {
+            sessionsPerWeek: weekRows,
+            memoriesByType,
+            topSkills,
+            avgConfidence,
+            daysSinceLastActivity,
+            totalSessions: totals.s,
+            totalMemories: totals.m,
+        };
+    }
     delete(name) {
         this.db.prepare('DELETE FROM projects WHERE name = ?').run(name);
     }
