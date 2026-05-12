@@ -67,6 +67,16 @@ export declare class ProjectsStore {
     get(name: string): Project | undefined;
     list(): Project[];
     delete(name: string): void;
+    /**
+     * Atomically toggle the pinned flag for a project.
+     * Returns the new value. Throws if the project doesn't exist.
+     */
+    togglePin(name: string): boolean;
+    /**
+     * Explicit set pinned (used by bulk actions where toggle semantics aren't appropriate).
+     * Throws if the project doesn't exist.
+     */
+    setPin(name: string, pinned: boolean): void;
     upsertArchived(name: string): void;
     /**
      * Merge aliases into a primary project.

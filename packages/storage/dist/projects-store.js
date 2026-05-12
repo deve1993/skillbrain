@@ -87,6 +87,29 @@ export class ProjectsStore {
     delete(name) {
         this.db.prepare('DELETE FROM projects WHERE name = ?').run(name);
     }
+    /**
+     * Atomically toggle the pinned flag for a project.
+     * Returns the new value. Throws if the project doesn't exist.
+     */
+    togglePin(name) {
+        const row = this.db.prepare('SELECT pinned FROM projects WHERE name = ?').get(name);
+        if (!row)
+            throw new Error(`Project not found: ${name}`);
+        const newVal = row.pinned ? 0 : 1;
+        this.db.prepare('UPDATE projects SET pinned = ?, updated_at = ? WHERE name = ?')
+            .run(newVal, new Date().toISOString(), name);
+        return newVal === 1;
+    }
+    /**
+     * Explicit set pinned (used by bulk actions where toggle semantics aren't appropriate).
+     * Throws if the project doesn't exist.
+     */
+    setPin(name, pinned) {
+        const result = this.db.prepare('UPDATE projects SET pinned = ?, updated_at = ? WHERE name = ?')
+            .run(pinned ? 1 : 0, new Date().toISOString(), name);
+        if (result.changes === 0)
+            throw new Error(`Project not found: ${name}`);
+    }
     // Insert a minimal archived record so listProjects() (session-based) hides
     // this project via its status filter, even after the main record is deleted.
     upsertArchived(name) {
