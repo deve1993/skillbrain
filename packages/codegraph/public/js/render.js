@@ -632,8 +632,12 @@ const STATUS_COLORS_V2 = {
 
 function projectState(p) {
   const last = p.lastSession
-  if (last?.blockers) return 'blocked'
+  // Phase 2: server-side hasBlockers + isStale flags are authoritative when present
+  if (p._summary?.hasBlockers || last?.blockers) return 'blocked'
   if (!p._meta?.category) return 'setup'
+  if (p._summary?.isStale === true) return 'stale'
+  if (p._summary?.isStale === false) return ''  // server says "fresh"
+  // Fallback (no server summary): client-side rule
   if (last?.date) {
     const days = (Date.now() - new Date(last.date).getTime()) / 86400000
     if (days > 30) return 'stale'
@@ -1092,31 +1096,75 @@ export async function renderProjects() {
   if (page) {
     page.innerHTML = `<div style="padding:60px;text-align:center;color:var(--text-muted);font-size:13px">Loading projects…</div>`
   }
-  const [actData, metaData] = await Promise.all([
-    api.get('/api/projects').catch(() => ({ projects: [] })),
-    api.get('/api/projects-meta').catch(() => ({ projects: [] })),
-  ])
-  const actList = actData.projects || []
-  const metaList = metaData.projects || []
+  const data = await api.get('/api/projects?summary=true').catch(() => ({ projects: [] }))
+  const summary = data.projects || []
 
-  const metaMap = {}
-  for (const m of metaList) metaMap[m.name.toLowerCase()] = m
-
-  const merged = []
-  const seen = new Set()
-  for (const p of actList) {
-    const key = p.name.toLowerCase()
-    seen.add(key)
-    const m = metaMap[key] || {}
-    merged.push({ ...p, _meta: m })
-  }
-  for (const m of metaList) {
-    const key = m.name.toLowerCase()
-    if (!seen.has(key)) merged.push({ name: m.name, totalSessions: 0, totalMemories: 0, _meta: m })
-  }
+  // Reshape summary rows to the legacy shape consumers expect.
+  // The card-v2 renderer reads p._meta.{status, displayName, ...} and p.lastSession.{date, status},
+  // so we synthesize those wrappers. New server-side flags (pinned/isStale/hasBlockers)
+  // live in p._summary.
+  const merged = summary.map((s) => ({
+    name: s.name,
+    totalSessions: s.totalSessions,
+    totalMemories: s.totalMemories,
+    lastSession: s.lastActivity ? { date: s.lastActivity, status: s.status } : undefined,
+    _meta: {
+      name: s.name,
+      displayName: s.displayName,
+      clientName: s.clientName,
+      category: s.category,
+      status: s.status,
+      stack: s.stack || [],
+    },
+    _summary: {
+      pinned: s.pinned,
+      hasBlockers: s.hasBlockers,
+      isStale: s.isStale,
+    },
+  }))
 
   const state = getProjectsState()
   state.merged = merged
+  // Sync pinned set from server-authoritative summary (Phase 2)
+  state.pinned = new Set(merged.filter(p => p._summary?.pinned).map(p => p.name))
+
+  // Phase 2 one-time migration: if there are legacy localStorage pins not yet on server,
+  // POST them to /bulk then clear. Fire-and-forget — UI doesn't block on this.
+  const legacy = localStorage.getItem('synapse.projects.pinned')
+  if (legacy) {
+    try {
+      const names = JSON.parse(legacy)
+      if (Array.isArray(names) && names.length > 0) {
+        // Only migrate names that exist in the current summary AND aren't already pinned server-side
+        const serverPinned = new Set([...state.pinned])
+        const toMigrate = names.filter(n => merged.some(p => p.name === n) && !serverPinned.has(n))
+        if (toMigrate.length > 0) {
+          fetch('/api/projects-meta/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ names: toMigrate, action: 'pin' }),
+            credentials: 'include',
+          }).then(r => {
+            if (r.ok) {
+              // Also update local state so the next render shows the migrated pins
+              for (const n of toMigrate) state.pinned.add(n)
+              localStorage.removeItem('synapse.projects.pinned')
+              if (typeof window._renderProjectsBody === 'function') window._renderProjectsBody()
+              if (typeof window._renderProjectsPinned === 'function') window._renderProjectsPinned()
+            }
+          }).catch(() => {})
+        } else {
+          // Nothing to migrate — clean stale key
+          localStorage.removeItem('synapse.projects.pinned')
+        }
+      } else {
+        localStorage.removeItem('synapse.projects.pinned')
+      }
+    } catch {
+      localStorage.removeItem('synapse.projects.pinned')
+    }
+  }
+
   applyHashOverridesIfChanged(state)
   applyProjectFilters() // computes state.filtered
 
