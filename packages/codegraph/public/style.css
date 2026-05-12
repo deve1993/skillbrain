@@ -1834,3 +1834,58 @@ dialog details pre {
 @media (hover: none) {
   .proj-card-select { opacity: 1; }
 }
+
+/* Insights charts (Phase 2) */
+.proj-insights-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.proj-insights-stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.proj-insights-stat .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.proj-insights-stat .value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.proj-chart {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.proj-chart-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.proj-chart svg { display: block; width: 100%; height: auto; }
+.proj-chart .bar { fill: var(--accent); transition: fill .15s; }
+.proj-chart .bar:hover { fill: var(--accent2); }
+.proj-chart .bar-label { fill: var(--text-dim); font-size: 10px; }
+.proj-chart .bar-value { fill: var(--text); font-size: 10px; font-weight: 600; }
+.proj-chart .axis { stroke: var(--border); stroke-width: 1; }
+.proj-chart-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+  padding: 12px 0;
+  text-align: center;
+}

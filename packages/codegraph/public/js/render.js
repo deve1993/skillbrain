@@ -1681,6 +1681,88 @@ export function renderProjectTab(tab, name, data) {
   }
 }
 
+// ── Insights SVG chart helpers (Phase 2) ──
+
+const CHART_COLORS = ['#a78bfa', '#60a5fa', '#34d399', '#f59e0b', '#f87171', '#ec4899', '#14b8a6', '#facc15']
+
+function svgBarChart(data, opts = {}) {
+  // data: [{ label, value }]. Renders SVG bar chart with x-axis labels (last 5 chars of label) + values above bars.
+  if (!data || data.length === 0) return `<div class="proj-chart-empty">No data yet</div>`
+  const W = 480, H = 160, PADX = 36, PADY = 24
+  const max = Math.max(...data.map(d => d.value), 1)
+  const barW = (W - PADX * 2) / data.length - 4
+  const bars = data.map((d, i) => {
+    const x = PADX + i * (barW + 4)
+    const h = ((d.value / max) * (H - PADY * 2))
+    const y = H - PADY - h
+    return `
+      <rect class="bar" x="${x}" y="${y}" width="${barW}" height="${h}" rx="2">
+        <title>${escAttr(d.label)}: ${d.value}</title>
+      </rect>
+      <text class="bar-label" x="${x + barW / 2}" y="${H - 6}" text-anchor="middle">${escHtml(String(d.label).slice(-5))}</text>
+      ${d.value > 0 ? `<text class="bar-value" x="${x + barW / 2}" y="${y - 4}" text-anchor="middle">${d.value}</text>` : ''}
+    `
+  }).join('')
+  return `<svg viewBox="0 0 ${W} ${H}" aria-label="Bar chart">
+    <line class="axis" x1="${PADX}" y1="${H - PADY}" x2="${W - PADX}" y2="${H - PADY}" />
+    ${bars}
+  </svg>`
+}
+
+function svgDonutChart(data, opts = {}) {
+  // data: [{ label, value }]. Renders SVG donut with side legend.
+  const total = data.reduce((sum, d) => sum + d.value, 0)
+  if (total === 0) return `<div class="proj-chart-empty">No data yet</div>`
+  const SIZE = 160, R = 60, IR = 38, CX = SIZE / 2, CY = SIZE / 2
+  let angle = -Math.PI / 2
+  const slices = data.map((d, i) => {
+    const sliceAngle = (d.value / total) * Math.PI * 2
+    const x1 = CX + R * Math.cos(angle), y1 = CY + R * Math.sin(angle)
+    const x2 = CX + R * Math.cos(angle + sliceAngle), y2 = CY + R * Math.sin(angle + sliceAngle)
+    const ix1 = CX + IR * Math.cos(angle + sliceAngle), iy1 = CY + IR * Math.sin(angle + sliceAngle)
+    const ix2 = CX + IR * Math.cos(angle), iy2 = CY + IR * Math.sin(angle)
+    const largeArc = sliceAngle > Math.PI ? 1 : 0
+    const color = CHART_COLORS[i % CHART_COLORS.length]
+    const path = `M ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${IR} ${IR} 0 ${largeArc} 0 ${ix2} ${iy2} Z`
+    angle += sliceAngle
+    return `<path d="${path}" fill="${color}"><title>${escAttr(d.label)}: ${d.value} (${Math.round(d.value / total * 100)}%)</title></path>`
+  }).join('')
+  const legend = data.map((d, i) => {
+    const color = CHART_COLORS[i % CHART_COLORS.length]
+    return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim)">
+      <span style="display:inline-block;width:10px;height:10px;background:${color};border-radius:2px"></span>
+      <span>${escHtml(d.label)}</span>
+      <span style="color:var(--text-muted)">${d.value}</span>
+    </div>`
+  }).join('')
+  return `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <svg viewBox="0 0 ${SIZE} ${SIZE}" style="width:160px;height:160px" aria-label="Donut chart">${slices}</svg>
+    <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px">${legend}</div>
+  </div>`
+}
+
+function svgHBarChart(data, opts = {}) {
+  // data: [{ label, value }] — caller pre-sorts desc. Renders SVG horizontal bar chart.
+  if (!data || data.length === 0) return `<div class="proj-chart-empty">No data yet</div>`
+  const W = 480, ROW_H = 22, PAD = 8
+  const H = data.length * ROW_H + PAD * 2
+  const max = Math.max(...data.map(d => d.value), 1)
+  const LABEL_W = 110
+  const BAR_AREA = W - LABEL_W - 40
+  const rows = data.map((d, i) => {
+    const y = PAD + i * ROW_H
+    const w = (d.value / max) * BAR_AREA
+    return `
+      <text class="bar-label" x="${LABEL_W - 4}" y="${y + ROW_H / 2 + 3}" text-anchor="end">${escHtml(d.label)}</text>
+      <rect class="bar" x="${LABEL_W}" y="${y + 3}" width="${w}" height="${ROW_H - 6}" rx="2">
+        <title>${escAttr(d.label)}: ${d.value}</title>
+      </rect>
+      <text class="bar-value" x="${LABEL_W + w + 4}" y="${y + ROW_H / 2 + 3}">${d.value}</text>
+    `
+  }).join('')
+  return `<svg viewBox="0 0 ${W} ${H}" aria-label="Horizontal bar chart">${rows}</svg>`
+}
+
 function renderActivityItem(it) {
   if (it.kind === 'session') {
     const s = it.data
