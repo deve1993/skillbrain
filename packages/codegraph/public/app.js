@@ -358,7 +358,7 @@ function changeProjectView(view) {
   const s = window._projectsState
   if (!s) return
   s.view = view
-  localStorage.setItem('synapse.projects.view', view)
+  try { localStorage.setItem('synapse.projects.view', view) } catch {}
   renderProjects()
 }
 window.changeProjectView = changeProjectView
@@ -425,10 +425,11 @@ function toggleShowArchived(v) {
   applyProjectFiltersAndRender()
 }
 
-// Apply filters then re-render only toolbar + body (body is still placeholder in Task 2)
+// Apply filters then re-render only the filters slot + body (body is still placeholder in Task 2).
+// We deliberately avoid rebuilding the full toolbar so the search <input> keeps focus.
 function applyProjectFiltersAndRender() {
   window.applyProjectFilters()
-  if (typeof window._renderProjectsToolbar === 'function') window._renderProjectsToolbar()
+  if (typeof window._renderProjectsFiltersOnly === 'function') window._renderProjectsFiltersOnly()
   renderProjectsBodyPlaceholder()
 }
 

@@ -602,6 +602,16 @@ const ALLOWED_SORTS = new Set([
   'category-asc', 'category-desc',
 ])
 const ALLOWED_GROUPS = new Set(['none', 'client', 'status', 'category'])
+const ALLOWED_STATUSES = new Set(['active', 'paused', 'completed', 'archived'])
+
+function escAttr(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
 
 function getProjectsState() {
   if (!window._projectsState) {
@@ -629,8 +639,12 @@ function getProjectsState() {
       const raw = localStorage.getItem('synapse.projects.filters')
       if (raw) {
         const f = JSON.parse(raw)
-        const KEYS = ['status', 'category', 'client', 'stack', 'showArchived', 'search']
-        for (const k of KEYS) if (k in f) def.filters[k] = f[k]
+        if (Array.isArray(f.status))   def.filters.status   = f.status.filter(v => typeof v === 'string')
+        if (Array.isArray(f.category)) def.filters.category = f.category.filter(v => typeof v === 'string')
+        if (Array.isArray(f.client))   def.filters.client   = f.client.filter(v => typeof v === 'string')
+        if (Array.isArray(f.stack))    def.filters.stack    = f.stack.filter(v => typeof v === 'string')
+        if (typeof f.showArchived === 'boolean') def.filters.showArchived = f.showArchived
+        if (typeof f.search === 'string') def.filters.search = f.search
       }
     } catch {
       localStorage.removeItem('synapse.projects.filters')
@@ -650,19 +664,24 @@ function parseProjectsHashParams() {
   if (qIdx < 0) return {}
   const out = {}
   for (const part of hash.slice(qIdx + 1).split('&')) {
-    const [k, v] = part.split('=')
-    if (k && v !== undefined) out[decodeURIComponent(k)] = decodeURIComponent(v)
+    const eq = part.indexOf('=')
+    if (eq < 0) continue
+    const k = decodeURIComponent(part.slice(0, eq))
+    const v = part.slice(eq + 1)   // raw, decode per-consumer
+    if (k) out[k] = v
   }
   return out
 }
 
+function decodeList(v) { return v.split(',').map(decodeURIComponent).filter(Boolean) }
+
 function applyHashOverrides(state) {
   const p = parseProjectsHashParams()
   if (p.view && ALLOWED_VIEWS.has(p.view)) state.view = p.view
-  if (p.status) state.filters.status = p.status.split(',').filter(Boolean)
-  if (p.category) state.filters.category = p.category.split(',').filter(Boolean)
-  if (p.client) state.filters.client = p.client.split(',').filter(Boolean)
-  if (p.stack) state.filters.stack = p.stack.split(',').filter(Boolean)
+  if (p.status)   state.filters.status   = decodeList(p.status).filter(v => ALLOWED_STATUSES.has(v))
+  if (p.category) state.filters.category = decodeList(p.category)
+  if (p.client)   state.filters.client   = decodeList(p.client)
+  if (p.stack)    state.filters.stack    = decodeList(p.stack)
   if (p.sort && ALLOWED_SORTS.has(p.sort)) state.sort = p.sort
   if (p.group && ALLOWED_GROUPS.has(p.group)) state.group = p.group
   if (p.showArchived) state.filters.showArchived = p.showArchived === '1'
@@ -724,6 +743,7 @@ export async function renderProjects() {
 
   renderProjectsToolbar()
   window._renderProjectsToolbar = renderProjectsToolbar
+  window._renderProjectsFiltersOnly = renderProjectsFiltersOnly
 
   // Stats/pinned/body all rendered in subsequent tasks.
   // For now, show a placeholder body so we can verify the shell renders.
@@ -770,7 +790,7 @@ function renderFilterPill(key, label, options, selected) {
           ? `<div class="menu-header" style="color:var(--text-muted)">No options</div>`
           : options.map(o => `
               <label>
-                <input type="checkbox" value="${escHtml(o)}" ${selected.includes(o) ? 'checked' : ''}
+                <input type="checkbox" value="${escAttr(o)}" ${selected.includes(o) ? 'checked' : ''}
                   onchange="updateProjectFilter('${key}', this.value, this.checked)">
                 <span>${escHtml(o)}</span>
               </label>`).join('')}
@@ -783,26 +803,38 @@ function renderProjectsToolbar() {
   const s = getProjectsState()
   const el = document.getElementById('proj-toolbar')
   if (!el) return
+  el.className = 'proj-toolbar'
+  el.innerHTML = `
+    <input type="search" id="proj-search-input" placeholder="Search projects..." aria-label="Search projects"
+      value="${escAttr(s.filters.search)}" autocomplete="off">
+    <div id="proj-filters-slot" style="display:contents"></div>
+  `
+  // Wire search separately — listen on the input element, not the inline oninput
+  const inp = el.querySelector('#proj-search-input')
+  inp.addEventListener('input', debouncedSearch)
+  renderProjectsFiltersOnly()
+}
+
+function renderProjectsFiltersOnly() {
+  const s = getProjectsState()
+  const slot = document.getElementById('proj-filters-slot')
+  if (!slot) return
   const hasAny = s.filters.status.length || s.filters.category.length ||
                  s.filters.client.length || s.filters.stack.length ||
                  s.filters.search || s.filters.showArchived
-
-  el.className = 'proj-toolbar'
-  el.innerHTML = `
-    <input type="search" placeholder="Search projects..." value="${escHtml(s.filters.search)}"
-      oninput="updateProjectSearch(this.value)" autocomplete="off">
+  slot.innerHTML = `
     ${renderFilterPill('status', 'Status', statusOptions(), s.filters.status)}
     ${renderFilterPill('category', 'Category', categoryOptions(), s.filters.category)}
     ${renderFilterPill('client', 'Client', clientOptions(), s.filters.client)}
     ${renderFilterPill('stack', 'Stack', stackOptions(), s.filters.stack)}
-    <select onchange="changeProjectSort(this.value)" title="Sort by">
+    <select aria-label="Sort projects" onchange="changeProjectSort(this.value)" title="Sort by">
       <option value="lastActivity-desc" ${s.sort === 'lastActivity-desc' ? 'selected' : ''}>Last activity ↓</option>
       <option value="name-asc" ${s.sort === 'name-asc' ? 'selected' : ''}>Name A→Z</option>
       <option value="status-asc" ${s.sort === 'status-asc' ? 'selected' : ''}>Status</option>
       <option value="sessions-desc" ${s.sort === 'sessions-desc' ? 'selected' : ''}>Sessions ↓</option>
       <option value="created-desc" ${s.sort === 'created-desc' ? 'selected' : ''}>Created ↓</option>
     </select>
-    <select onchange="changeProjectGroup(this.value)" title="Group by">
+    <select aria-label="Group projects" onchange="changeProjectGroup(this.value)" title="Group by">
       <option value="none" ${s.group === 'none' ? 'selected' : ''}>No group</option>
       <option value="client" ${s.group === 'client' ? 'selected' : ''}>Group: Client</option>
       <option value="status" ${s.group === 'status' ? 'selected' : ''}>Group: Status</option>
@@ -814,6 +846,16 @@ function renderProjectsToolbar() {
     </label>
     ${hasAny ? `<button class="proj-toolbar-clear" onclick="clearAllProjectFilters()">✕ Clear filters</button>` : ''}
   `
+}
+
+// Debounced search dispatcher (200 ms) — closure over a single timeout
+let _searchDebounceTimer = null
+function debouncedSearch(e) {
+  const v = e.target.value
+  clearTimeout(_searchDebounceTimer)
+  _searchDebounceTimer = setTimeout(() => {
+    if (typeof window.updateProjectSearch === 'function') window.updateProjectSearch(v)
+  }, 200)
 }
 
 export function applyProjectFilters() {
@@ -876,16 +918,18 @@ export function applyProjectFilters() {
   syncProjectHash()
 }
 
+function encodeList(arr) { return arr.map(encodeURIComponent).join(',') }
+
 function syncProjectHash() {
   const s = window._projectsState
   if (!s) return
   // Build query string from non-default state
   const parts = []
   if (s.view !== 'grid') parts.push(`view=${s.view}`)
-  if (s.filters.status.length) parts.push(`status=${s.filters.status.join(',')}`)
-  if (s.filters.category.length) parts.push(`category=${encodeURIComponent(s.filters.category.join(','))}`)
-  if (s.filters.client.length) parts.push(`client=${encodeURIComponent(s.filters.client.join(','))}`)
-  if (s.filters.stack.length) parts.push(`stack=${encodeURIComponent(s.filters.stack.join(','))}`)
+  if (s.filters.status.length)   parts.push(`status=${encodeList(s.filters.status)}`)
+  if (s.filters.category.length) parts.push(`category=${encodeList(s.filters.category)}`)
+  if (s.filters.client.length)   parts.push(`client=${encodeList(s.filters.client)}`)
+  if (s.filters.stack.length)    parts.push(`stack=${encodeList(s.filters.stack)}`)
   if (s.sort !== 'lastActivity-desc') parts.push(`sort=${s.sort}`)
   if (s.group !== 'none') parts.push(`group=${s.group}`)
   if (s.filters.showArchived) parts.push('showArchived=1')
@@ -894,10 +938,12 @@ function syncProjectHash() {
   if (location.hash !== newHash && location.hash.startsWith('#/projects')) {
     history.replaceState(null, '', newHash)
   }
-  // Persist filters
-  localStorage.setItem('synapse.projects.filters', JSON.stringify(s.filters))
-  localStorage.setItem('synapse.projects.sort', s.sort)
-  localStorage.setItem('synapse.projects.group', s.group)
+  // Persist filters — guarded against Safari Private mode / quota errors
+  try {
+    localStorage.setItem('synapse.projects.filters', JSON.stringify(s.filters))
+    localStorage.setItem('synapse.projects.sort', s.sort)
+    localStorage.setItem('synapse.projects.group', s.group)
+  } catch {}
 }
 
 export async function checkForDuplicates(name) {
