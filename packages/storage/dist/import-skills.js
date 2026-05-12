@@ -10,13 +10,20 @@
 /**
  * Import skills, agents, and commands from filesystem into SQLite.
  *
- * Walks .opencode/skill/, .agents/skills/, .opencode/agents/, .opencode/command/
+ * Primary source: .claude/ — Legacy fallback: .opencode/
+ * Walks .claude/skill/, .agents/skills/, .claude/agents/, .claude/command/
  * and imports all SKILL.md, AGENT.md, and command .md files.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { openDb, closeDb } from './db.js';
 import { SkillsStore } from './skills-store.js';
+function pickDir(workspacePath, ...segments) {
+    const newPath = path.join(workspacePath, '.claude', ...segments);
+    if (fs.existsSync(newPath))
+        return newPath;
+    return path.join(workspacePath, '.opencode', ...segments);
+}
 // Category detection from skill name
 const CATEGORY_MAP = {
     nextjs: 'Frontend', tailwind: 'Frontend', shadcn: 'Frontend', fonts: 'Frontend',
@@ -93,8 +100,8 @@ export function importSkills(workspacePath) {
     const skills = [];
     let agentCount = 0;
     let commandCount = 0;
-    // Import domain skills from .opencode/skill/
-    const domainDir = path.join(workspacePath, '.opencode', 'skill');
+    // Import domain skills from .claude/skill/ with .opencode/ fallback
+    const domainDir = pickDir(workspacePath, 'skill');
     walkDir(domainDir, (filePath, name) => {
         if (name === 'INDEX')
             return; // skip INDEX.md
@@ -128,8 +135,8 @@ export function importSkills(workspacePath) {
             updatedAt: now,
         });
     });
-    // Import agents from .opencode/agents/ (subdirs with AGENT.md)
-    const agentsDir = path.join(workspacePath, '.opencode', 'agents');
+    // Import agents from .claude/agents/ with .opencode/ fallback
+    const agentsDir = pickDir(workspacePath, 'agents');
     walkDir(agentsDir, (filePath, name) => {
         const content = fs.readFileSync(filePath, 'utf-8');
         const fm = parseFrontmatter(content);
@@ -145,8 +152,8 @@ export function importSkills(workspacePath) {
         });
         agentCount++;
     });
-    // Also import .opencode/agent/*.md (flat agent files)
-    const agentFlatDir = path.join(workspacePath, '.opencode', 'agent');
+    // Also import .claude/agent/*.md (flat agent files) with .opencode/ fallback
+    const agentFlatDir = pickDir(workspacePath, 'agent');
     if (fs.existsSync(agentFlatDir)) {
         for (const entry of fs.readdirSync(agentFlatDir)) {
             if (!entry.endsWith('.md'))
@@ -170,8 +177,8 @@ export function importSkills(workspacePath) {
             }
         }
     }
-    // Import commands from .opencode/command/
-    const commandDir = path.join(workspacePath, '.opencode', 'command');
+    // Import commands from .claude/command/ with .opencode/ fallback
+    const commandDir = pickDir(workspacePath, 'command');
     if (fs.existsSync(commandDir)) {
         for (const entry of fs.readdirSync(commandDir)) {
             if (!entry.endsWith('.md'))
