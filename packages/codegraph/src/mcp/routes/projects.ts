@@ -21,9 +21,16 @@ export function createProjectsRouter(ctx: RouteContext): Router {
   const router = Router()
 
   // Session-based project views (from MemoryStore)
-  router.get('/api/projects', (_req, res) => {
+  router.get('/api/projects', (req, res) => {
     try {
       const db = openDb(ctx.skillbrainRoot)
+      if (req.query.summary === 'true') {
+        const store = new ProjectsStore(db)
+        const projects = store.listSummary()
+        closeDb(db)
+        res.json({ projects })
+        return
+      }
       const store = new MemoryStore(db)
       const projects = store.listProjects()
       closeDb(db)
