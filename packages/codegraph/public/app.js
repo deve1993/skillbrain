@@ -464,25 +464,21 @@ function toggleCardMenu(name, btn) {
   menu.className = 'proj-menu-pop'
   menu.setAttribute('role', 'menu')
   menu.innerHTML = `
-    <button type="button" role="menuitem" onclick="cardAction('archive','${escAttrJs(name)}')">📦 Archive</button>
-    <button type="button" role="menuitem" onclick="cardAction('duplicate','${escAttrJs(name)}')">📑 Duplicate</button>
-    <button type="button" role="menuitem" onclick="cardAction('export','${escAttrJs(name)}')">⬇ Export JSON</button>
+    <button type="button" role="menuitem" data-action="archive">📦 Archive</button>
+    <button type="button" role="menuitem" data-action="duplicate">📑 Duplicate</button>
+    <button type="button" role="menuitem" data-action="export">⬇ Export JSON</button>
     <div class="sep" role="separator"></div>
-    <button type="button" role="menuitem" class="danger" onclick="cardAction('delete','${escAttrJs(name)}')">✕ Delete</button>
+    <button type="button" role="menuitem" data-action="delete" class="danger">✕ Delete</button>
   `
+  // Attach handlers via closure — no string-interpolation of name into JS source
+  menu.querySelectorAll('button[data-action]').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation()
+      cardAction(b.dataset.action, name)
+    })
+  })
   wrap.appendChild(menu)
-  // Defer outside-click registration so the click that opened the menu doesn't immediately close it
   setTimeout(() => document.addEventListener('click', closeMenuOnClick, { once: true }), 0)
-}
-
-// Lightweight quote-safe attribute->JS escape (mirrors render.js' escAttr but defined here for app.js scope)
-function escAttrJs(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
 }
 
 function closeMenuOnClick(e) {
@@ -521,14 +517,26 @@ async function duplicateProject(name) {
   if (!newName || !newName.trim()) return
   const target = newName.trim()
   if (target === name) { alert('New name must differ from the original.'); return }
+
+  // Pre-check target existence — PUT is upsert and would silently overwrite
+  try {
+    const check = await fetch(`/api/projects-meta/${encodeURIComponent(target)}`)
+    if (check.ok) {
+      const body = await check.json().catch(() => null)
+      // Some endpoints return 200 with empty/error body — only block if we got a real project
+      if (body && (body.name || body.displayName || body.status)) {
+        if (!confirm(`A project named "${target}" already exists. Overwrite its metadata?`)) return
+      }
+    }
+  } catch { /* network glitch — proceed; the PUT will retry */ }
+
   try {
     const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`)
     if (!r.ok) throw new Error('Source project not found')
     const meta = await r.json()
-    // Strip identifying / time-bound fields
     const body = { ...meta }
     delete body.name; delete body.id; delete body.createdAt; delete body.updatedAt
-    body.status = 'active' // reset to active
+    body.status = 'active'
     if (body.displayName) body.displayName = body.displayName + ' (copy)'
     const r2 = await fetch(`/api/projects-meta/${encodeURIComponent(target)}`, {
       method: 'PUT',
