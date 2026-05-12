@@ -143,6 +143,29 @@ export function createProjectsRouter(ctx: RouteContext): Router {
     }
   })
 
+  // Bulk action on multiple projects (Phase 2)
+  router.post('/api/projects-meta/bulk', (req, res) => {
+    const ALLOWED_ACTIONS = new Set(['archive', 'setStatus', 'setClient', 'delete', 'pin', 'unpin'])
+    const { names, action, value } = req.body || {}
+    if (!Array.isArray(names) || names.length === 0) {
+      res.status(400).json({ error: 'names[] required and non-empty' })
+      return
+    }
+    if (!action || !ALLOWED_ACTIONS.has(action)) {
+      res.status(400).json({ error: `action must be one of: ${[...ALLOWED_ACTIONS].join(', ')}` })
+      return
+    }
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new ProjectsStore(db)
+      const result = store.bulkAction(action, names, value)
+      closeDb(db)
+      res.json(result)
+    } catch (err: any) {
+      res.status(400).json({ error: err.message })
+    }
+  })
+
   router.post('/api/projects-meta/merge', (req, res) => {
     const { primary, aliases } = req.body || {}
     if (!primary || !aliases?.length) {
