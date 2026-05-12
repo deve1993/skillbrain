@@ -425,14 +425,14 @@ function toggleShowArchived(v) {
   applyProjectFiltersAndRender()
 }
 
-// Apply filters then re-render only the filters slot + body (body is still placeholder in Task 2).
+// Apply filters then re-render only the filters slot + body.
 // We deliberately avoid rebuilding the full toolbar so the search <input> keeps focus.
 function applyProjectFiltersAndRender() {
   window.applyProjectFilters()
   if (typeof window._renderProjectsFiltersOnly === 'function') window._renderProjectsFiltersOnly()
   if (typeof window._renderProjectsStats === 'function') window._renderProjectsStats()
   if (typeof window._renderProjectsPinned === 'function') window._renderProjectsPinned()
-  renderProjectsBodyPlaceholder()
+  if (typeof window._renderProjectsBody === 'function') window._renderProjectsBody()
 }
 
 function toggleStatusFromStats(status) {
@@ -455,13 +455,17 @@ function toggleProjectPin(name) {
 }
 window.toggleProjectPin = toggleProjectPin
 
-function renderProjectsBodyPlaceholder() {
-  const s = window._projectsState
-  const el = document.getElementById('proj-body')
-  if (!el || !s) return
-  el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center">
-    ${s.filtered.length} of ${s.merged.length} shown — view "${s.view}"</p>`
+function toggleCardMenu(name, btn) {
+  alert(`Menu for ${name} — full menu coming in Task 6`)
 }
+function toggleProjectSelection(name, checked) {
+  const s = window._projectsState
+  if (!s) return
+  if (checked) s.selection.add(name); else s.selection.delete(name)
+  if (typeof window._renderProjectsBody === 'function') window._renderProjectsBody()
+}
+window.toggleCardMenu = toggleCardMenu
+window.toggleProjectSelection = toggleProjectSelection
 
 // Close filter menus on outside click
 document.addEventListener('click', (e) => {

@@ -613,6 +613,190 @@ function escAttr(s) {
     .replace(/>/g, '&gt;')
 }
 
+const CATEGORY_ICONS = {
+  landing: '🚀', ecommerce: '🛒', app: '📱', dashboard: '📊',
+  'corporate-site': '💼', blog: '📝', portfolio: '🎨', other: '📦',
+}
+const STATUS_COLORS_V2 = {
+  active: 'var(--green)', paused: 'var(--yellow)', completed: 'var(--blue)',
+  archived: 'var(--text-muted)', 'in-progress': 'var(--blue)', blocked: 'var(--red)',
+  unknown: 'var(--text-muted)',
+}
+
+function projectState(p) {
+  const last = p.lastSession
+  if (last?.blockers) return 'blocked'
+  if (!p._meta?.category) return 'setup'
+  if (last?.date) {
+    const days = (Date.now() - new Date(last.date).getTime()) / 86400000
+    if (days > 30) return 'stale'
+  } else if (p.totalSessions === 0) {
+    return 'stale'
+  }
+  return ''
+}
+
+// Projects v2 "time ago" variant — distinct from the module-scope `timeAgo`
+// (which returns '' for null). This one returns 'never' so the stats row reads
+// naturally ("0 sess · 0 mem · never").
+function timeAgoV2(iso) {
+  if (!iso) return 'never'
+  const d = new Date(iso)
+  if (isNaN(d)) return 'never'
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000)
+  if (sec < 60) return 'just now'
+  if (sec < 3600) return `${Math.floor(sec/60)}min ago`
+  if (sec < 86400) return `${Math.floor(sec/3600)}h ago`
+  if (sec < 604800) return `${Math.floor(sec/86400)}gg fa`
+  if (sec < 2592000) return `${Math.floor(sec/604800)}w fa`
+  return `${Math.floor(sec/2592000)}mo fa`
+}
+
+function renderCardGrid(p) {
+  const s = getProjectsState()
+  const m = p._meta || {}
+  const status = m.status || p.lastSession?.status || 'unknown'
+  const statusColor = STATUS_COLORS_V2[status] || 'var(--text-muted)'
+  const displayName = m.displayName || p.name
+  const stateClass = projectState(p)
+  const stateBadge = stateClass === 'stale' ? '<span class="proj-card-badge badge-stale">Stale</span>'
+    : stateClass === 'setup' ? '<span class="proj-card-badge badge-setup">Setup</span>' : ''
+  const catIcon = m.category ? CATEGORY_ICONS[m.category] || '📦' : ''
+  const stack = m.stack || []
+  const visibleStack = stack.slice(0, 3)
+  const moreStack = stack.length > 3 ? stack.length - 3 : 0
+  const isPinned = s.pinned.has(p.name)
+  const isSelected = s.selection.has(p.name)
+  const onCardClick = `if(event.target.closest('.proj-card-actions,.proj-card-pin,.proj-card-select,.proj-menu-pop'))return;openProjectDetail('${escAttr(p.name)}')`
+
+  return `<div class="proj-card-v2 ${stateClass ? 'state-'+stateClass : ''} ${isSelected ? 'selected' : ''}"
+    role="button" tabindex="0"
+    data-name="${escAttr(p.name)}" onclick="${onCardClick}"
+    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProjectDetail('${escAttr(p.name)}')}">
+    <input type="checkbox" class="proj-card-select" ${isSelected ? 'checked' : ''}
+      aria-label="Select ${escAttr(displayName)}"
+      onclick="event.stopPropagation();toggleProjectSelection('${escAttr(p.name)}',this.checked)">
+    <div class="proj-card-row1">
+      <button class="proj-card-pin ${isPinned ? 'pinned' : ''}" title="${isPinned ? 'Unpin' : 'Pin'}"
+        aria-label="${isPinned ? 'Unpin' : 'Pin'} ${escAttr(displayName)}"
+        onclick="event.stopPropagation();toggleProjectPin('${escAttr(p.name)}')">${isPinned ? '★' : '☆'}</button>
+      <span class="status-dot" style="background:${statusColor}" title="${escAttr(status)}"></span>
+      <span class="name" title="${escAttr(displayName)}">${escHtml(displayName)}</span>
+      ${stateBadge}
+      ${m.liveUrl ? `<a class="live" href="${escAttr(m.liveUrl)}" target="_blank" rel="noopener" title="Open live site" onclick="event.stopPropagation()">↗</a>` : ''}
+      <div class="proj-card-actions" style="position:relative">
+        <button class="menu-btn" title="More actions" aria-label="More actions for ${escAttr(displayName)}"
+          onclick="event.stopPropagation();toggleCardMenu('${escAttr(p.name)}',this)">⋯</button>
+      </div>
+    </div>
+    <div class="proj-card-meta">
+      ${catIcon ? `<span class="cat-icon" aria-hidden="true">${catIcon}</span>` : ''}
+      ${m.category ? `<span>${escHtml(m.category)}</span>` : ''}
+      ${m.category && m.clientName ? '<span class="sep">·</span>' : ''}
+      ${m.clientName ? `<span>${escHtml(m.clientName)}</span>` : ''}
+    </div>
+    <div class="proj-card-stats">
+      ${p.totalSessions || 0} sess · ${p.totalMemories || 0} mem · ${escHtml(timeAgoV2(p.lastSession?.date))}
+    </div>
+    ${p.lastSession?.blockers ? `<div class="proj-card-blocker">⚠ ${escHtml(p.lastSession.blockers)}</div>` : ''}
+    ${p.lastSession?.nextSteps && !p.lastSession?.blockers ? `<div class="proj-card-next">▌ ${escHtml(p.lastSession.nextSteps)}</div>` : ''}
+    ${visibleStack.length ? `<div class="proj-card-chips">
+      ${visibleStack.map(t => `<span class="proj-card-chip">${escHtml(t)}</span>`).join('')}
+      ${moreStack ? `<span class="proj-card-chip more">+${moreStack}</span>` : ''}
+    </div>` : ''}
+  </div>`
+}
+
+function renderGridView() {
+  const s = getProjectsState()
+  const el = document.getElementById('proj-body')
+  if (!el) return
+  if (s.filtered.length === 0) { renderEmptyState(el); return }
+  // Exclude pinned from main grid (already shown above)
+  const main = s.filtered.filter(p => !s.pinned.has(p.name))
+  if (main.length === 0) { el.innerHTML = ''; return }
+  if (s.group === 'none') {
+    el.innerHTML = `<div class="proj-grid">${main.map(renderCardGrid).join('')}</div>`
+  } else {
+    el.innerHTML = renderGroupedView(main, renderCardGrid, 'proj-grid')
+  }
+}
+
+function renderGroupedView(items, renderItem, wrapperClass) {
+  const s = getProjectsState()
+  const groups = {}
+  for (const p of items) {
+    let key
+    if (s.group === 'client') key = p._meta?.clientName || '(No client)'
+    else if (s.group === 'status') key = p._meta?.status || p.lastSession?.status || '(unknown)'
+    else if (s.group === 'category') key = p._meta?.category || '(No category)'
+    else key = ''
+    if (!groups[key]) groups[key] = []
+    groups[key].push(p)
+  }
+  const keys = Object.keys(groups).sort()
+  return keys.map(k => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding:0 4px">
+        ${escHtml(k)} <span style="color:var(--text-muted)">(${groups[k].length})</span>
+      </div>
+      <div class="${wrapperClass}">${groups[k].map(renderItem).join('')}</div>
+    </div>
+  `).join('')
+}
+
+function renderEmptyState(el) {
+  el.innerHTML = `
+    <div style="text-align:center;padding:60px 20px;background:var(--card);border:1px dashed var(--border);border-radius:10px">
+      <div style="font-size:32px;margin-bottom:12px" aria-hidden="true">📂</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px">No projects match</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Try clearing filters or create a new project.</div>
+      <button class="proj-new-btn" onclick="openNewProjectModal()">+ New Project</button>
+    </div>
+  `
+}
+
+function renderProjectsEmptyZero(el) {
+  el.innerHTML = `
+    <div style="text-align:center;padding:80px 20px;background:var(--card);border:1px dashed var(--border);border-radius:10px">
+      <div style="font-size:40px;margin-bottom:14px" aria-hidden="true">🌱</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:6px">No projects yet</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:24px">Get started in seconds.</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="proj-new-btn" onclick="openNewProjectModal()">+ New Project</button>
+        <button disabled title="Coming in Phase 2" style="padding:7px 14px;border-radius:6px;background:none;border:1px solid var(--border);color:var(--text-muted);font-size:12px;cursor:not-allowed">📂 Import from folder</button>
+        <button disabled title="Coming in Phase 2" style="padding:7px 14px;border-radius:6px;background:none;border:1px solid var(--border);color:var(--text-muted);font-size:12px;cursor:not-allowed">📋 Browse templates</button>
+      </div>
+    </div>
+  `
+}
+
+// Body dispatcher
+function renderProjectsBody() {
+  const s = getProjectsState()
+  const el = document.getElementById('proj-body')
+  if (!el) return
+  if (s.merged.length === 0) { renderProjectsEmptyZero(el); return }
+  if (s.view === 'list') return renderListView()
+  if (s.view === 'kanban') return renderKanbanView()
+  if (s.view === 'table') return renderTableView()
+  renderGridView() // default + grid
+}
+
+// Placeholders for Tasks 7/8/9 — keep them simple stubs.
+function renderListView() {
+  const el = document.getElementById('proj-body')
+  if (el) el.innerHTML = `<p style="padding:20px;color:var(--text-muted)">List view — Task 7</p>`
+}
+function renderKanbanView() {
+  const el = document.getElementById('proj-body')
+  if (el) el.innerHTML = `<p style="padding:20px;color:var(--text-muted)">Kanban view — Task 8</p>`
+}
+function renderTableView() {
+  const el = document.getElementById('proj-body')
+  if (el) el.innerHTML = `<p style="padding:20px;color:var(--text-muted)">Table view — Task 9</p>`
+}
+
 function getProjectsState() {
   if (!window._projectsState) {
     const def = {
@@ -748,14 +932,8 @@ export async function renderProjects() {
   window._renderProjectsStats = renderProjectsStats
   renderProjectsPinned()
   window._renderProjectsPinned = renderProjectsPinned
-
-  // Stats/pinned/body all rendered in subsequent tasks.
-  // For now, show a placeholder body so we can verify the shell renders.
-  document.getElementById('proj-body').innerHTML = `
-    <p style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center">
-      ${merged.length === 0 ? 'No projects yet.' : `${state.filtered.length} of ${merged.length} shown — view "${state.view}"`}
-    </p>
-  `
+  renderProjectsBody()
+  window._renderProjectsBody = renderProjectsBody
   // Expose merged for legacy callers
   window._projectsList = merged
 }
@@ -889,22 +1067,9 @@ function renderProjectsPinned() {
   el.innerHTML = `
     <div class="proj-pinned-section">
       <div class="proj-pinned-section-title"><span class="star" aria-hidden="true">★</span> Pinned (${pinnedList.length})</div>
-      <div id="proj-pinned-cards"></div>
+      <div class="proj-grid">${pinnedList.map(renderCardGrid).join('')}</div>
     </div>
   `
-  // Placeholder rendering until Task 5 introduces the real card v2 renderer.
-  // For Task 4, just list pinned projects compactly so the section is visibly populated.
-  const cards = document.getElementById('proj-pinned-cards')
-  if (cards) {
-    cards.innerHTML = pinnedList.map(p => {
-      const name = p._meta?.displayName || p.name
-      return `<div style="padding:4px 0;font-size:13px;color:var(--text)">
-        <button class="proj-card-pin pinned" aria-label="Unpin ${escAttr(name)}" title="Unpin"
-          onclick="toggleProjectPin('${escAttr(p.name)}')">★</button>
-        ${escHtml(name)}
-      </div>`
-    }).join('')
-  }
 }
 
 // Debounced search dispatcher (200 ms) — closure over a single timeout
