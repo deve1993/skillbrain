@@ -1491,6 +1491,7 @@ export async function renderProjectDetail(name, openDetailFn) {
         <button class="proj-tab active" data-tab="overview" onclick="switchProjectTab('overview','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--accent);border-bottom:2px solid var(--accent);font-size:13px;cursor:pointer">Overview</button>
         <button class="proj-tab" data-tab="env" onclick="switchProjectTab('env','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Env Vars</button>
         <button class="proj-tab" data-tab="activity" onclick="switchProjectTab('activity','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Activity</button>
+        <button class="proj-tab" data-tab="insights" onclick="switchProjectTab('insights','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Insights</button>
       </div>
       <div style="display:flex;gap:6px;margin-left:8px;flex-wrap:wrap">
         <button onclick="openProjectBoard('${escAttr(name)}')" title="Open or create the project's home whiteboard (auto-populated with Memorie + Sessioni + Skills)" style="padding:6px 12px;border-radius:6px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;font-size:12px;font-weight:600;cursor:pointer">🗂 Project board</button>
@@ -1679,6 +1680,13 @@ export function renderProjectTab(tab, name, data) {
     }
     container.innerHTML = html
   }
+
+  if (tab === 'insights') {
+    container.innerHTML = `<p style="color:var(--text-muted);font-size:13px">Loading insights…</p>`
+    loadProjectInsights(name).catch(err => {
+      if (container) container.innerHTML = `<p style="color:var(--red);font-size:13px">Failed to load insights: ${escHtml(err.message || String(err))}</p>`
+    })
+  }
 }
 
 // ── Insights SVG chart helpers (Phase 2) ──
@@ -1786,6 +1794,56 @@ function renderActivityItem(it) {
       <div class="proj-activity-meta">${confBar(m.confidence)} · ${escHtml((m.createdAt || m.created_at || '').slice(0,10))}</div>
     </div>
   </div>`
+}
+
+async function loadProjectInsights(name) {
+  const r = await api.get(`/api/projects/${encodeURIComponent(name)}/insights`)
+  const container = document.getElementById('proj-tab-content')
+  if (!container) return
+
+  const stats = `
+    <div class="proj-insights-summary">
+      <div class="proj-insights-stat">
+        <div class="label">Sessions</div>
+        <div class="value">${r.totalSessions}</div>
+      </div>
+      <div class="proj-insights-stat">
+        <div class="label">Memories</div>
+        <div class="value">${r.totalMemories}</div>
+      </div>
+      <div class="proj-insights-stat">
+        <div class="label">Avg confidence</div>
+        <div class="value">${r.avgConfidence == null ? '—' : (r.avgConfidence * 100).toFixed(0) + '%'}</div>
+      </div>
+      <div class="proj-insights-stat">
+        <div class="label">Last activity</div>
+        <div class="value">${r.daysSinceLastActivity == null ? 'never' : r.daysSinceLastActivity + 'gg fa'}</div>
+      </div>
+    </div>
+  `
+
+  const sessionsChart = svgBarChart(r.sessionsPerWeek || [])
+
+  const memData = Object.entries(r.memoriesByType || {}).map(([label, value]) => ({ label, value }))
+  const memChart = svgDonutChart(memData)
+
+  const skillsChart = svgHBarChart(r.topSkills || [])
+
+  container.innerHTML = `
+    ${stats}
+    <div class="proj-chart">
+      <div class="proj-chart-title">Sessions per week (last 12)</div>
+      ${sessionsChart}
+    </div>
+    <div class="proj-chart">
+      <div class="proj-chart-title">Memories by type</div>
+      ${memChart}
+    </div>
+    <div class="proj-chart">
+      <div class="proj-chart-title">Top skills (max 10)</div>
+      ${skillsChart}
+    </div>
+  `
 }
 
 // ── Env Vars ──
