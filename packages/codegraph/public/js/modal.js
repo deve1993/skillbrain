@@ -71,49 +71,51 @@ export async function openEditProjectModal(name) {
         <button type="button" role="tab" aria-selected="false" class="edit-modal-tab" data-tab="notes" onclick="switchEditTab('notes')">Notes</button>
       </div>
 
-      <form id="edit-form" onsubmit="return saveProject(event,'${escHtml(name)}')" style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
+      <form id="edit-form" onsubmit="return saveProject(event,'${escHtml(name)}')" style="flex:1;min-height:0;display:flex;flex-direction:column">
 
-        <div class="edit-tab-content active" data-content="identity">
-          ${editField('displayName', 'Display Name', meta.displayName, 'es. Terrae e Mare')}
-          ${editField('clientName', 'Cliente', meta.clientName, 'es. Trattoria Mario')}
-          ${editField('description', 'Descrizione', meta.description, 'Breve descrizione progetto', 'textarea')}
-          ${editSelect('category', 'Categoria', meta.category, ['landing','ecommerce','app','dashboard','corporate-site','blog','portfolio','other'])}
-          ${editSelect('status', 'Status', meta.status, ['active','paused','archived','completed'])}
-          ${renderStackTagInput(meta.stack || [])}
-        </div>
+        <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;padding-right:4px">
+          <div class="edit-tab-content active" data-content="identity">
+            ${editField('displayName', 'Display Name', meta.displayName, 'es. Terrae e Mare')}
+            ${editField('clientName', 'Cliente', meta.clientName, 'es. Trattoria Mario')}
+            ${editField('description', 'Descrizione', meta.description, 'Breve descrizione progetto', 'textarea')}
+            ${editSelect('category', 'Categoria', meta.category, ['landing','ecommerce','app','dashboard','corporate-site','blog','portfolio','other'])}
+            ${editSelect('status', 'Status', meta.status, ['active','paused','archived','completed'])}
+            ${renderStackTagInput(meta.stack || [])}
+          </div>
 
-        <div class="edit-tab-content" data-content="team">
-          ${editField('teamLead', 'Team Lead', meta.teamLead, 'es. Daniel')}
-          <div>
-            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Team Members</label>
-            <div id="team-members-list" style="display:flex;flex-direction:column;gap:6px">
-              ${members.map((m, i) => memberRow(m, i)).join('')}
+          <div class="edit-tab-content" data-content="team">
+            ${editField('teamLead', 'Team Lead', meta.teamLead, 'es. Daniel')}
+            <div>
+              <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Team Members</label>
+              <div id="team-members-list" style="display:flex;flex-direction:column;gap:6px">
+                ${members.map((m, i) => memberRow(m, i)).join('')}
+              </div>
+              <button type="button" onclick="addMemberRow()" style="margin-top:6px;padding:4px 10px;background:rgba(99,102,241,.1);border:1px solid var(--accent2);color:var(--accent);font-size:11px;border-radius:4px;cursor:pointer">+ Add member</button>
             </div>
-            <button type="button" onclick="addMemberRow()" style="margin-top:6px;padding:4px 10px;background:rgba(99,102,241,.1);border:1px solid var(--accent2);color:var(--accent);font-size:11px;border-radius:4px;cursor:pointer">+ Add member</button>
+          </div>
+
+          <div class="edit-tab-content" data-content="links">
+            ${editField('liveUrl', 'Live URL', meta.liveUrl, 'https://...')}
+            ${editField('repoUrl', 'Repository', meta.repoUrl, 'https://github.com/...')}
+            ${editField('mainBranch', 'Main branch', meta.mainBranch, 'main')}
+            ${editField('domainPrimary', 'Domain primario', meta.domainPrimary, 'example.it')}
+          </div>
+
+          <div class="edit-tab-content" data-content="infra">
+            ${editField('dbType', 'Database Type', meta.dbType, 'MongoDB / Postgres / Supabase')}
+            ${editField('dbReference', 'Database Reference', meta.dbReference, 'es. Atlas cluster pixarts-prod')}
+            ${editField('dbAdminUrl', 'Database Admin URL', meta.dbAdminUrl, 'https://...')}
+            ${editField('cmsType', 'CMS', meta.cmsType, 'Payload / Sanity / Strapi')}
+            ${editField('cmsAdminUrl', 'CMS Admin URL', meta.cmsAdminUrl, 'https://site.it/admin')}
+            ${editField('deployPlatform', 'Deploy Platform', meta.deployPlatform, 'Coolify / Vercel / Netlify')}
+          </div>
+
+          <div class="edit-tab-content" data-content="notes">
+            ${editField('notes', 'Notes', meta.notes, 'Note interne', 'textarea')}
           </div>
         </div>
 
-        <div class="edit-tab-content" data-content="links">
-          ${editField('liveUrl', 'Live URL', meta.liveUrl, 'https://...')}
-          ${editField('repoUrl', 'Repository', meta.repoUrl, 'https://github.com/...')}
-          ${editField('mainBranch', 'Main branch', meta.mainBranch, 'main')}
-          ${editField('domainPrimary', 'Domain primario', meta.domainPrimary, 'example.it')}
-        </div>
-
-        <div class="edit-tab-content" data-content="infra">
-          ${editField('dbType', 'Database Type', meta.dbType, 'MongoDB / Postgres / Supabase')}
-          ${editField('dbReference', 'Database Reference', meta.dbReference, 'es. Atlas cluster pixarts-prod')}
-          ${editField('dbAdminUrl', 'Database Admin URL', meta.dbAdminUrl, 'https://...')}
-          ${editField('cmsType', 'CMS', meta.cmsType, 'Payload / Sanity / Strapi')}
-          ${editField('cmsAdminUrl', 'CMS Admin URL', meta.cmsAdminUrl, 'https://site.it/admin')}
-          ${editField('deployPlatform', 'Deploy Platform', meta.deployPlatform, 'Coolify / Vercel / Netlify')}
-        </div>
-
-        <div class="edit-tab-content" data-content="notes">
-          ${editField('notes', 'Notes', meta.notes, 'Note interne', 'textarea')}
-        </div>
-
-        <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:14px;margin-top:14px;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:14px;margin-top:0;border-top:1px solid var(--border);flex-shrink:0">
           <button type="button" onclick="closeEditModal()" style="padding:8px 16px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;cursor:pointer">Cancel</button>
           <button type="submit" style="padding:8px 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;border-radius:6px;font-weight:600;cursor:pointer">Save</button>
         </div>
