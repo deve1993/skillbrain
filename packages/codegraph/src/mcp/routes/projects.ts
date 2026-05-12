@@ -117,6 +117,32 @@ export function createProjectsRouter(ctx: RouteContext): Router {
     }
   })
 
+  // Quick status change with enum validation (Phase 2)
+  router.patch('/api/projects-meta/:name/status', (req, res) => {
+    const ALLOWED = new Set(['active', 'paused', 'completed', 'archived'])
+    const { status } = req.body || {}
+    if (!status || !ALLOWED.has(status)) {
+      res.status(400).json({ error: 'status must be one of: active, paused, completed, archived' })
+      return
+    }
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new ProjectsStore(db)
+      // Existence check — upsert would silently create a new row
+      if (!store.get(req.params.name)) {
+        closeDb(db)
+        res.status(404).json({ error: `Project not found: ${req.params.name}` })
+        return
+      }
+      store.upsert({ name: req.params.name, status })
+      const project = store.getSanitized(req.params.name)
+      closeDb(db)
+      res.json({ status, project })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   router.post('/api/projects-meta/merge', (req, res) => {
     const { primary, aliases } = req.body || {}
     if (!primary || !aliases?.length) {
