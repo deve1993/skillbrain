@@ -411,6 +411,19 @@ function changeProjectSort(v) {
   applyProjectFiltersAndRender()
 }
 
+function sortTableByCol(field) {
+  const s = window._projectsState
+  if (!s) return
+  const [curField, curDir] = s.sort.split('-')
+  // Toggle direction if same field; else default: text fields asc, numeric/date fields desc.
+  let dir
+  if (curField === field) dir = curDir === 'desc' ? 'asc' : 'desc'
+  else dir = (field === 'name' || field === 'client' || field === 'category' || field === 'status') ? 'asc' : 'desc'
+  s.sort = `${field}-${dir}`
+  applyProjectFiltersAndRender()
+}
+window.sortTableByCol = sortTableByCol
+
 function changeProjectGroup(v) {
   const s = window._projectsState
   if (!s) return

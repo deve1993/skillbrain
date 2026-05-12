@@ -894,9 +894,86 @@ function renderKanbanCard(p) {
     </div>
   </div>`
 }
+const TABLE_COLS = [
+  { key: '_check',       label: '',              sortable: false, width: '30px' },
+  { key: 'name',         label: 'Name',          sortable: true },
+  { key: 'client',       label: 'Client',        sortable: true },
+  { key: 'category',     label: 'Category',      sortable: true },
+  { key: 'status',       label: 'Status',        sortable: true },
+  { key: 'sessions',     label: 'Sessions',      sortable: true },
+  { key: 'memories',     label: 'Memories',      sortable: true },
+  { key: 'lastActivity', label: 'Last activity', sortable: true },
+  { key: 'stack',        label: 'Stack',         sortable: false },
+  { key: 'domain',       label: 'Domain',        sortable: false },
+  { key: '_actions',     label: '',              sortable: false },
+]
+
 function renderTableView() {
+  const s = getProjectsState()
   const el = document.getElementById('proj-body')
-  if (el) el.innerHTML = `<p style="padding:20px;color:var(--text-muted)">Table view — Task 9</p>`
+  if (!el) return
+  if (s.filtered.length === 0) { renderEmptyState(el); return }
+  const main = s.filtered.filter(p => !s.pinned.has(p.name))
+  if (main.length === 0) { el.innerHTML = ''; return }
+  const [sortField, sortDir] = s.sort.split('-')
+  el.innerHTML = `
+    <div class="proj-table-wrap">
+      <table class="proj-table">
+        <thead><tr>
+          ${TABLE_COLS.map(c => {
+            const isSorted = c.sortable && c.key === sortField
+            const arrow = isSorted ? (sortDir === 'desc' ? '↓' : '↑') : ''
+            const attrs = [
+              c.width ? `style="width:${c.width}"` : '',
+              c.sortable ? `class="${isSorted ? 'sorted' : ''}" onclick="sortTableByCol('${c.key}')" role="button" tabindex="0"
+                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();sortTableByCol('${c.key}')}" aria-sort="${isSorted ? (sortDir === 'desc' ? 'descending' : 'ascending') : 'none'}"` : '',
+            ].filter(Boolean).join(' ')
+            return `<th ${attrs}>${escHtml(c.label)}${arrow ? `<span class="arrow" aria-hidden="true">${arrow}</span>` : ''}</th>`
+          }).join('')}
+        </tr></thead>
+        <tbody>
+          ${main.map(renderTableRow).join('')}
+        </tbody>
+      </table>
+    </div>
+  `
+}
+
+function renderTableRow(p) {
+  const s = getProjectsState()
+  const m = p._meta || {}
+  const status = m.status || p.lastSession?.status || 'unknown'
+  const statusColor = STATUS_COLORS_V2[status] || 'var(--text-muted)'
+  const isSelected = s.selection.has(p.name)
+  const isPinned = s.pinned.has(p.name)
+  const stack = (m.stack || []).slice(0, 3).map(t => `<span class="proj-card-chip">${escHtml(t)}</span>`).join('')
+  const liveUrl = safeUrl(m.liveUrl)
+  const onClick = `if(event.target.closest('input,button,a'))return;openProjectDetail('${escAttr(p.name)}')`
+  return `<tr class="${isSelected ? 'selected' : ''}" data-name="${escAttr(p.name)}" onclick="${onClick}">
+    <td><input type="checkbox" ${isSelected ? 'checked' : ''}
+      aria-label="Select ${escAttr(m.displayName || p.name)}"
+      onclick="event.stopPropagation();toggleProjectSelection('${escAttr(p.name)}',this.checked)"></td>
+    <td class="name">
+      <button class="proj-card-pin ${isPinned ? 'pinned' : ''}" style="margin-right:4px"
+        aria-label="${isPinned ? 'Unpin' : 'Pin'} ${escAttr(m.displayName || p.name)}"
+        onclick="event.stopPropagation();toggleProjectPin('${escAttr(p.name)}')">${isPinned ? '★' : '☆'}</button>
+      ${escHtml(m.displayName || p.name)}
+    </td>
+    <td>${escHtml(m.clientName || '')}</td>
+    <td>${m.category ? `${CATEGORY_ICONS[m.category] || ''} ${escHtml(m.category)}` : ''}</td>
+    <td><span class="dot" style="background:${statusColor}" aria-hidden="true"></span>${escHtml(status)}</td>
+    <td>${p.totalSessions || 0}</td>
+    <td>${p.totalMemories || 0}</td>
+    <td>${escHtml(timeAgoV2(p.lastSession?.date))}</td>
+    <td><span style="display:flex;gap:3px">${stack}</span></td>
+    <td>${escHtml(m.domainPrimary || '')}</td>
+    <td style="text-align:right;white-space:nowrap;position:relative">
+      ${liveUrl ? `<a href="${escAttr(liveUrl)}" target="_blank" rel="noopener" style="color:var(--text-muted);text-decoration:none;margin-right:4px" onclick="event.stopPropagation()" aria-label="Open live site">↗</a>` : ''}
+      <button class="menu-btn" aria-label="More actions for ${escAttr(m.displayName || p.name)}"
+        style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px 4px"
+        onclick="event.stopPropagation();toggleCardMenu('${escAttr(p.name)}',this)">⋯</button>
+    </td>
+  </tr>`
 }
 
 function getProjectsState() {
@@ -1236,6 +1313,9 @@ export function applyProjectFilters() {
     }
     else if (field === 'sessions') { av = a.totalSessions || 0; bv = b.totalSessions || 0 }
     else if (field === 'created') { av = a._meta?.createdAt || ''; bv = b._meta?.createdAt || '' }
+    else if (field === 'client')   { av = (a._meta?.clientName || '').toLowerCase(); bv = (b._meta?.clientName || '').toLowerCase() }
+    else if (field === 'category') { av = a._meta?.category || ''; bv = b._meta?.category || '' }
+    else if (field === 'memories') { av = a.totalMemories || 0; bv = b.totalMemories || 0 }
     else /* lastActivity */ { av = a.lastSession?.date || ''; bv = b.lastSession?.date || '' }
     return av < bv ? -1*mul : av > bv ? 1*mul : 0
   })

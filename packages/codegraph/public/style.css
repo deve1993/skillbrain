@@ -1591,3 +1591,38 @@ dialog details pre {
   background: none; border: none; color: var(--text-muted);
   font-size: 11px; cursor: pointer;
 }
+
+.proj-table-wrap { overflow-x: auto; }
+.proj-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.proj-table th {
+  text-align: left;
+  background: var(--card);
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: .5px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.proj-table th:hover { color: var(--text); }
+.proj-table th.sorted { color: var(--accent); }
+.proj-table th .arrow { opacity: .5; margin-left: 4px; }
+.proj-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  vertical-align: middle;
+}
+.proj-table tr:hover td { background: rgba(255,255,255,.02); }
+.proj-table tr.selected td { background: rgba(167,139,250,.05); }
+.proj-table td.name { color: var(--text); font-weight: 500; }
+.proj-table td .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.proj-table input[type="checkbox"] { accent-color: var(--accent); }
