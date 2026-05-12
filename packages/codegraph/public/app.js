@@ -364,6 +364,98 @@ function changeProjectView(view) {
 window.changeProjectView = changeProjectView
 window.applyProjectFilters = applyProjectFilters
 
+function toggleProjectFilter(key) {
+  // Close all other menus first
+  document.querySelectorAll('.proj-filter-pill.open').forEach(p => {
+    if (p.dataset.filter !== key) p.classList.remove('open')
+  })
+  const el = document.querySelector(`.proj-filter-pill[data-filter="${key}"]`)
+  if (el) el.classList.toggle('open')
+}
+
+function updateProjectFilter(key, value, checked) {
+  const s = window._projectsState
+  if (!s) return
+  const arr = s.filters[key]
+  if (checked) { if (!arr.includes(value)) arr.push(value) }
+  else { s.filters[key] = arr.filter(v => v !== value) }
+  applyProjectFiltersAndRender()
+}
+
+function clearProjectFilter(key) {
+  const s = window._projectsState
+  if (!s) return
+  s.filters[key] = []
+  applyProjectFiltersAndRender()
+  document.querySelector(`.proj-filter-pill[data-filter="${key}"]`)?.classList.remove('open')
+}
+
+function clearAllProjectFilters() {
+  const s = window._projectsState
+  if (!s) return
+  s.filters = { status: [], category: [], client: [], stack: [], showArchived: false, search: '' }
+  applyProjectFiltersAndRender()
+}
+
+function updateProjectSearch(q) {
+  const s = window._projectsState
+  if (!s) return
+  s.filters.search = q
+  applyProjectFiltersAndRender()
+}
+
+function changeProjectSort(v) {
+  const s = window._projectsState
+  if (!s) return
+  s.sort = v
+  applyProjectFiltersAndRender()
+}
+
+function changeProjectGroup(v) {
+  const s = window._projectsState
+  if (!s) return
+  s.group = v
+  applyProjectFiltersAndRender()
+}
+
+function toggleShowArchived(v) {
+  const s = window._projectsState
+  if (!s) return
+  s.filters.showArchived = v
+  applyProjectFiltersAndRender()
+}
+
+// Apply filters then re-render only toolbar + body (body is still placeholder in Task 2)
+function applyProjectFiltersAndRender() {
+  window.applyProjectFilters()
+  if (typeof window._renderProjectsToolbar === 'function') window._renderProjectsToolbar()
+  renderProjectsBodyPlaceholder()
+}
+
+function renderProjectsBodyPlaceholder() {
+  const s = window._projectsState
+  const el = document.getElementById('proj-body')
+  if (!el || !s) return
+  el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center">
+    ${s.filtered.length} of ${s.merged.length} shown — view "${s.view}"</p>`
+}
+
+// Close filter menus on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.proj-filter-pill')) {
+    document.querySelectorAll('.proj-filter-pill.open').forEach(p => p.classList.remove('open'))
+  }
+})
+
+window.toggleProjectFilter = toggleProjectFilter
+window.updateProjectFilter = updateProjectFilter
+window.clearProjectFilter = clearProjectFilter
+window.clearAllProjectFilters = clearAllProjectFilters
+window.updateProjectSearch = updateProjectSearch
+window.changeProjectSort = changeProjectSort
+window.changeProjectGroup = changeProjectGroup
+window.toggleShowArchived = toggleShowArchived
+
 async function deleteProject(name) {
   if (!confirm(`Delete project "${name}"?\n\nThis removes the metadata record. Sessions and memories are kept but the project won't appear in the list until a new session is started.\n\nContinue?`)) return
   const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`, { method: 'DELETE' })

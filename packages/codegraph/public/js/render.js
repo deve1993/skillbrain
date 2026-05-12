@@ -722,11 +722,14 @@ export async function renderProjects() {
     </div>
   `
 
-  // Toolbar/stats/pinned/body all rendered in subsequent tasks.
+  renderProjectsToolbar()
+  window._renderProjectsToolbar = renderProjectsToolbar
+
+  // Stats/pinned/body all rendered in subsequent tasks.
   // For now, show a placeholder body so we can verify the shell renders.
   document.getElementById('proj-body').innerHTML = `
     <p style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center">
-      ${merged.length === 0 ? 'No projects yet.' : `${merged.length} projects loaded — view "${state.view}" coming in next tasks`}
+      ${merged.length === 0 ? 'No projects yet.' : `${state.filtered.length} of ${merged.length} shown — view "${state.view}"`}
     </p>
   `
   // Expose merged for legacy callers
@@ -738,10 +741,163 @@ function renderViewPill(view, icon, label, current) {
   return `<button class="proj-view-pill ${active ? 'active' : ''}" role="tab" aria-selected="${active}" onclick="changeProjectView('${escHtml(view)}')">${icon} <span>${label}</span></button>`
 }
 
-// Compute filtered list from state.merged. Placeholder for now — full impl in Task 2.
+function uniqueFromMerged(field) {
+  const s = window._projectsState
+  if (!s) return []
+  const set = new Set()
+  for (const p of s.merged) {
+    const v = field === 'stack'
+      ? (p._meta?.stack || [])
+      : [p._meta?.[field] || p[field]]
+    for (const x of v) if (x) set.add(x)
+  }
+  return [...set].sort((a, b) => a.localeCompare(b))
+}
+
+function statusOptions() { return ['active', 'paused', 'completed', 'archived'] }
+function categoryOptions() { return uniqueFromMerged('category') }
+function clientOptions() { return uniqueFromMerged('clientName') }
+function stackOptions() { return uniqueFromMerged('stack') }
+
+function renderFilterPill(key, label, options, selected) {
+  const n = selected.length
+  return `
+    <div class="proj-filter-pill ${n > 0 ? 'has-value' : ''}" data-filter="${key}">
+      <span onclick="toggleProjectFilter('${key}')">${label}${n > 0 ? `<span class="badge-n">${n}</span>` : ''} <span class="chev">▾</span></span>
+      <div class="proj-filter-menu" onclick="event.stopPropagation()">
+        <div class="menu-header">${label}</div>
+        ${options.length === 0
+          ? `<div class="menu-header" style="color:var(--text-muted)">No options</div>`
+          : options.map(o => `
+              <label>
+                <input type="checkbox" value="${escHtml(o)}" ${selected.includes(o) ? 'checked' : ''}
+                  onchange="updateProjectFilter('${key}', this.value, this.checked)">
+                <span>${escHtml(o)}</span>
+              </label>`).join('')}
+        ${n > 0 ? `<div class="menu-footer"><button onclick="clearProjectFilter('${key}')">Clear ${label}</button></div>` : ''}
+      </div>
+    </div>`
+}
+
+function renderProjectsToolbar() {
+  const s = getProjectsState()
+  const el = document.getElementById('proj-toolbar')
+  if (!el) return
+  const hasAny = s.filters.status.length || s.filters.category.length ||
+                 s.filters.client.length || s.filters.stack.length ||
+                 s.filters.search || s.filters.showArchived
+
+  el.className = 'proj-toolbar'
+  el.innerHTML = `
+    <input type="search" placeholder="Search projects..." value="${escHtml(s.filters.search)}"
+      oninput="updateProjectSearch(this.value)" autocomplete="off">
+    ${renderFilterPill('status', 'Status', statusOptions(), s.filters.status)}
+    ${renderFilterPill('category', 'Category', categoryOptions(), s.filters.category)}
+    ${renderFilterPill('client', 'Client', clientOptions(), s.filters.client)}
+    ${renderFilterPill('stack', 'Stack', stackOptions(), s.filters.stack)}
+    <select onchange="changeProjectSort(this.value)" title="Sort by">
+      <option value="lastActivity-desc" ${s.sort === 'lastActivity-desc' ? 'selected' : ''}>Last activity ↓</option>
+      <option value="name-asc" ${s.sort === 'name-asc' ? 'selected' : ''}>Name A→Z</option>
+      <option value="status-asc" ${s.sort === 'status-asc' ? 'selected' : ''}>Status</option>
+      <option value="sessions-desc" ${s.sort === 'sessions-desc' ? 'selected' : ''}>Sessions ↓</option>
+      <option value="created-desc" ${s.sort === 'created-desc' ? 'selected' : ''}>Created ↓</option>
+    </select>
+    <select onchange="changeProjectGroup(this.value)" title="Group by">
+      <option value="none" ${s.group === 'none' ? 'selected' : ''}>No group</option>
+      <option value="client" ${s.group === 'client' ? 'selected' : ''}>Group: Client</option>
+      <option value="status" ${s.group === 'status' ? 'selected' : ''}>Group: Status</option>
+      <option value="category" ${s.group === 'category' ? 'selected' : ''}>Group: Category</option>
+    </select>
+    <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer">
+      <input type="checkbox" ${s.filters.showArchived ? 'checked' : ''} onchange="toggleShowArchived(this.checked)">
+      Show archived
+    </label>
+    ${hasAny ? `<button class="proj-toolbar-clear" onclick="clearAllProjectFilters()">✕ Clear filters</button>` : ''}
+  `
+}
+
 export function applyProjectFilters() {
   const s = getProjectsState()
-  s.filtered = s.merged.slice()
+  const f = s.filters
+  const q = (f.search || '').toLowerCase().trim()
+
+  let out = s.merged.slice()
+
+  // Show archived toggle
+  if (!f.showArchived) {
+    out = out.filter(p => (p._meta?.status || p.lastSession?.status) !== 'archived')
+  }
+
+  // Filter: status
+  if (f.status.length) {
+    out = out.filter(p => f.status.includes(p._meta?.status || p.lastSession?.status || ''))
+  }
+  // Filter: category
+  if (f.category.length) {
+    out = out.filter(p => f.category.includes(p._meta?.category || ''))
+  }
+  // Filter: client
+  if (f.client.length) {
+    out = out.filter(p => f.client.includes(p._meta?.clientName || ''))
+  }
+  // Filter: stack (any-match)
+  if (f.stack.length) {
+    out = out.filter(p => {
+      const stk = p._meta?.stack || []
+      return f.stack.some(s => stk.includes(s))
+    })
+  }
+  // Search
+  if (q) {
+    out = out.filter(p => {
+      const hay = `${p._meta?.displayName || ''} ${p.name} ${p._meta?.clientName || ''} ${p._meta?.category || ''} ${(p._meta?.stack || []).join(' ')}`
+      return hay.toLowerCase().includes(q)
+    })
+  }
+
+  // Sort
+  const [field, dir] = s.sort.split('-')
+  const mul = dir === 'desc' ? -1 : 1
+  out.sort((a, b) => {
+    let av, bv
+    if (field === 'name') { av = (a._meta?.displayName || a.name).toLowerCase(); bv = (b._meta?.displayName || b.name).toLowerCase() }
+    else if (field === 'status') {
+      const order = { active:0, paused:1, completed:2, archived:3 }
+      av = order[a._meta?.status || a.lastSession?.status] ?? 9
+      bv = order[b._meta?.status || b.lastSession?.status] ?? 9
+    }
+    else if (field === 'sessions') { av = a.totalSessions || 0; bv = b.totalSessions || 0 }
+    else if (field === 'created') { av = a._meta?.createdAt || ''; bv = b._meta?.createdAt || '' }
+    else /* lastActivity */ { av = a.lastSession?.date || ''; bv = b.lastSession?.date || '' }
+    return av < bv ? -1*mul : av > bv ? 1*mul : 0
+  })
+
+  s.filtered = out
+  syncProjectHash()
+}
+
+function syncProjectHash() {
+  const s = window._projectsState
+  if (!s) return
+  // Build query string from non-default state
+  const parts = []
+  if (s.view !== 'grid') parts.push(`view=${s.view}`)
+  if (s.filters.status.length) parts.push(`status=${s.filters.status.join(',')}`)
+  if (s.filters.category.length) parts.push(`category=${encodeURIComponent(s.filters.category.join(','))}`)
+  if (s.filters.client.length) parts.push(`client=${encodeURIComponent(s.filters.client.join(','))}`)
+  if (s.filters.stack.length) parts.push(`stack=${encodeURIComponent(s.filters.stack.join(','))}`)
+  if (s.sort !== 'lastActivity-desc') parts.push(`sort=${s.sort}`)
+  if (s.group !== 'none') parts.push(`group=${s.group}`)
+  if (s.filters.showArchived) parts.push('showArchived=1')
+  const q = parts.length ? '?' + parts.join('&') : ''
+  const newHash = '#/projects' + q
+  if (location.hash !== newHash && location.hash.startsWith('#/projects')) {
+    history.replaceState(null, '', newHash)
+  }
+  // Persist filters
+  localStorage.setItem('synapse.projects.filters', JSON.stringify(s.filters))
+  localStorage.setItem('synapse.projects.sort', s.sort)
+  localStorage.setItem('synapse.projects.group', s.group)
 }
 
 export async function checkForDuplicates(name) {
