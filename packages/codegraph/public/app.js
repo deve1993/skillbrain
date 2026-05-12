@@ -13,7 +13,7 @@ import {
   renderHome, renderSkills, searchSkills, openSkillDetail,
   renderMemories, searchMemories, openMemoryDetail,
   renderSessions, renderProjects, renderProjectDetail,
-  renderProjectTab, loadEnvVars, searchGlobal, renderWorkLog,
+  renderProjectTab, applyProjectFilters, loadEnvVars, searchGlobal, renderWorkLog,
   renderComponents, openComponentDetail as renderOpenComponentDetail,
   renderDesignSystems, openDesignSystemDetail, renderScanReview,
   renderReview,
@@ -350,6 +350,18 @@ function filterProjects(query) {
   })
 }
 window.filterProjects = filterProjects
+
+// ── Projects v2 — handlers ──
+
+function changeProjectView(view) {
+  const s = window._projectsState
+  if (!s) return
+  s.view = view
+  localStorage.setItem('synapse.projects.view', view)
+  renderProjects()
+}
+window.changeProjectView = changeProjectView
+window.applyProjectFilters = applyProjectFilters
 
 async function deleteProject(name) {
   if (!confirm(`Delete project "${name}"?\n\nThis removes the metadata record. Sessions and memories are kept but the project won't appear in the list until a new session is started.\n\nContinue?`)) return

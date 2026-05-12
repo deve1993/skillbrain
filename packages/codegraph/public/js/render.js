@@ -588,7 +588,62 @@ export async function renderSessions() {
   `
 }
 
-// ── Projects ──
+// ── Projects v2 ──
+
+function getProjectsState() {
+  if (!window._projectsState) {
+    const def = {
+      merged: [],
+      filtered: [],
+      view: 'grid',
+      filters: { status: [], category: [], client: [], stack: [], showArchived: false, search: '' },
+      sort: 'lastActivity-desc',
+      group: 'none',
+      pinned: new Set(),
+      selection: new Set(),
+      detailIndex: -1,
+    }
+    // Hydrate from localStorage
+    try {
+      const v = localStorage.getItem('synapse.projects.view')
+      if (v) def.view = v
+      const p = JSON.parse(localStorage.getItem('synapse.projects.pinned') || '[]')
+      def.pinned = new Set(p)
+      const f = JSON.parse(localStorage.getItem('synapse.projects.filters') || 'null')
+      if (f) Object.assign(def.filters, f)
+      const s = localStorage.getItem('synapse.projects.sort')
+      if (s) def.sort = s
+      const g = localStorage.getItem('synapse.projects.group')
+      if (g) def.group = g
+    } catch {}
+    window._projectsState = def
+  }
+  return window._projectsState
+}
+
+function parseProjectsHashParams() {
+  const hash = location.hash.slice(1)
+  const qIdx = hash.indexOf('?')
+  if (qIdx < 0) return {}
+  const out = {}
+  for (const part of hash.slice(qIdx + 1).split('&')) {
+    const [k, v] = part.split('=')
+    if (k && v !== undefined) out[decodeURIComponent(k)] = decodeURIComponent(v)
+  }
+  return out
+}
+
+function applyHashOverrides(state) {
+  const p = parseProjectsHashParams()
+  if (p.view) state.view = p.view
+  if (p.status) state.filters.status = p.status.split(',').filter(Boolean)
+  if (p.category) state.filters.category = p.category.split(',').filter(Boolean)
+  if (p.client) state.filters.client = p.client.split(',').filter(Boolean)
+  if (p.stack) state.filters.stack = p.stack.split(',').filter(Boolean)
+  if (p.sort) state.sort = p.sort
+  if (p.group) state.group = p.group
+  if (p.showArchived) state.filters.showArchived = p.showArchived === '1'
+}
 
 export async function renderProjects() {
   const [actData, metaData] = await Promise.all([
@@ -614,77 +669,57 @@ export async function renderProjects() {
     if (!seen.has(key)) merged.push({ name: m.name, totalSessions: 0, totalMemories: 0, _meta: m })
   }
 
-  const statusOrder = { 'active': 0, 'in-progress': 1, 'paused': 2, 'completed': 3, 'archived': 4, 'unknown': 5 }
-  merged.sort((a, b) => {
-    const sa = statusOrder[a._meta?.status || a.lastSession?.status || 'unknown'] ?? 5
-    const sb = statusOrder[b._meta?.status || b.lastSession?.status || 'unknown'] ?? 5
-    if (sa !== sb) return sa - sb
-    const da = a.lastSession?.date || ''
-    const db = b.lastSession?.date || ''
-    return db.localeCompare(da)
-  })
-
-  const statusColors = {
-    'in-progress': 'var(--blue)', 'completed': 'var(--green)',
-    'paused': 'var(--yellow)', 'blocked': 'var(--red)',
-    'active': 'var(--green)', 'archived': 'var(--text-muted)', 'unknown': 'var(--text-muted)'
-  }
+  const state = getProjectsState()
+  state.merged = merged
+  applyHashOverrides(state)
+  applyProjectFilters() // computes state.filtered
 
   document.getElementById('page').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div class="section-title" style="margin-bottom:0">Projects <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${merged.length}</span></div>
-      <button onclick="openNewProjectModal()" style="padding:6px 14px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer">+ New Project</button>
-    </div>
-
-    <input type="search" id="proj-search" placeholder="Search projects..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"
-      style="width:100%;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;margin-bottom:12px;box-sizing:border-box"
-      oninput="filterProjects(this.value)">
-
-    ${merged.length === 0 ? '<p style="color:var(--text-muted);font-size:13px">No projects yet. Use <code>session_start</code> or click "+ New Project".</p>' : ''}
-
-    <div class="item-list" id="proj-list">
-      ${merged.map(p => {
-        const m = p._meta || {}
-        const status = m.status || p.lastSession?.status || 'unknown'
-        const statusColor = statusColors[status] || 'var(--text-muted)'
-        const displayName = m.displayName || p.name
-        const date = p.lastSession?.date?.split('T')[0] || 'never'
-        const categoryColors = { landing:'#6366f1', ecommerce:'#10b981', app:'#3b82f6', dashboard:'#8b5cf6', 'corporate-site':'#f59e0b', blog:'#ec4899', portfolio:'#14b8a6', other:'#6b7280' }
-        const catColor = categoryColors[m.category] || '#6b7280'
-        return `
-        <div class="item proj-card" data-search="${(displayName + ' ' + (m.clientName||'') + ' ' + p.name).toLowerCase()}"
-          style="cursor:pointer;position:relative">
-          <div onclick="openProjectDetail('${escHtml(p.name)}')" style="flex:1">
-            <div class="item-header">
-              <span class="item-name" style="display:flex;align-items:center;gap:8px">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0"></span>
-                <span style="font-size:15px;font-weight:600">${escHtml(displayName)}</span>
-                ${m.category ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${catColor}22;color:${catColor};text-transform:uppercase;letter-spacing:.5px">${escHtml(m.category)}</span>` : ''}
-              </span>
-              <span class="item-meta">${p.totalSessions} sessions &middot; ${p.totalMemories} memories</span>
-            </div>
-            ${m.clientName ? `<div style="font-size:12px;color:var(--text-muted);margin-top:3px">Client: <strong style="color:var(--text-dim)">${escHtml(m.clientName)}</strong></div>` : ''}
-            <div style="display:flex;gap:16px;margin-top:6px;font-size:12px">
-              <span style="color:var(--text-muted)">Status: <strong style="color:${statusColor}">${status}</strong></span>
-              ${p.totalSessions > 0 ? `<span style="color:var(--text-muted)">Last: ${date}</span>` : ''}
-              ${p.lastBranch ? `<span style="color:var(--text-muted)">Branch: <code>${p.lastBranch}</code></span>` : ''}
-            </div>
-            ${p.lastSession?.nextSteps ? `<div style="margin-top:4px;font-size:12px;color:var(--green)">Next: ${escHtml(p.lastSession.nextSteps)}</div>` : ''}
+    <div class="proj-page-wrap">
+      <div class="proj-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="section-title" style="margin:0">Projects <span class="count" style="font-size:12px;font-weight:400;color:var(--text-muted)">${merged.length}</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="proj-view-switcher" role="tablist" aria-label="View switcher">
+            ${renderViewPill('grid', '▦', 'Grid', state.view)}
+            ${renderViewPill('list', '⊟', 'List', state.view)}
+            ${renderViewPill('kanban', '☰', 'Kanban', state.view)}
+            ${renderViewPill('table', '▭', 'Table', state.view)}
           </div>
-          <button onclick="event.stopPropagation();deleteProject('${escHtml(p.name)}')"
-            title="Delete project"
-            style="position:absolute;top:10px;right:10px;padding:4px 8px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:var(--red);font-size:11px;border-radius:4px;cursor:pointer;opacity:0;transition:opacity .15s"
-            class="proj-delete-btn">✕</button>
-        </div>`
-      }).join('')}
+          <button class="proj-new-btn" onclick="openNewProjectModal()">+ New Project</button>
+        </div>
+      </div>
+
+      <div id="proj-toolbar"></div>
+      <div id="proj-stats"></div>
+      <div id="proj-pinned"></div>
+      <div id="proj-body"></div>
+      <div id="proj-bulk"></div>
     </div>
   `
 
-  document.querySelectorAll('.proj-card').forEach(card => {
-    const btn = card.querySelector('.proj-delete-btn')
-    card.addEventListener('mouseenter', () => { if (btn) btn.style.opacity = '1' })
-    card.addEventListener('mouseleave', () => { if (btn) btn.style.opacity = '0' })
-  })
+  // Toolbar/stats/pinned/body all rendered in subsequent tasks.
+  // For now, show a placeholder body so we can verify the shell renders.
+  document.getElementById('proj-body').innerHTML = `
+    <p style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center">
+      ${merged.length === 0 ? 'No projects yet.' : `${merged.length} projects loaded — view "${state.view}" coming in next tasks`}
+    </p>
+  `
+  // Expose merged for legacy callers
+  window._projectsList = merged
+}
+
+function renderViewPill(view, icon, label, current) {
+  const active = view === current
+  return `<button class="proj-view-pill ${active ? 'active' : ''}" role="tab" aria-selected="${active}"
+    onclick="changeProjectView('${view}')">${icon} <span>${label}</span></button>`
+}
+
+// Compute filtered list from state.merged. Placeholder for now — full impl in Task 2.
+export function applyProjectFilters() {
+  const s = getProjectsState()
+  s.filtered = s.merged.slice()
 }
 
 export async function checkForDuplicates(name) {

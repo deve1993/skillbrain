@@ -1069,3 +1069,57 @@ dialog details pre {
   color: var(--text-dim);
   white-space: pre-wrap;
 }
+
+/* ── Projects v2 — Foundation ────────────────────────────────── */
+
+.proj-page-wrap { display: flex; flex-direction: column; gap: 12px; }
+
+.proj-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.proj-view-switcher {
+  display: inline-flex;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.proj-view-pill {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all .15s;
+}
+.proj-view-pill:hover { color: var(--text); }
+.proj-view-pill.active {
+  background: rgba(167,139,250,.12);
+  color: var(--accent);
+}
+
+.proj-new-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.proj-new-btn:hover { filter: brightness(1.1); }
+
+#proj-body { min-height: 200px; }
