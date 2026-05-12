@@ -99,6 +99,24 @@ export function createProjectsRouter(ctx: RouteContext): Router {
     }
   })
 
+  // Toggle pinned flag (Phase 2)
+  router.patch('/api/projects-meta/:name/pin', (req, res) => {
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new ProjectsStore(db)
+      const pinned = store.togglePin(req.params.name)
+      closeDb(db)
+      res.json({ pinned })
+    } catch (err: any) {
+      const msg = err.message || String(err)
+      if (msg.startsWith('Project not found')) {
+        res.status(404).json({ error: msg })
+      } else {
+        res.status(500).json({ error: msg })
+      }
+    }
+  })
+
   router.post('/api/projects-meta/merge', (req, res) => {
     const { primary, aliases } = req.body || {}
     if (!primary || !aliases?.length) {
