@@ -1820,3 +1820,17 @@ dialog details pre {
   font-size: 12px;
   padding: 2px 4px;
 }
+
+/* Projects v2 — responsive polish */
+@media (max-width: 720px) {
+  .proj-header { gap: 8px; }
+  .proj-view-pill span { display: none; }   /* show only the icon */
+  .proj-toolbar { padding: 8px; }
+  .proj-stats-segment { padding: 4px 8px; font-size: 11px; }
+  .proj-stats-segment .n { font-size: 13px; }
+}
+
+/* Touch devices: keep the selection checkbox always visible (no hover affordance) */
+@media (hover: none) {
+  .proj-card-select { opacity: 1; }
+}

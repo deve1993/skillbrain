@@ -148,7 +148,7 @@ export function switchEditTab(tab) {
   })
 }
 
-// Task 14 — interactive chip-based tag input for the Stack field
+// Interactive chip-based tag input for the Stack field
 function renderStackTagInput(stack) {
   const tags = Array.isArray(stack) ? stack : []
   return `<div>
@@ -237,7 +237,7 @@ export async function saveProject(event, name, onSaved) {
   for (const [k, v] of fd.entries()) {
     if (v !== '') fields[k] = v
   }
-  // Stack from new tag-input widget (Task 14). Falls back to legacy stackRaw CSV if widget absent.
+  // Stack comes from the tag-input widget; falls back to the legacy stackRaw CSV if the widget is absent.
   const stackWrap = document.getElementById('stack-tag-wrap')
   if (stackWrap) {
     try { fields.stack = JSON.parse(stackWrap.dataset.tags || '[]') } catch { fields.stack = [] }

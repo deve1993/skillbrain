@@ -353,16 +353,6 @@ async function updateReviewBadge() {
   } catch { /* non-blocking */ }
 }
 
-// ── Project list helpers ──
-function filterProjects(query) {
-  const q = query.toLowerCase().trim()
-  document.querySelectorAll('.proj-card').forEach(card => {
-    const match = !q || card.dataset.search.includes(q)
-    card.style.display = match ? '' : 'none'
-  })
-}
-window.filterProjects = filterProjects
-
 // ── Projects v2 — handlers ──
 
 function changeProjectView(view) {

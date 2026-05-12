@@ -817,7 +817,6 @@ function renderProjectsBulk() {
   `
 }
 
-// Placeholders for Tasks 8/9 — keep them simple stubs.
 function renderListView() {
   const s = getProjectsState()
   const el = document.getElementById('proj-body')
@@ -1078,6 +1077,11 @@ function applyHashOverrides(state) {
 }
 
 export async function renderProjects() {
+  // Loading state — show immediately so the user sees feedback while the API calls run
+  const page = document.getElementById('page')
+  if (page) {
+    page.innerHTML = `<div style="padding:60px;text-align:center;color:var(--text-muted);font-size:13px">Loading projects…</div>`
+  }
   const [actData, metaData] = await Promise.all([
     api.get('/api/projects').catch(() => ({ projects: [] })),
     api.get('/api/projects-meta').catch(() => ({ projects: [] })),
@@ -1442,7 +1446,7 @@ export async function renderProjectDetail(name, openDetailFn) {
   // Store data for tab switching (kept for switchProjectTab in app.js)
   const projData = { name, activity, meta, sessions, memories, last }
   window._projData = projData
-  // Expose renderProjectTab for Task 12 (activity filter chips need to re-render the active tab)
+  // Expose renderProjectTab so the activity filter chips can re-render the active tab.
   window._renderProjectTab = renderProjectTab
   renderProjectTab('overview', name, projData)
   checkForDuplicates(name)
@@ -1499,7 +1503,7 @@ export function renderProjectTab(tab, name, data) {
 
     if (M.repoUrl || M.liveUrl) {
       // liveUrl gets safeUrl (scheme-validated); other user-pasted external URLs get escAttr.
-      // Scheme validation for repo/admin URLs could be unified under safeUrl in Task 15.
+      // (Scheme validation for repo/admin URLs could be unified under safeUrl as a future polish.)
       const liveSafe = safeUrl(M.liveUrl)
       rightCol.push(`<div class="card">
         <div class="card-title">Links</div>
