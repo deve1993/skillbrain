@@ -744,6 +744,8 @@ export async function renderProjects() {
   renderProjectsToolbar()
   window._renderProjectsToolbar = renderProjectsToolbar
   window._renderProjectsFiltersOnly = renderProjectsFiltersOnly
+  renderProjectsStats()
+  window._renderProjectsStats = renderProjectsStats
 
   // Stats/pinned/body all rendered in subsequent tasks.
   // For now, show a placeholder body so we can verify the shell renders.
@@ -846,6 +848,34 @@ function renderProjectsFiltersOnly() {
     </label>
     ${hasAny ? `<button class="proj-toolbar-clear" onclick="clearAllProjectFilters()">✕ Clear filters</button>` : ''}
   `
+}
+
+function renderProjectsStats() {
+  const s = getProjectsState()
+  const el = document.getElementById('proj-stats')
+  if (!el) return
+  const counts = { active: 0, paused: 0, completed: 0, archived: 0 }
+  for (const p of s.merged) {
+    const st = p._meta?.status || p.lastSession?.status
+    if (counts[st] !== undefined) counts[st]++
+  }
+  const segs = [
+    { key: 'active', label: 'active', icon: '●' },
+    { key: 'paused', label: 'paused', icon: '◐' },
+    { key: 'completed', label: 'completed', icon: '✓' },
+    { key: 'archived', label: 'archived', icon: '⊘' },
+  ]
+  el.className = 'proj-stats-bar'
+  el.innerHTML = segs.map(seg => {
+    const isActive = s.filters.status.includes(seg.key)
+    return `<button type="button" class="proj-stats-segment stat-${seg.key} ${isActive ? 'active' : ''}"
+      aria-pressed="${isActive}"
+      onclick="toggleStatusFromStats('${seg.key}')" title="Filter by ${seg.label}">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="n">${counts[seg.key]}</span>
+      <span>${seg.label}</span>
+    </button>`
+  }).join('')
 }
 
 // Debounced search dispatcher (200 ms) — closure over a single timeout

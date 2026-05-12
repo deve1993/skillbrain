@@ -1250,3 +1250,35 @@ dialog details pre {
   cursor: pointer;
 }
 .proj-toolbar-clear:hover { color: var(--red); border-color: rgba(248,113,113,.3); }
+
+.proj-stats-bar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.proj-stats-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color .15s, background .15s, border-color .15s;
+}
+.proj-stats-segment:hover { color: var(--text); border-color: var(--border-hover); }
+.proj-stats-segment.active { background: rgba(167,139,250,.10); border-color: var(--accent2); color: var(--accent); }
+.proj-stats-segment .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.proj-stats-segment .n { font-weight: 600; }
+.proj-stats-segment.stat-active .dot { background: var(--green); }
+.proj-stats-segment.stat-paused .dot { background: var(--yellow); }
+.proj-stats-segment.stat-completed .dot { background: var(--blue); }
+.proj-stats-segment.stat-archived .dot { background: var(--text-muted); }

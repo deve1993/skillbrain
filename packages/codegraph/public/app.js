@@ -430,8 +430,19 @@ function toggleShowArchived(v) {
 function applyProjectFiltersAndRender() {
   window.applyProjectFilters()
   if (typeof window._renderProjectsFiltersOnly === 'function') window._renderProjectsFiltersOnly()
+  if (typeof window._renderProjectsStats === 'function') window._renderProjectsStats()
   renderProjectsBodyPlaceholder()
 }
+
+function toggleStatusFromStats(status) {
+  const s = window._projectsState
+  if (!s) return
+  const idx = s.filters.status.indexOf(status)
+  if (idx >= 0) s.filters.status.splice(idx, 1)
+  else s.filters.status.push(status)
+  applyProjectFiltersAndRender()
+}
+window.toggleStatusFromStats = toggleStatusFromStats
 
 function renderProjectsBodyPlaceholder() {
   const s = window._projectsState
