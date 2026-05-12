@@ -590,7 +590,63 @@ function toggleProjectSelection(name, checked) {
   if (checked) s.selection.add(name); else s.selection.delete(name)
   if (typeof window._renderProjectsBody === 'function') window._renderProjectsBody()
 }
+
+async function bulkSetStatus(status) {
+  if (!status) return
+  const s = window._projectsState
+  if (!s) return
+  const names = [...s.selection]
+  if (names.length === 0) return
+  if (!confirm(`Set status "${status}" on ${names.length} project${names.length>1?'s':''}?`)) return
+  try {
+    const results = await Promise.allSettled(names.map(n =>
+      fetch(`/api/projects-meta/${encodeURIComponent(n)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r })
+    ))
+    const failed = results.filter(r => r.status === 'rejected').length
+    s.selection.clear()
+    if (failed > 0) alert(`${failed} of ${names.length} updates failed; refreshing list.`)
+    renderProjects()
+  } catch (err) { alert('Bulk update failed: ' + (err.message || err)) }
+}
+
+async function bulkArchive() {
+  await bulkSetStatus('archived')
+}
+
+async function bulkDelete() {
+  const s = window._projectsState
+  if (!s) return
+  const names = [...s.selection]
+  if (names.length === 0) return
+  if (!confirm(`Delete ${names.length} project${names.length>1?'s':''}? This removes their metadata records.`)) return
+  try {
+    const results = await Promise.allSettled(names.map(n =>
+      fetch(`/api/projects-meta/${encodeURIComponent(n)}`, { method: 'DELETE' })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r })
+    ))
+    const failed = results.filter(r => r.status === 'rejected').length
+    s.selection.clear()
+    if (failed > 0) alert(`${failed} of ${names.length} deletes failed; refreshing list.`)
+    renderProjects()
+  } catch (err) { alert('Bulk delete failed: ' + (err.message || err)) }
+}
+
+function bulkCancel() {
+  const s = window._projectsState
+  if (!s) return
+  s.selection.clear()
+  if (typeof window._renderProjectsBody === 'function') window._renderProjectsBody()
+}
+
 window.toggleProjectSelection = toggleProjectSelection
+window.bulkSetStatus = bulkSetStatus
+window.bulkArchive = bulkArchive
+window.bulkDelete = bulkDelete
+window.bulkCancel = bulkCancel
 
 // ── Kanban DnD ──
 

@@ -1626,3 +1626,44 @@ dialog details pre {
 .proj-table td.name { color: var(--text); font-weight: 500; }
 .proj-table td .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
 .proj-table input[type="checkbox"] { accent-color: var(--accent); }
+
+.proj-bulk-toolbar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  background: #15151f;
+  border: 1px solid var(--border-hover);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.6);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: 90vw;
+  animation: bulk-slide-up .15s ease-out;
+}
+@keyframes bulk-slide-up {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+.proj-bulk-counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.proj-bulk-toolbar button, .proj-bulk-toolbar select {
+  background: #111118;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.proj-bulk-toolbar button:hover { border-color: var(--border-hover); }
+.proj-bulk-toolbar button.danger { color: var(--red); border-color: rgba(248,113,113,.3); }
+.proj-bulk-toolbar button.danger:hover { background: rgba(248,113,113,.08); }
+.proj-bulk-toolbar button.cancel { color: var(--text-muted); }

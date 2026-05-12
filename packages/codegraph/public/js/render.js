@@ -783,11 +783,38 @@ function renderProjectsBody() {
   const s = getProjectsState()
   const el = document.getElementById('proj-body')
   if (!el) return
-  if (s.merged.length === 0) { renderProjectsEmptyZero(el); return }
-  if (s.view === 'list') return renderListView()
-  if (s.view === 'kanban') return renderKanbanView()
-  if (s.view === 'table') return renderTableView()
-  renderGridView() // default + grid
+  if (s.merged.length === 0) {
+    renderProjectsEmptyZero(el)
+    renderProjectsBulk()
+    return
+  }
+  if (s.view === 'list') renderListView()
+  else if (s.view === 'kanban') renderKanbanView()
+  else if (s.view === 'table') renderTableView()
+  else renderGridView() // default + grid
+  renderProjectsBulk()
+}
+
+function renderProjectsBulk() {
+  const s = getProjectsState()
+  const el = document.getElementById('proj-bulk')
+  if (!el) return
+  if (s.selection.size === 0) { el.innerHTML = ''; return }
+  el.innerHTML = `
+    <div class="proj-bulk-toolbar" role="region" aria-label="Bulk actions">
+      <span class="proj-bulk-counter">${s.selection.size} selected</span>
+      <select aria-label="Set status for selected" onchange="bulkSetStatus(this.value);this.value=''">
+        <option value="">Set status…</option>
+        <option value="active">→ Active</option>
+        <option value="paused">→ Paused</option>
+        <option value="completed">→ Completed</option>
+        <option value="archived">→ Archived</option>
+      </select>
+      <button type="button" onclick="bulkArchive()">📦 Archive</button>
+      <button type="button" class="danger" onclick="bulkDelete()">✕ Delete</button>
+      <button type="button" class="cancel" onclick="bulkCancel()">Cancel</button>
+    </div>
+  `
 }
 
 // Placeholders for Tasks 8/9 — keep them simple stubs.
