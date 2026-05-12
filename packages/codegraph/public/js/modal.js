@@ -57,29 +57,32 @@ export async function openEditProjectModal(name) {
   const members = meta.teamMembers || []
 
   overlay.innerHTML = `
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:min(640px,90vw);max-height:90vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">
-        <h2 style="font-size:18px;color:var(--accent);margin:0">Edit Project: ${escHtml(name)}</h2>
-        <button onclick="closeEditModal()" style="background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer;padding:0 8px">&times;</button>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;width:min(680px,92vw);max-height:92vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <h2 style="font-size:16px;color:var(--accent);margin:0">Edit Project: ${escHtml(name)}</h2>
+        <button onclick="closeEditModal()" aria-label="Close" style="background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer;padding:0 8px">&times;</button>
       </div>
 
-      <form id="edit-form" onsubmit="return saveProject(event,'${name}')" style="display:flex;flex-direction:column;gap:14px">
+      <div class="edit-modal-tabs" role="tablist" aria-label="Project fields">
+        <button type="button" role="tab" aria-selected="true" class="edit-modal-tab active" data-tab="identity" onclick="switchEditTab('identity')">Identity<span class="req">*</span></button>
+        <button type="button" role="tab" aria-selected="false" class="edit-modal-tab" data-tab="team" onclick="switchEditTab('team')">Team</button>
+        <button type="button" role="tab" aria-selected="false" class="edit-modal-tab" data-tab="links" onclick="switchEditTab('links')">Links</button>
+        <button type="button" role="tab" aria-selected="false" class="edit-modal-tab" data-tab="infra" onclick="switchEditTab('infra')">Infra</button>
+        <button type="button" role="tab" aria-selected="false" class="edit-modal-tab" data-tab="notes" onclick="switchEditTab('notes')">Notes</button>
+      </div>
 
-        <div class="form-section">
-          <h3 style="font-size:13px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Identity</h3>
+      <form id="edit-form" onsubmit="return saveProject(event,'${escHtml(name)}')" style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
+
+        <div class="edit-tab-content active" data-content="identity">
           ${editField('displayName', 'Display Name', meta.displayName, 'es. Terrae e Mare')}
           ${editField('clientName', 'Cliente', meta.clientName, 'es. Trattoria Mario')}
           ${editField('description', 'Descrizione', meta.description, 'Breve descrizione progetto', 'textarea')}
           ${editSelect('category', 'Categoria', meta.category, ['landing','ecommerce','app','dashboard','corporate-site','blog','portfolio','other'])}
           ${editSelect('status', 'Status', meta.status, ['active','paused','archived','completed'])}
-          <div>
-            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Stack (comma-separated)</label>
-            <input type="text" name="stackRaw" value="${escHtml((meta.stack || []).join(', '))}" placeholder="Next.js, Tailwind, Supabase" style="width:100%;padding:8px 12px;background:#111118;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box">
-          </div>
+          ${renderStackTagInput(meta.stack || [])}
         </div>
 
-        <div class="form-section">
-          <h3 style="font-size:13px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Team</h3>
+        <div class="edit-tab-content" data-content="team">
           ${editField('teamLead', 'Team Lead', meta.teamLead, 'es. Daniel')}
           <div>
             <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Team Members</label>
@@ -90,15 +93,14 @@ export async function openEditProjectModal(name) {
           </div>
         </div>
 
-        <div class="form-section">
-          <h3 style="font-size:13px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Links</h3>
+        <div class="edit-tab-content" data-content="links">
           ${editField('liveUrl', 'Live URL', meta.liveUrl, 'https://...')}
           ${editField('repoUrl', 'Repository', meta.repoUrl, 'https://github.com/...')}
+          ${editField('mainBranch', 'Main branch', meta.mainBranch, 'main')}
           ${editField('domainPrimary', 'Domain primario', meta.domainPrimary, 'example.it')}
         </div>
 
-        <div class="form-section">
-          <h3 style="font-size:13px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Admin / Infra</h3>
+        <div class="edit-tab-content" data-content="infra">
           ${editField('dbType', 'Database Type', meta.dbType, 'MongoDB / Postgres / Supabase')}
           ${editField('dbReference', 'Database Reference', meta.dbReference, 'es. Atlas cluster pixarts-prod')}
           ${editField('dbAdminUrl', 'Database Admin URL', meta.dbAdminUrl, 'https://...')}
@@ -107,12 +109,11 @@ export async function openEditProjectModal(name) {
           ${editField('deployPlatform', 'Deploy Platform', meta.deployPlatform, 'Coolify / Vercel / Netlify')}
         </div>
 
-        <div class="form-section">
-          <h3 style="font-size:13px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Notes</h3>
+        <div class="edit-tab-content" data-content="notes">
           ${editField('notes', 'Notes', meta.notes, 'Note interne', 'textarea')}
         </div>
 
-        <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:14px;margin-top:14px;border-top:1px solid var(--border)">
           <button type="button" onclick="closeEditModal()" style="padding:8px 16px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;cursor:pointer">Cancel</button>
           <button type="submit" style="padding:8px 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;border-radius:6px;font-weight:600;cursor:pointer">Save</button>
         </div>
@@ -121,7 +122,30 @@ export async function openEditProjectModal(name) {
   `
   document.body.appendChild(overlay)
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeEditModal() })
+  initStackTagInput()
 }
+
+export function switchEditTab(tab) {
+  document.querySelectorAll('.edit-modal-tab').forEach(b => {
+    const active = b.dataset.tab === tab
+    b.classList.toggle('active', active)
+    b.setAttribute('aria-selected', active ? 'true' : 'false')
+  })
+  document.querySelectorAll('.edit-tab-content').forEach(c => {
+    c.classList.toggle('active', c.dataset.content === tab)
+  })
+}
+
+// Task 13 STUB — replaced in Task 14 with a real tag input
+function renderStackTagInput(stack) {
+  return `<div>
+    <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Stack (comma-separated)</label>
+    <input type="text" name="stackRaw" value="${escHtml((stack || []).join(', '))}" placeholder="Next.js, Tailwind, Supabase" style="width:100%;padding:8px 12px;background:#111118;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box">
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Tag input arriva in Task 14</div>
+  </div>`
+}
+
+function initStackTagInput() { /* Task 14 */ }
 
 export function closeEditModal() {
   const m = document.getElementById('edit-modal')

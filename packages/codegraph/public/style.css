@@ -1743,3 +1743,32 @@ dialog details pre {
 .proj-activity-content { flex: 1; min-width: 0; }
 .proj-activity-title { font-weight: 500; color: var(--text); }
 .proj-activity-meta { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+
+.edit-modal-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  padding-bottom: 0;
+  overflow-x: auto;
+}
+.edit-modal-tab {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px 14px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.edit-modal-tab:hover { color: var(--text); }
+.edit-modal-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+.edit-modal-tab .req { color: var(--red); margin-left: 2px; }
+
+.edit-tab-content { display: none; flex-direction: column; gap: 12px; }
+.edit-tab-content.active { display: flex; }

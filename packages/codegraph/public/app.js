@@ -4,7 +4,7 @@
 
 import { api } from './js/api.js'
 import {
-  openEditProjectModal, closeEditModal, saveProject,
+  openEditProjectModal, closeEditModal, saveProject, switchEditTab,
   editField, editSelect, memberRow,
   showMergeDialog, closeMergeModal, confirmMerge,
   showDsMergeDialog, closeDsMergeModal, confirmDsMerge,
@@ -266,6 +266,7 @@ window.switchProjectTab = switchProjectTab
 window.openEditProjectModal = openEditProjectModal
 window.closeEditModal = closeEditModal
 window.saveProject = saveProject
+window.switchEditTab = switchEditTab
 window.showMergeDialog = showMergeDialog
 window.closeMergeModal = closeMergeModal
 window.confirmMerge = confirmMerge
