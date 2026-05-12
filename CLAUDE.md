@@ -111,6 +111,22 @@ To use: read `.claude/command/{name}.md` and follow its protocol.
 
 ---
 
+## Auto-hooks (project-scoped)
+
+The following are wired in `.claude/settings.json` and run automatically — do **not** invoke them manually unless the task changes mid-session.
+
+| Event | Script | Purpose |
+|-------|--------|---------|
+| `SessionStart` | `.claude/scripts/load_project_context.sh` | Prints 5-layer Cortex briefing into the session as system context |
+| `PostToolUse` matcher `Skill` | `.claude/scripts/skill-apply-hook.sh` | Inserts an `applied` row into `.codegraph/graph.db skill_usage` so health/route ranking sees real apply signal |
+
+Implications:
+- Skip manual `cortex_briefing` calls at the start of a session — the briefing is already in context.
+- The `Skill` tool (built-in Claude Code skills) is auto-instrumented. For MCP skills loaded via `skill_read`, telemetry is recorded server-side and is not affected by these hooks.
+- Both scripts walk upward from `cwd` to locate `.codegraph/graph.db`, so they work from any subdir of the workspace.
+
+---
+
 ## Deployment
 
 | | |
