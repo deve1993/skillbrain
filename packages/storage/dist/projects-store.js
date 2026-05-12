@@ -110,6 +110,66 @@ export class ProjectsStore {
         if (result.changes === 0)
             throw new Error(`Project not found: ${name}`);
     }
+    /**
+     * Execute the same action on multiple projects. Best-effort: failures on
+     * individual rows don't abort the others. Returns counts plus per-name errors.
+     */
+    bulkAction(action, names, value) {
+        const ALLOWED_STATUS = new Set(['active', 'paused', 'completed', 'archived']);
+        if (action === 'setStatus' && (!value || !ALLOWED_STATUS.has(value))) {
+            throw new Error('bulkAction setStatus requires valid status value');
+        }
+        if (action === 'setClient' && typeof value !== 'string') {
+            throw new Error('bulkAction setClient requires a string value');
+        }
+        let ok = 0;
+        const failed = [];
+        const tx = this.db.transaction(() => {
+            for (const name of names) {
+                try {
+                    if (action === 'archive') {
+                        const r = this.db.prepare('UPDATE projects SET status = ?, updated_at = ? WHERE name = ?')
+                            .run('archived', new Date().toISOString(), name);
+                        if (r.changes === 0)
+                            throw new Error('Project not found');
+                    }
+                    else if (action === 'setStatus') {
+                        const r = this.db.prepare('UPDATE projects SET status = ?, updated_at = ? WHERE name = ?')
+                            .run(value, new Date().toISOString(), name);
+                        if (r.changes === 0)
+                            throw new Error('Project not found');
+                    }
+                    else if (action === 'setClient') {
+                        const r = this.db.prepare('UPDATE projects SET client_name = ?, updated_at = ? WHERE name = ?')
+                            .run(value, new Date().toISOString(), name);
+                        if (r.changes === 0)
+                            throw new Error('Project not found');
+                    }
+                    else if (action === 'delete') {
+                        // Match DELETE /api/projects-meta/:name: insert archived row to hide from session-based list,
+                        // then delete the main row.
+                        this.upsertArchived(name);
+                        this.delete(name);
+                    }
+                    else if (action === 'pin') {
+                        this.setPin(name, true);
+                    }
+                    else if (action === 'unpin') {
+                        this.setPin(name, false);
+                    }
+                    else {
+                        throw new Error(`Unknown action: ${action}`);
+                    }
+                    ok++;
+                }
+                catch (err) {
+                    failed.push({ name, error: err.message || String(err) });
+                }
+            }
+        });
+        tx();
+        return { ok, failed };
+    }
     // Insert a minimal archived record so listProjects() (session-based) hides
     // this project via its status filter, even after the main record is deleted.
     upsertArchived(name) {

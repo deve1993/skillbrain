@@ -77,6 +77,17 @@ export declare class ProjectsStore {
      * Throws if the project doesn't exist.
      */
     setPin(name: string, pinned: boolean): void;
+    /**
+     * Execute the same action on multiple projects. Best-effort: failures on
+     * individual rows don't abort the others. Returns counts plus per-name errors.
+     */
+    bulkAction(action: 'archive' | 'setStatus' | 'setClient' | 'delete' | 'pin' | 'unpin', names: string[], value?: string): {
+        ok: number;
+        failed: {
+            name: string;
+            error: string;
+        }[];
+    };
     upsertArchived(name: string): void;
     /**
      * Merge aliases into a primary project.
