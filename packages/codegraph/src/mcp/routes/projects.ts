@@ -52,6 +52,23 @@ export function createProjectsRouter(ctx: RouteContext): Router {
     }
   })
 
+  // Phase 2: aggregated insights for a project
+  router.get('/api/projects/:name/insights', (req, res) => {
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new ProjectsStore(db)
+      const insights = store.getInsights(req.params.name)
+      closeDb(db)
+      if (!insights) {
+        res.status(404).json({ error: `Project not found: ${req.params.name}` })
+        return
+      }
+      res.json(insights)
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   // Project metadata CRUD (from ProjectsStore)
   router.get('/api/projects-meta', (_req, res) => {
     try {
