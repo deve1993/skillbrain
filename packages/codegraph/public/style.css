@@ -1498,3 +1498,30 @@ dialog details pre {
 .proj-menu-pop button:hover { background: rgba(255,255,255,.05); }
 .proj-menu-pop button.danger:hover { background: rgba(248,113,113,.1); color: var(--red); }
 .proj-menu-pop .sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+.proj-list { display: flex; flex-direction: column; gap: 4px; }
+.proj-list-row {
+  display: grid;
+  grid-template-columns: 24px 8px 1fr 140px 100px 80px 80px 140px auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.proj-list-row:hover { border-color: var(--border-hover); }
+.proj-list-row.selected { border-color: var(--accent); background: rgba(167,139,250,.04); }
+.proj-list-row .dot { width: 8px; height: 8px; border-radius: 50%; }
+.proj-list-row .name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-list-row .col { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-list-row .chips { display: flex; gap: 4px; overflow: hidden; }
+.proj-list-row .actions { display: flex; gap: 4px; position: relative; }
+.proj-list-row input[type="checkbox"] { accent-color: var(--accent); }
+@media (max-width: 900px) {
+  .proj-list-row { grid-template-columns: 24px 8px 1fr 80px 80px auto; }
+  .proj-list-row .col.client, .proj-list-row .col.last, .proj-list-row .chips { display: none; }
+}

@@ -790,11 +790,60 @@ function renderProjectsBody() {
   renderGridView() // default + grid
 }
 
-// Placeholders for Tasks 7/8/9 — keep them simple stubs.
+// Placeholders for Tasks 8/9 — keep them simple stubs.
 function renderListView() {
+  const s = getProjectsState()
   const el = document.getElementById('proj-body')
-  if (el) el.innerHTML = `<p style="padding:20px;color:var(--text-muted)">List view — Task 7</p>`
+  if (!el) return
+  if (s.filtered.length === 0) { renderEmptyState(el); return }
+  const main = s.filtered.filter(p => !s.pinned.has(p.name))
+  if (main.length === 0) { el.innerHTML = ''; return }
+  if (s.group !== 'none') {
+    el.innerHTML = renderGroupedView(main, renderListRow, 'proj-list')
+  } else {
+    el.innerHTML = `<div class="proj-list">${main.map(renderListRow).join('')}</div>`
+  }
 }
+
+function renderListRow(p) {
+  const s = getProjectsState()
+  const m = p._meta || {}
+  const status = m.status || p.lastSession?.status || 'unknown'
+  const statusColor = STATUS_COLORS_V2[status] || 'var(--text-muted)'
+  const displayName = m.displayName || p.name
+  const isPinned = s.pinned.has(p.name)
+  const isSelected = s.selection.has(p.name)
+  const stack = (m.stack || []).slice(0, 2)
+  const liveUrl = safeUrl(m.liveUrl)
+  const onClick = `if(event.target.closest('input,button,a,.proj-menu-pop'))return;openProjectDetail('${escAttr(p.name)}')`
+  return `<div class="proj-list-row ${isSelected ? 'selected' : ''}"
+    role="button" tabindex="0"
+    data-name="${escAttr(p.name)}" onclick="${onClick}"
+    onkeydown="if(event.target.closest('input,button,a,.proj-menu-pop'))return;if(event.key==='Enter'){event.preventDefault();this.click()}else if(event.key===' '){event.preventDefault()}">
+    <input type="checkbox" ${isSelected ? 'checked' : ''}
+      aria-label="Select ${escAttr(displayName)}"
+      onclick="event.stopPropagation();toggleProjectSelection('${escAttr(p.name)}',this.checked)">
+    <span class="dot" style="background:${statusColor}" aria-hidden="true"></span>
+    <span class="name">
+      <button class="proj-card-pin ${isPinned ? 'pinned' : ''}" style="margin-right:4px"
+        aria-label="${isPinned ? 'Unpin' : 'Pin'} ${escAttr(displayName)}"
+        onclick="event.stopPropagation();toggleProjectPin('${escAttr(p.name)}')">${isPinned ? '★' : '☆'}</button>
+      ${escHtml(displayName)}
+    </span>
+    <span class="col client">${escHtml(m.clientName || '')}</span>
+    <span class="col cat">${m.category ? `${CATEGORY_ICONS[m.category] || ''} ${escHtml(m.category)}` : ''}</span>
+    <span class="col status" style="color:${statusColor}">${escHtml(status)}</span>
+    <span class="col">${p.totalSessions || 0} sess</span>
+    <span class="col last">${escHtml(timeAgoV2(p.lastSession?.date))}</span>
+    <span class="chips">${stack.map(t => `<span class="proj-card-chip">${escHtml(t)}</span>`).join('')}</span>
+    <span class="actions">
+      ${liveUrl ? `<a href="${escAttr(liveUrl)}" target="_blank" rel="noopener" style="color:var(--text-muted);text-decoration:none;padding:2px 4px" onclick="event.stopPropagation()" aria-label="Open live site">↗</a>` : ''}
+      <button class="menu-btn" aria-label="More actions for ${escAttr(displayName)}"
+        onclick="event.stopPropagation();toggleCardMenu('${escAttr(p.name)}',this)">⋯</button>
+    </span>
+  </div>`
+}
+
 function renderKanbanView() {
   const el = document.getElementById('proj-body')
   if (el) el.innerHTML = `<p style="padding:20px;color:var(--text-muted)">Kanban view — Task 8</p>`
