@@ -459,13 +459,31 @@ function toggleStatusFromStats(status) {
 }
 window.toggleStatusFromStats = toggleStatusFromStats
 
-function toggleProjectPin(name) {
+async function toggleProjectPin(name) {
   const s = window._projectsState
   if (!s) return
-  if (s.pinned.has(name)) s.pinned.delete(name)
-  else s.pinned.add(name)
-  try { localStorage.setItem('synapse.projects.pinned', JSON.stringify([...s.pinned])) } catch {}
+  // Optimistic UI
+  const wasPinned = s.pinned.has(name)
+  if (wasPinned) s.pinned.delete(name); else s.pinned.add(name)
   applyProjectFiltersAndRender()
+  // Persist via backend
+  try {
+    const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}/pin`, {
+      method: 'PATCH',
+      credentials: 'include',
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const { pinned } = await r.json()
+    // Server is authoritative — reconcile if optimistic guess was wrong (rare but possible)
+    if (pinned && !s.pinned.has(name)) s.pinned.add(name)
+    else if (!pinned && s.pinned.has(name)) s.pinned.delete(name)
+    applyProjectFiltersAndRender()
+  } catch (err) {
+    // Rollback
+    if (wasPinned) s.pinned.add(name); else s.pinned.delete(name)
+    applyProjectFiltersAndRender()
+    alert('Pin failed: ' + (err.message || err))
+  }
 }
 window.toggleProjectPin = toggleProjectPin
 
