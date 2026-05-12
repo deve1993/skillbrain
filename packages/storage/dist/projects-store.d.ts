@@ -41,6 +41,7 @@ export interface Project {
     legalTermsUrl?: string;
     aliases: string[];
     notes?: string;
+    pinned: boolean;
     createdAt: string;
     updatedAt: string;
 }

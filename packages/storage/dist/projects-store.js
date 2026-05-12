@@ -53,6 +53,7 @@ export class ProjectsStore {
             legalPrivacyUrl: project.legalPrivacyUrl ?? existing?.legalPrivacyUrl,
             legalTermsUrl: project.legalTermsUrl ?? existing?.legalTermsUrl,
             aliases: project.aliases ?? existing?.aliases ?? [],
+            pinned: project.pinned ?? existing?.pinned ?? false,
             notes: project.notes ?? existing?.notes,
             createdAt: existing?.createdAt ?? now,
             updatedAt: now,
@@ -70,9 +71,9 @@ export class ProjectsStore {
         domain_primary, domains_extra,
         integrations,
         legal_cookie_banner, legal_privacy_url, legal_terms_url,
-        aliases, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(merged.name, merged.displayName ?? null, merged.description ?? null, merged.clientName ?? null, merged.category ?? null, merged.teamLead ?? null, JSON.stringify(merged.teamMembers), merged.startedAt ?? null, merged.endedAt ?? null, merged.status, merged.repoUrl ?? null, merged.mainBranch ?? null, merged.workspacePath ?? null, JSON.stringify(merged.stack), merged.language ?? null, merged.packageManager ?? null, merged.nodeVersion ?? null, merged.dbType ?? null, merged.dbReference ?? null, merged.dbAdminUrl ?? null, merged.cmsType ?? null, merged.cmsAdminUrl ?? null, merged.deployPlatform ?? null, merged.liveUrl ?? null, merged.deployStatus ?? null, merged.lastDeploy ?? null, merged.hasCi ? 1 : 0, merged.domainPrimary ?? null, JSON.stringify(merged.domainsExtra), JSON.stringify(merged.integrations), merged.legalCookieBanner ?? null, merged.legalPrivacyUrl ?? null, merged.legalTermsUrl ?? null, JSON.stringify(merged.aliases), merged.notes ?? null, merged.createdAt, merged.updatedAt);
+        aliases, notes, pinned, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(merged.name, merged.displayName ?? null, merged.description ?? null, merged.clientName ?? null, merged.category ?? null, merged.teamLead ?? null, JSON.stringify(merged.teamMembers), merged.startedAt ?? null, merged.endedAt ?? null, merged.status, merged.repoUrl ?? null, merged.mainBranch ?? null, merged.workspacePath ?? null, JSON.stringify(merged.stack), merged.language ?? null, merged.packageManager ?? null, merged.nodeVersion ?? null, merged.dbType ?? null, merged.dbReference ?? null, merged.dbAdminUrl ?? null, merged.cmsType ?? null, merged.cmsAdminUrl ?? null, merged.deployPlatform ?? null, merged.liveUrl ?? null, merged.deployStatus ?? null, merged.lastDeploy ?? null, merged.hasCi ? 1 : 0, merged.domainPrimary ?? null, JSON.stringify(merged.domainsExtra), JSON.stringify(merged.integrations), merged.legalCookieBanner ?? null, merged.legalPrivacyUrl ?? null, merged.legalTermsUrl ?? null, JSON.stringify(merged.aliases), merged.notes ?? null, merged.pinned ? 1 : 0, merged.createdAt, merged.updatedAt);
         return merged;
     }
     get(name) {
@@ -283,6 +284,7 @@ export class ProjectsStore {
             legalTermsUrl: row.legal_terms_url ?? undefined,
             aliases: JSON.parse(row.aliases || '[]'),
             notes: row.notes ?? undefined,
+            pinned: row.pinned === 1 || row.pinned === true,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
