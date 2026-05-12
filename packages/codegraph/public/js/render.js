@@ -880,10 +880,12 @@ function renderKanbanCard(p) {
   const displayName = m.displayName || p.name
   const catIcon = m.category ? CATEGORY_ICONS[m.category] || '📦' : ''
   return `<div class="proj-kanban-card" draggable="true"
+    role="button" tabindex="0"
     data-name="${escAttr(p.name)}"
     ondragstart="kanbanDragStart(event,this)"
     ondragend="kanbanDragEnd(this)"
-    onclick="if(event.target.closest('button,a'))return;openProjectDetail('${escAttr(p.name)}')">
+    onclick="if(event.target.closest('button,a'))return;openProjectDetail('${escAttr(p.name)}')"
+    onkeydown="if(event.target.closest('button,a'))return;if(event.key==='Enter'){event.preventDefault();this.click()}else if(event.key===' '){event.preventDefault()}">
     <div class="k-name">
       ${catIcon ? `<span aria-hidden="true">${catIcon}</span>` : ''} ${escHtml(displayName)}
     </div>
