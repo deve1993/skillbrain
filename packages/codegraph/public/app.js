@@ -30,8 +30,9 @@ let currentPage = 'home'
 
 // ── Router ──
 function route() {
-  const hash = location.hash.slice(1) || '/'
-  const parts = hash.split('/')
+  const raw = location.hash.slice(1) || '/'
+  const [path] = raw.split('?')           // strip query
+  const parts = path.split('/')
   const page = parts[1] || 'home'
   const arg = parts[2] ? decodeURIComponent(parts[2]) : null
   currentPage = page

@@ -590,6 +590,19 @@ export async function renderSessions() {
 
 // ── Projects v2 ──
 
+const ALLOWED_VIEWS = new Set(['grid', 'list', 'kanban', 'table'])
+const ALLOWED_SORTS = new Set([
+  'lastActivity-desc', 'lastActivity-asc',
+  'name-asc', 'name-desc',
+  'status-asc', 'status-desc',
+  'sessions-desc', 'sessions-asc',
+  'memories-desc', 'memories-asc',
+  'created-desc', 'created-asc',
+  'client-asc', 'client-desc',
+  'category-asc', 'category-desc',
+])
+const ALLOWED_GROUPS = new Set(['none', 'client', 'status', 'category'])
+
 function getProjectsState() {
   if (!window._projectsState) {
     const def = {
@@ -603,19 +616,29 @@ function getProjectsState() {
       selection: new Set(),
       detailIndex: -1,
     }
-    // Hydrate from localStorage
+    // Hydrate from localStorage (per-key isolation: malformed key doesn't break others)
+    const v = localStorage.getItem('synapse.projects.view')
+    if (v && ALLOWED_VIEWS.has(v)) def.view = v
     try {
-      const v = localStorage.getItem('synapse.projects.view')
-      if (v) def.view = v
-      const p = JSON.parse(localStorage.getItem('synapse.projects.pinned') || '[]')
-      def.pinned = new Set(p)
-      const f = JSON.parse(localStorage.getItem('synapse.projects.filters') || 'null')
-      if (f) Object.assign(def.filters, f)
-      const s = localStorage.getItem('synapse.projects.sort')
-      if (s) def.sort = s
-      const g = localStorage.getItem('synapse.projects.group')
-      if (g) def.group = g
-    } catch {}
+      const raw = localStorage.getItem('synapse.projects.pinned')
+      if (raw) def.pinned = new Set(JSON.parse(raw))
+    } catch {
+      localStorage.removeItem('synapse.projects.pinned')
+    }
+    try {
+      const raw = localStorage.getItem('synapse.projects.filters')
+      if (raw) {
+        const f = JSON.parse(raw)
+        const KEYS = ['status', 'category', 'client', 'stack', 'showArchived', 'search']
+        for (const k of KEYS) if (k in f) def.filters[k] = f[k]
+      }
+    } catch {
+      localStorage.removeItem('synapse.projects.filters')
+    }
+    const s = localStorage.getItem('synapse.projects.sort')
+    if (s && ALLOWED_SORTS.has(s)) def.sort = s
+    const g = localStorage.getItem('synapse.projects.group')
+    if (g && ALLOWED_GROUPS.has(g)) def.group = g
     window._projectsState = def
   }
   return window._projectsState
@@ -635,13 +658,13 @@ function parseProjectsHashParams() {
 
 function applyHashOverrides(state) {
   const p = parseProjectsHashParams()
-  if (p.view) state.view = p.view
+  if (p.view && ALLOWED_VIEWS.has(p.view)) state.view = p.view
   if (p.status) state.filters.status = p.status.split(',').filter(Boolean)
   if (p.category) state.filters.category = p.category.split(',').filter(Boolean)
   if (p.client) state.filters.client = p.client.split(',').filter(Boolean)
   if (p.stack) state.filters.stack = p.stack.split(',').filter(Boolean)
-  if (p.sort) state.sort = p.sort
-  if (p.group) state.group = p.group
+  if (p.sort && ALLOWED_SORTS.has(p.sort)) state.sort = p.sort
+  if (p.group && ALLOWED_GROUPS.has(p.group)) state.group = p.group
   if (p.showArchived) state.filters.showArchived = p.showArchived === '1'
 }
 
@@ -712,8 +735,7 @@ export async function renderProjects() {
 
 function renderViewPill(view, icon, label, current) {
   const active = view === current
-  return `<button class="proj-view-pill ${active ? 'active' : ''}" role="tab" aria-selected="${active}"
-    onclick="changeProjectView('${view}')">${icon} <span>${label}</span></button>`
+  return `<button class="proj-view-pill ${active ? 'active' : ''}" role="tab" aria-selected="${active}" onclick="changeProjectView('${escHtml(view)}')">${icon} <span>${label}</span></button>`
 }
 
 // Compute filtered list from state.merged. Placeholder for now — full impl in Task 2.
