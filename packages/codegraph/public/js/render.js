@@ -845,8 +845,52 @@ function renderListRow(p) {
 }
 
 function renderKanbanView() {
+  const s = getProjectsState()
   const el = document.getElementById('proj-body')
-  if (el) el.innerHTML = `<p style="padding:20px;color:var(--text-muted)">Kanban view — Task 8</p>`
+  if (!el) return
+  if (s.filtered.length === 0) { renderEmptyState(el); return }
+  const cols = ['active', 'paused', 'completed', 'archived']
+  const grouped = { active: [], paused: [], completed: [], archived: [] }
+  for (const p of s.filtered) {
+    if (s.pinned.has(p.name)) continue
+    const st = p._meta?.status || p.lastSession?.status
+    if (grouped[st]) grouped[st].push(p)
+    else grouped.active.push(p) // fallback: unknown statuses go into active
+  }
+  const archivedCollapsed = !s.filters.showArchived
+  el.innerHTML = `<div class="proj-kanban">
+    ${cols.map(c => `
+      <div class="proj-kanban-col ${c === 'archived' && archivedCollapsed ? 'collapsed' : ''}"
+        data-status="${escAttr(c)}" ondragover="kanbanDragOver(event,this)" ondragleave="kanbanDragLeave(this)" ondrop="kanbanDrop(event,this)">
+        <div class="proj-kanban-col-header">
+          <span class="proj-kanban-col-title">
+            <span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${STATUS_COLORS_V2[c]}" aria-hidden="true"></span>
+            ${escHtml(c)} <span class="proj-kanban-col-count">${grouped[c].length}</span>
+          </span>
+          ${c === 'archived' ? `<button class="proj-kanban-col-toggle" aria-label="${archivedCollapsed ? 'Expand archived' : 'Collapse archived'}"
+            onclick="this.closest('.proj-kanban-col').classList.toggle('collapsed')">${archivedCollapsed ? '▸' : '▾'}</button>` : ''}
+        </div>
+        ${grouped[c].map(renderKanbanCard).join('')}
+      </div>`).join('')}
+  </div>`
+}
+
+function renderKanbanCard(p) {
+  const m = p._meta || {}
+  const displayName = m.displayName || p.name
+  const catIcon = m.category ? CATEGORY_ICONS[m.category] || '📦' : ''
+  return `<div class="proj-kanban-card" draggable="true"
+    data-name="${escAttr(p.name)}"
+    ondragstart="kanbanDragStart(event,this)"
+    ondragend="kanbanDragEnd(this)"
+    onclick="if(event.target.closest('button,a'))return;openProjectDetail('${escAttr(p.name)}')">
+    <div class="k-name">
+      ${catIcon ? `<span aria-hidden="true">${catIcon}</span>` : ''} ${escHtml(displayName)}
+    </div>
+    <div class="k-meta">
+      ${m.clientName ? escHtml(m.clientName) + ' · ' : ''}${p.totalSessions || 0} sess · ${escHtml(timeAgoV2(p.lastSession?.date))}
+    </div>
+  </div>`
 }
 function renderTableView() {
   const el = document.getElementById('proj-body')

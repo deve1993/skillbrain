@@ -579,6 +579,61 @@ function toggleProjectSelection(name, checked) {
 }
 window.toggleProjectSelection = toggleProjectSelection
 
+// ── Kanban DnD ──
+
+function kanbanDragStart(e, el) {
+  const name = el.dataset.name
+  if (!name) return
+  e.dataTransfer.setData('text/plain', name)
+  e.dataTransfer.effectAllowed = 'move'
+  el.classList.add('dragging')
+}
+function kanbanDragEnd(el) { el.classList.remove('dragging') }
+function kanbanDragOver(e, col) {
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  col.classList.add('drop-target')
+}
+function kanbanDragLeave(col) { col.classList.remove('drop-target') }
+
+async function kanbanDrop(e, col) {
+  e.preventDefault()
+  col.classList.remove('drop-target')
+  const name = e.dataTransfer.getData('text/plain')
+  const newStatus = col.dataset.status
+  if (!name || !newStatus) return
+  const s = window._projectsState
+  if (!s) return
+  const proj = s.merged.find(p => p.name === name)
+  if (!proj) return
+  proj._meta = proj._meta || {}
+  const prevStatus = proj._meta.status
+  if (prevStatus === newStatus) return
+  proj._meta.status = newStatus
+  // Optimistic re-render
+  applyProjectFiltersAndRender()
+  // Persist
+  try {
+    const r = await fetch(`/api/projects-meta/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  } catch (err) {
+    // Rollback
+    proj._meta.status = prevStatus
+    applyProjectFiltersAndRender()
+    alert('Failed to update status: ' + (err.message || err))
+  }
+}
+
+window.kanbanDragStart = kanbanDragStart
+window.kanbanDragEnd = kanbanDragEnd
+window.kanbanDragOver = kanbanDragOver
+window.kanbanDragLeave = kanbanDragLeave
+window.kanbanDrop = kanbanDrop
+
 // Close filter menus on outside click
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.proj-filter-pill')) {
