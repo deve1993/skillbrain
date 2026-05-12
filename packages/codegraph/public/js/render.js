@@ -1022,6 +1022,9 @@ function getProjectsState() {
     // Hydrate from localStorage (per-key isolation: malformed key doesn't break others)
     const v = localStorage.getItem('synapse.projects.view')
     if (v && ALLOWED_VIEWS.has(v)) def.view = v
+    // Phase 2: pinned is now sourced from /api/projects?summary=true; this localStorage
+    // read is a one-load fallback before the one-time migration in renderProjects fires.
+    // Safe to remove once we're confident no production client still has the legacy key.
     try {
       const raw = localStorage.getItem('synapse.projects.pinned')
       if (raw) def.pinned = new Set(JSON.parse(raw))
