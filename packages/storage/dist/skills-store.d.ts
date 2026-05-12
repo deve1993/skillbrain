@@ -50,9 +50,12 @@ export interface SkillUsageRow {
 }
 export declare class SkillsStore {
     private db;
+    private static _telemetryWarned;
+    private static _telemetryFailures;
     private stmts;
     private recentInserts;
     constructor(db: Database.Database);
+    static get telemetryFailures(): number;
     private prepareStatements;
     upsert(skill: Skill, options?: SkillUpsertOptions): void;
     upsertBatch(skills: Skill[], options?: SkillUpsertOptions): void;

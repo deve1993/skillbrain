@@ -23,11 +23,16 @@ export class ConcurrencyError extends Error {
 const DEDUP_WINDOW_MS = 1000;
 export class SkillsStore {
     db;
+    static _telemetryWarned = false;
+    static _telemetryFailures = 0;
     stmts;
     recentInserts = new Map();
     constructor(db) {
         this.db = db;
         this.stmts = this.prepareStatements();
+    }
+    static get telemetryFailures() {
+        return SkillsStore._telemetryFailures;
     }
     prepareStatements() {
         return {
@@ -364,7 +369,13 @@ export class SkillsStore {
         try {
             this.stmts.insertUsage.run(name, ctx.sessionId ?? null, ctx.project ?? null, ctx.task ?? null, action, ctx.userId ?? null);
         }
-        catch { /* skill_usage table may not exist on legacy DB until migrations run */ }
+        catch (err) {
+            if (!SkillsStore._telemetryWarned) {
+                console.warn('[skill_usage] insert failed, telemetry disabled:', err.message);
+                SkillsStore._telemetryWarned = true;
+            }
+            SkillsStore._telemetryFailures++;
+        }
     }
     topRouted(sinceHours = 24, limit = 20) {
         try {
