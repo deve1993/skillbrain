@@ -629,22 +629,43 @@ async function bulkSetStatus(status) {
   if (names.length === 0) return
   if (!confirm(`Set status "${status}" on ${names.length} project${names.length>1?'s':''}?`)) return
   try {
-    const results = await Promise.allSettled(names.map(n =>
-      fetch(`/api/projects-meta/${encodeURIComponent(n)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r })
-    ))
-    const failed = results.filter(r => r.status === 'rejected').length
+    const r = await fetch('/api/projects-meta/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names, action: 'setStatus', value: status }),
+      credentials: 'include',
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const { ok, failed } = await r.json()
     s.selection.clear()
-    if (failed > 0) alert(`${failed} of ${names.length} updates failed; refreshing list.`)
+    if (failed?.length > 0) alert(`${failed.length} of ${names.length} updates failed; refreshing list.`)
     renderProjects()
-  } catch (err) { alert('Bulk update failed: ' + (err.message || err)) }
+  } catch (err) {
+    alert('Bulk update failed: ' + (err.message || err))
+  }
 }
 
 async function bulkArchive() {
-  await bulkSetStatus('archived')
+  const s = window._projectsState
+  if (!s) return
+  const names = [...s.selection]
+  if (names.length === 0) return
+  if (!confirm(`Archive ${names.length} project${names.length>1?'s':''}?`)) return
+  try {
+    const r = await fetch('/api/projects-meta/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names, action: 'archive' }),
+      credentials: 'include',
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const { ok, failed } = await r.json()
+    s.selection.clear()
+    if (failed?.length > 0) alert(`${failed.length} of ${names.length} archives failed; refreshing list.`)
+    renderProjects()
+  } catch (err) {
+    alert('Bulk archive failed: ' + (err.message || err))
+  }
 }
 
 async function bulkDelete() {
@@ -654,15 +675,20 @@ async function bulkDelete() {
   if (names.length === 0) return
   if (!confirm(`Delete ${names.length} project${names.length>1?'s':''}? This removes their metadata records.`)) return
   try {
-    const results = await Promise.allSettled(names.map(n =>
-      fetch(`/api/projects-meta/${encodeURIComponent(n)}`, { method: 'DELETE' })
-        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r })
-    ))
-    const failed = results.filter(r => r.status === 'rejected').length
+    const r = await fetch('/api/projects-meta/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names, action: 'delete' }),
+      credentials: 'include',
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const { ok, failed } = await r.json()
     s.selection.clear()
-    if (failed > 0) alert(`${failed} of ${names.length} deletes failed; refreshing list.`)
+    if (failed?.length > 0) alert(`${failed.length} of ${names.length} deletes failed; refreshing list.`)
     renderProjects()
-  } catch (err) { alert('Bulk delete failed: ' + (err.message || err)) }
+  } catch (err) {
+    alert('Bulk delete failed: ' + (err.message || err))
+  }
 }
 
 function bulkCancel() {
