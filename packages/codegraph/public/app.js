@@ -8,6 +8,7 @@ import {
   editField, editSelect, memberRow,
   showMergeDialog, closeMergeModal, confirmMerge,
   showDsMergeDialog, closeDsMergeModal, confirmDsMerge,
+  removeStackTag,
 } from './js/modal.js'
 import {
   renderHome, renderSkills, searchSkills, openSkillDetail,
@@ -273,6 +274,7 @@ window.confirmMerge = confirmMerge
 window.showDsMergeDialog = showDsMergeDialog
 window.closeDsMergeModal = closeDsMergeModal
 window.confirmDsMerge = confirmDsMerge
+window.removeStackTag = removeStackTag
 window.addMemberRow = addMemberRow
 window.deleteMemory = deleteMemory
 window.deprecateMemory = deprecateMemory

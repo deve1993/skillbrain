@@ -7,6 +7,16 @@ function escHtml(s) {
   return s?.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') || ''
 }
 
+// Attribute-safe escape (also escapes quotes, for use in HTML attributes and inline JS strings)
+function escAttr(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
 // ── Field builders ──
 
 export function editField(key, label, value, placeholder, type = 'text') {
@@ -138,16 +148,81 @@ export function switchEditTab(tab) {
   })
 }
 
-// Task 13 STUB — replaced in Task 14 with a real tag input
+// Task 14 — interactive chip-based tag input for the Stack field
 function renderStackTagInput(stack) {
+  const tags = Array.isArray(stack) ? stack : []
   return `<div>
-    <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Stack (comma-separated)</label>
-    <input type="text" name="stackRaw" value="${escHtml((stack || []).join(', '))}" placeholder="Next.js, Tailwind, Supabase" style="width:100%;padding:8px 12px;background:#111118;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box">
-    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Tag input arriva in Task 14</div>
+    <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Stack</label>
+    <div class="tag-input-wrap" id="stack-tag-wrap" data-tags='${escAttr(JSON.stringify(tags))}'>
+      ${tags.map(t => renderTagChip(t)).join('')}
+      <input type="text" class="tag-input" id="stack-tag-input" placeholder="Add tech (press Enter)" autocomplete="off" aria-label="Add stack technology">
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Press Enter to add, Backspace on empty input to remove the last tag.</div>
   </div>`
 }
 
-function initStackTagInput() { /* Task 14 */ }
+function renderTagChip(tag) {
+  return `<span class="tag-chip" data-tag="${escAttr(tag)}">${escHtml(tag)}<button type="button" tabindex="-1" onclick="removeStackTag('${escAttr(tag)}')" aria-label="Remove ${escAttr(tag)}">×</button></span>`
+}
+
+function initStackTagInput() {
+  const wrap = document.getElementById('stack-tag-wrap')
+  const inp = document.getElementById('stack-tag-input')
+  if (!wrap || !inp) return
+  // Focus the input when clicking anywhere in the wrap (so the wrap feels like one big input)
+  wrap.addEventListener('click', (e) => {
+    if (e.target === wrap) inp.focus()
+  })
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const v = inp.value.trim()
+      if (!v) return
+      addStackTag(v)
+      inp.value = ''
+    } else if (e.key === 'Backspace' && inp.value === '') {
+      const chips = wrap.querySelectorAll('.tag-chip')
+      if (chips.length === 0) return
+      const last = chips[chips.length - 1]
+      const tag = last.dataset.tag
+      removeStackTag(tag)
+    }
+  })
+}
+
+function addStackTag(tag) {
+  const wrap = document.getElementById('stack-tag-wrap')
+  if (!wrap) return
+  let tags
+  try { tags = JSON.parse(wrap.dataset.tags || '[]') } catch { tags = [] }
+  if (tags.includes(tag)) return  // dedupe
+  tags.push(tag)
+  wrap.dataset.tags = JSON.stringify(tags)
+  // Insert chip before the input
+  const inp = document.getElementById('stack-tag-input')
+  const tmp = document.createElement('div')
+  tmp.innerHTML = renderTagChip(tag)
+  if (inp && tmp.firstElementChild) {
+    wrap.insertBefore(tmp.firstElementChild, inp)
+  }
+}
+
+export function removeStackTag(tag) {
+  const wrap = document.getElementById('stack-tag-wrap')
+  if (!wrap) return
+  let tags
+  try { tags = JSON.parse(wrap.dataset.tags || '[]') } catch { tags = [] }
+  const idx = tags.indexOf(tag)
+  if (idx < 0) return
+  tags.splice(idx, 1)
+  wrap.dataset.tags = JSON.stringify(tags)
+  // Remove the chip — match by data-tag attribute via querySelectorAll (CSS escape needed)
+  for (const chip of wrap.querySelectorAll('.tag-chip')) {
+    if (chip.dataset.tag === tag) { chip.remove(); break }
+  }
+  // Refocus the input so the user can keep typing
+  document.getElementById('stack-tag-input')?.focus()
+}
 
 export function closeEditModal() {
   const m = document.getElementById('edit-modal')
@@ -162,11 +237,14 @@ export async function saveProject(event, name, onSaved) {
   for (const [k, v] of fd.entries()) {
     if (v !== '') fields[k] = v
   }
-  // Parse stack from comma-separated string
-  if (fields.stackRaw !== undefined) {
+  // Stack from new tag-input widget (Task 14). Falls back to legacy stackRaw CSV if widget absent.
+  const stackWrap = document.getElementById('stack-tag-wrap')
+  if (stackWrap) {
+    try { fields.stack = JSON.parse(stackWrap.dataset.tags || '[]') } catch { fields.stack = [] }
+  } else if (fields.stackRaw !== undefined) {
     fields.stack = fields.stackRaw.split(',').map(s => s.trim()).filter(Boolean)
-    delete fields.stackRaw
   }
+  delete fields.stackRaw
   // Collect team members
   const rows = document.querySelectorAll('#team-members-list .member-row')
   const members = []
