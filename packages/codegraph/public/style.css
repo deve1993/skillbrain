@@ -1502,7 +1502,7 @@ dialog details pre {
 .proj-list { display: flex; flex-direction: column; gap: 4px; }
 .proj-list-row {
   display: grid;
-  grid-template-columns: 24px 8px 1fr 140px 100px 80px 80px 140px auto;
+  grid-template-columns: 24px 8px 1fr 140px 100px 80px 80px 140px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 8px 12px;
@@ -1522,6 +1522,6 @@ dialog details pre {
 .proj-list-row .actions { display: flex; gap: 4px; position: relative; }
 .proj-list-row input[type="checkbox"] { accent-color: var(--accent); }
 @media (max-width: 900px) {
-  .proj-list-row { grid-template-columns: 24px 8px 1fr 80px 80px auto; }
+  .proj-list-row { grid-template-columns: 24px 8px 1fr 80px 80px 80px auto; }
   .proj-list-row .col.client, .proj-list-row .col.last, .proj-list-row .chips { display: none; }
 }
