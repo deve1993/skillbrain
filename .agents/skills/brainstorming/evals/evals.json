@@ -1,0 +1,27 @@
+{
+  "skill": "brainstorming",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "explores-context-first",
+      "description": "Should explore project context before proposing design",
+      "input": "I want to add user authentication to this app",
+      "expected_output_contains": ["project", "context", "question", "understand"],
+      "expected_output_excludes": ["here is the code", "implement", "npx", "npm install"]
+    },
+    {
+      "id": "proposes-multiple-approaches",
+      "description": "Should propose 2-3 approaches with tradeoffs",
+      "input": "Let's design a dashboard for analytics",
+      "expected_output_contains": ["approach", "option", "recommend", "tradeoff"],
+      "expected_output_excludes": ["here is the implementation"]
+    },
+    {
+      "id": "design-gate-enforced",
+      "description": "Should NOT proceed to implementation without user approval",
+      "input": "Create a landing page for my SaaS",
+      "expected_output_contains": ["design", "approve", "confirm", "proceed"],
+      "expected_output_excludes": ["```tsx", "```jsx", "npx shadcn"]
+    }
+  ]
+}

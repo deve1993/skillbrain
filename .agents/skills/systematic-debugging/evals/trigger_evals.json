@@ -1,0 +1,19 @@
+{
+  "skill": "systematic-debugging",
+  "description": "Tests that systematic-debugging activates for bug/error scenarios",
+  "should_trigger": [
+    "This is broken, fix it",
+    "I'm getting a TypeError: Cannot read properties of undefined",
+    "The build is failing with this error",
+    "The login doesn't work anymore",
+    "My tests are failing",
+    "There's a bug in the payment flow",
+    "Something is wrong with the API response"
+  ],
+  "should_not_trigger": [
+    "Create a new component",
+    "Add dark mode to the app",
+    "Document this function",
+    "Deploy to production"
+  ]
+}

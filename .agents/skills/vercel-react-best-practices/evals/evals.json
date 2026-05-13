@@ -1,0 +1,51 @@
+{
+  "skill": "vercel-react-best-practices",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "eliminate-waterfall",
+      "description": "Verifies the skill identifies and fixes sequential await waterfalls with Promise.all()",
+      "input": "Review this code: const user = await fetchUser(); const posts = await fetchPosts(); const comments = await fetchComments();",
+      "expected_output_contains": [
+        "Promise.all",
+        "parallel",
+        "waterfall",
+        "CRITICAL"
+      ],
+      "expected_output_excludes": [
+        "code looks fine",
+        "sequential is OK"
+      ]
+    },
+    {
+      "id": "barrel-file-imports",
+      "description": "Verifies the skill flags barrel file imports and recommends direct imports",
+      "input": "I'm using: import { Check, X, Menu } from 'lucide-react'. Is this OK?",
+      "expected_output_contains": [
+        "barrel",
+        "direct import",
+        "lucide-react/dist",
+        "optimizePackageImports"
+      ],
+      "expected_output_excludes": [
+        "that's fine",
+        "no performance impact"
+      ]
+    },
+    {
+      "id": "rerender-optimization",
+      "description": "Verifies the skill recommends useShallow or correct memoization for re-render prevention",
+      "input": "My component re-renders on every state change because I'm subscribing to multiple values. How do I fix it?",
+      "expected_output_contains": [
+        "useShallow",
+        "memo",
+        "primitive",
+        "dependencies"
+      ],
+      "expected_output_excludes": [
+        "re-renders are fine",
+        "no optimization needed"
+      ]
+    }
+  ]
+}

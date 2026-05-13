@@ -1,0 +1,18 @@
+{
+  "skill": "web-design-guidelines",
+  "description": "Triggers when user asks to review UI code for compliance with web interface guidelines, accessibility, layout, or typography best practices",
+  "should_trigger": [
+    "Review my UI component for best practices",
+    "Check accessibility of my navigation component",
+    "Audit my design against web interface guidelines",
+    "Review this page component for UX issues",
+    "Check my site against web best practices",
+    "Does my UI follow Vercel web design guidelines?"
+  ],
+  "should_not_trigger": [
+    "Build a new navigation component",
+    "Add animations to my page",
+    "Fix a layout bug in my sidebar",
+    "Run an SEO audit on my site"
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "skill": "requesting-code-review",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "review-request-process",
+      "description": "Verifies the 3-step process: get SHAs, dispatch subagent, act on feedback",
+      "input": "How do I request code review after finishing a feature?",
+      "expected_output_contains": [
+        "git rev-parse",
+        "BASE_SHA",
+        "HEAD_SHA",
+        "code-reviewer"
+      ],
+      "expected_output_excludes": [
+        "skip review for simple changes",
+        "just push to main"
+      ]
+    },
+    {
+      "id": "mandatory-triggers",
+      "description": "Verifies review is mandatory after each task in subagent-driven development",
+      "input": "Do I need a code review after every task in a multi-step implementation plan?",
+      "expected_output_contains": [
+        "mandatory",
+        "each task",
+        "subagent-driven"
+      ],
+      "expected_output_excludes": [
+        "optional",
+        "skip if simple"
+      ]
+    },
+    {
+      "id": "feedback-severity",
+      "description": "Verifies Critical issues must be fixed before proceeding, Important before next task",
+      "input": "The code reviewer found a Critical issue and 2 Minor issues. What do I do?",
+      "expected_output_contains": [
+        "Critical",
+        "immediately",
+        "Minor"
+      ],
+      "expected_output_excludes": [
+        "ignore critical",
+        "fix all at the end"
+      ]
+    }
+  ]
+}

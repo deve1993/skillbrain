@@ -1,0 +1,17 @@
+{
+  "skill": "using-git-worktrees",
+  "description": "Triggers when user needs to start feature work in isolation or before executing an implementation plan",
+  "should_trigger": [
+    "I need to start working on a new feature branch in isolation",
+    "Set up an isolated workspace before running the implementation plan",
+    "Create a git worktree for my authentication feature",
+    "I want to work on multiple branches at the same time",
+    "Prepare a clean baseline workspace before starting subagent-driven development"
+  ],
+  "should_not_trigger": [
+    "Commit my changes to the current branch",
+    "Merge my feature branch into main",
+    "Run git rebase on my branch",
+    "Create a pull request for my feature"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "skill": "frontend-design",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "avoids-generic-aesthetics",
+      "description": "Should produce distinctive design, not generic AI slop",
+      "input": "Create a hero section for a B2B SaaS landing page",
+      "expected_output_contains": ["font", "color", "distinctive"],
+      "expected_output_excludes": ["Inter font", "blue primary color", "generic"]
+    },
+    {
+      "id": "production-grade-code",
+      "description": "Should generate working, production-ready code",
+      "input": "Build a glassmorphism card component",
+      "expected_output_contains": ["backdrop-filter", "rgba", "border-radius"],
+      "expected_output_excludes": ["TODO", "placeholder", "// implement"]
+    }
+  ]
+}

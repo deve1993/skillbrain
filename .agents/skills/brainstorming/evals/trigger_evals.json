@@ -1,0 +1,19 @@
+{
+  "skill": "brainstorming",
+  "description": "Tests that brainstorming activates before creative/design work",
+  "should_trigger": [
+    "I want to add a dark mode to the app",
+    "Let's design a new pricing page",
+    "I'm thinking of building a checkout flow",
+    "How should we architect the user dashboard?",
+    "I want to create a new feature for notifications",
+    "Can you help me think through this booking form?",
+    "I need to build an admin panel"
+  ],
+  "should_not_trigger": [
+    "Fix this TypeScript error in auth.ts",
+    "Run the build and tell me what fails",
+    "What is React Server Components?",
+    "Deploy the project to Coolify"
+  ]
+}

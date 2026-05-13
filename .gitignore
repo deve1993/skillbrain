@@ -35,7 +35,9 @@ Progetti/*/.turbo/
 # ─── AI Tool directories (residui di tool provati — non committare) ───────────
 .adal/
 .agent/
-.agents/
+# .agents/skills/ è team-shared (skill condivise). Il resto di .agents/ resta ignorato.
+.agents/*
+!.agents/skills/
 .augment/
 .codebuddy/
 .commandcode/

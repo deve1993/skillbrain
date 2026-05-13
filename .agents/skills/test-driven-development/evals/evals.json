@@ -1,0 +1,53 @@
+{
+  "skill": "test-driven-development",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "iron-law-enforcement",
+      "description": "Verifies the skill enforces writing a failing test BEFORE writing any production code",
+      "input": "I already wrote the implementation for my retry function. Can I just write the tests now to verify it works?",
+      "expected_output_contains": [
+        "delete",
+        "start over",
+        "failing test first",
+        "no exceptions"
+      ],
+      "expected_output_excludes": [
+        "that's fine",
+        "tests after work",
+        "go ahead"
+      ]
+    },
+    {
+      "id": "red-phase-verification",
+      "description": "Verifies the skill mandates watching a test fail before writing implementation",
+      "input": "I wrote a test. Can I skip running it and just go directly to the implementation?",
+      "expected_output_contains": [
+        "MANDATORY",
+        "never skip",
+        "watch it fail",
+        "verify fails"
+      ],
+      "expected_output_excludes": [
+        "skipping is fine",
+        "optional",
+        "proceed to implementation"
+      ]
+    },
+    {
+      "id": "minimal-code-principle",
+      "description": "Verifies the skill requires writing only minimal code to pass the test, not over-engineering",
+      "input": "My test is passing. Should I add configurable retry options, exponential backoff, and a callback hook while I'm at it?",
+      "expected_output_contains": [
+        "YAGNI",
+        "minimal",
+        "next test",
+        "refactor"
+      ],
+      "expected_output_excludes": [
+        "add all features now",
+        "implement everything"
+      ]
+    }
+  ]
+}

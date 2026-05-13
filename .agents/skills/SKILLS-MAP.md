@@ -1,0 +1,115 @@
+# Skills Ecosystem Map
+
+> Auto-updated by `post-session-review`. Last update: 2026-04-12
+>
+> **Skill locations:**
+> - `.agents/skills/` — 30 lifecycle/process/quality skills (this file)
+> - `.opencode/skill/` — 99 domain skills (SEO, auth, payments, marketing, CMS…)
+> - **Total: 129 skills | 129 learnings.md**
+
+## Skill Graph
+
+```mermaid
+graph TD
+    subgraph Lifecycle
+        US[using-superpowers] -->|session start| GC[codegraph-context]
+        GC -->|calls| LL[load-learnings]
+        US -->|session end| PSR[post-session-review]
+        PSR -->|calls| CL[capture-learning]
+        PSR -->|updates| PR[pending-review.md]
+        PSR -->|re-indexes| EMB[CodeGraph Index]
+        CL -->|validates against| SCH[_schema/]
+        CL -->|writes to| LRN[(learnings.md)]
+        LL -->|semantic query| EMB
+        EMB -->|reads| LRN
+    end
+
+    subgraph Process
+        BS[brainstorming]
+        SD[systematic-debugging]
+        WP[writing-plans]
+        EP[executing-plans]
+        TDD[test-driven-development]
+        SDD[subagent-driven-development]
+        DPA[dispatching-parallel-agents]
+    end
+
+    subgraph Implementation
+        FD[frontend-design]
+        NBP[next-best-practices]
+        VRPB[vercel-react-best-practices]
+        UPM[ui-ux-pro-max]
+        WDG[web-design-guidelines]
+        AW[audit-website]
+    end
+
+    subgraph Quality
+        VBC[verification-before-completion]
+        RCR[requesting-code-review]
+        RECV[receiving-code-review]
+        FDB[finishing-a-development-branch]
+        UGW[using-git-worktrees]
+    end
+
+    GC -->|before| SD
+    GC -->|before| WP
+    BS -->|then| WP
+    WP -->|then| EP
+    SD -->|uses| TDD
+
+    style US fill:#4CAF50,color:#fff
+    style GC fill:#2196F3,color:#fff
+    style LL fill:#FF9800,color:#fff
+    style CL fill:#FF9800,color:#fff
+    style PSR fill:#FF9800,color:#fff
+    style EMB fill:#9C27B0,color:#fff
+    style PR fill:#f44336,color:#fff
+    style SCH fill:#607D8B,color:#fff
+    style LRN fill:#607D8B,color:#fff
+```
+
+## Skill Inventory
+
+| Skill | Type | Learnings | Confidence avg |
+|-------|------|-----------|---------------|
+| using-superpowers | lifecycle | 0 | — |
+| codegraph-context | lifecycle | 2 | 4.0 |
+| load-learnings | lifecycle | 0 | — |
+| capture-learning | lifecycle | 0 | — |
+| post-session-review | lifecycle | 0 | — |
+| brainstorming | process | 0 | — |
+| systematic-debugging | process | 4 | 3.0 |
+| writing-plans | process | 0 | — |
+| executing-plans | process | 0 | — |
+| test-driven-development | process | 0 | — |
+| subagent-driven-development | process | 1 | 3.0 |
+| dispatching-parallel-agents | process | 0 | — |
+| frontend-design | implementation | 0 | — |
+| next-best-practices | implementation | 5 | 3.0 |
+| vercel-react-best-practices | implementation | 0 | — |
+| ui-ux-pro-max | implementation | 0 | — |
+| web-design-guidelines | implementation | 0 | — |
+| audit-website | implementation | 0 | — |
+| verification-before-completion | quality | 1 | 4.0 |
+| requesting-code-review | quality | 0 | — |
+| receiving-code-review | quality | 0 | — |
+| finishing-a-development-branch | quality | 0 | — |
+| using-git-worktrees | quality | 0 | — |
+| writing-skills | quality | 0 | — |
+
+## Skill Breakdown
+
+| Location | Skills | learnings.md | Notes |
+|----------|--------|--------------|-------|
+| `.agents/skills/` | 30 | 30 | Lifecycle, process, quality — tracked here |
+| `.opencode/skill/` | 99 | 99 | SEO, auth, payments, marketing, CMS, etc. |
+| **Totale** | **129** | **129** | |
+
+## Learning Stats (`.agents/skills/` only)
+
+- **Total learnings**: 13
+- **Global**: 11 | **Project-specific**: 2
+- **Average confidence**: 3.2
+- **Pending review**: 0
+- **Deprecated**: 0
+- **Semantic index**: active (structural, embeddings load at query-time)

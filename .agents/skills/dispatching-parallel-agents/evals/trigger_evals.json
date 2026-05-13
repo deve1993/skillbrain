@@ -1,0 +1,18 @@
+{
+  "skill": "dispatching-parallel-agents",
+  "description": "Triggered when facing 2+ independent tasks or failures that can be investigated or fixed concurrently without shared state or sequential dependencies.",
+  "should_trigger": [
+    "We have 5 test files failing with different errors — how do I fix them all faster?",
+    "Multiple subsystems are broken: the API is down, the database is slow, and the frontend has errors",
+    "I need to fix 3 independent bugs in different parts of the codebase simultaneously",
+    "How do I parallelize work across multiple independent agent tasks?",
+    "We have failures in auth tests, payment tests, and notification tests — all unrelated",
+    "Dispatch agents to investigate these 4 independent issues in parallel"
+  ],
+  "should_not_trigger": [
+    "Fix this single bug in my authentication flow",
+    "Help me debug why my form submission is failing",
+    "Refactor this React component to use hooks",
+    "Write a test for this API endpoint"
+  ]
+}

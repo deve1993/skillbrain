@@ -1,0 +1,19 @@
+{
+  "skill": "executing-plans",
+  "description": "Triggers when user has a written implementation plan to execute, requesting batch-based task execution with review checkpoints",
+  "should_trigger": [
+    "Esegui il piano che abbiamo scritto per implementare il dark mode",
+    "Inizia a costruire le feature dal piano di implementazione",
+    "Implementa i task del piano in batch da 3",
+    "Start building the authentication system from the plan",
+    "Execute the implementation plan step by step",
+    "Segui il piano e implementa le prime 3 task",
+    "Carica il piano e inizia l'esecuzione con checkpoint"
+  ],
+  "should_not_trigger": [
+    "Crea un piano per implementare il sistema di pagamenti",
+    "Cosa devo fare per aggiungere l'autenticazione?",
+    "Puoi aiutarmi a pianificare la struttura del progetto?",
+    "Spiega come funziona il pattern di esecuzione dei piani"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "skill": "writing-skills",
+  "description": "Triggers when user wants to create new skills, edit existing skills, or verify skills work before deployment",
+  "should_trigger": [
+    "Create a new skill for our n8n workflow automation",
+    "Write a SKILL.md for the Odoo integration pattern",
+    "Edit this existing skill to add new functionality",
+    "Verify that this skill works correctly before deploying",
+    "Create evals for my new skill",
+    "How should I structure my new skill file?"
+  ],
+  "should_not_trigger": [
+    "Write documentation for my API",
+    "Create a README for my project",
+    "Write a blog post about my product",
+    "Write unit tests for my TypeScript code"
+  ]
+}

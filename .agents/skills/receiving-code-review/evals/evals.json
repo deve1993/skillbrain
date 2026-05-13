@@ -1,0 +1,51 @@
+{
+  "skill": "receiving-code-review",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "yagni-check",
+      "description": "Verifies YAGNI check is recommended before implementing a reviewer's suggested feature",
+      "input": "A reviewer says to implement proper database storage, date filtering, and CSV export for the analytics endpoint",
+      "expected_output_contains": [
+        "grep",
+        "unused",
+        "YAGNI",
+        "codebase"
+      ],
+      "expected_output_excludes": [
+        "implement it",
+        "you're absolutely right",
+        "great suggestion"
+      ]
+    },
+    {
+      "id": "unclear-items-protocol",
+      "description": "Verifies skill mandates clarifying ALL unclear items before implementing ANY",
+      "input": "My reviewer said fix items 1-8. I understand items 1,2,3,6,7,8 but items 4 and 5 are unclear",
+      "expected_output_contains": [
+        "clarify",
+        "4",
+        "5",
+        "before"
+      ],
+      "expected_output_excludes": [
+        "implement 1,2,3,6,7,8 now",
+        "ask about 4 and 5 later"
+      ]
+    },
+    {
+      "id": "no-performative-response",
+      "description": "Verifies forbidden sycophantic responses are explicitly excluded",
+      "input": "What should I say when a reviewer catches a real bug I missed?",
+      "expected_output_contains": [
+        "Fixed",
+        "technical"
+      ],
+      "expected_output_excludes": [
+        "You're absolutely right!",
+        "Great point!",
+        "Thanks for catching that!"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "skill": "test-driven-development",
+  "description": "Triggers when user is about to implement a feature or fix a bug, requiring the TDD red-green-refactor cycle",
+  "should_trigger": [
+    "Implement a new user authentication feature",
+    "Fix the bug where empty emails are accepted",
+    "Add a new API endpoint for order creation",
+    "Implement a retry function for failed operations",
+    "Refactor the payment processing module",
+    "Add form validation to the contact form"
+  ],
+  "should_not_trigger": [
+    "Write documentation for my API",
+    "Setup CI/CD pipeline",
+    "Review my code for style issues",
+    "Plan the architecture for my new feature"
+  ]
+}

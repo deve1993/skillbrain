@@ -1,0 +1,18 @@
+{
+  "skill": "writing-plans",
+  "description": "Tests that writing-plans activates for planning multi-step implementation",
+  "should_trigger": [
+    "Plan how to add authentication",
+    "I need an implementation plan for the checkout flow",
+    "Write a plan for migrating to the new CMS",
+    "How should I implement dark mode across the app?",
+    "Create a roadmap for the user dashboard",
+    "I want to refactor the API layer"
+  ],
+  "should_not_trigger": [
+    "Fix this typo in the README",
+    "What is Next.js?",
+    "Show me the folder structure",
+    "This button is broken"
+  ]
+}
