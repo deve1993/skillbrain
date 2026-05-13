@@ -71,7 +71,14 @@ Progetti/*/.turbo/
 packages/codegraph/.codegraph/
 
 # ─── Configurazione personale (non committare nel repo pubblico) ──────────────
-.opencode/
+# .opencode/ is the legacy mirror dir (symlinked from .claude/). Most of its
+# content is per-machine (personal skill mirror), but team-shared infrastructure
+# lives alongside and should be tracked:
+#   - settings.json: project-scoped hook config
+#   - scripts/:      shared SessionStart/PostToolUse hooks
+.opencode/*
+!.opencode/settings.json
+!.opencode/scripts/
 .sisyphus/
 opencode.json
 skills-lock.json
