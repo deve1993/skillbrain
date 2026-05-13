@@ -9,9 +9,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/codegraph
 
     steps:
       - uses: actions/checkout@v4
@@ -24,15 +21,24 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-          cache-dependency-path: packages/codegraph/pnpm-lock.yaml
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Type check
+      - name: Build storage (workspace dependency)
+        run: pnpm --filter @skillbrain/storage build
+
+      - name: Type check codegraph
+        working-directory: packages/codegraph
         run: pnpm exec tsc --noEmit
 
-      - name: Build
+      - name: Build codegraph
+        working-directory: packages/codegraph
         run: pnpm run build
 
-      - name: Test
+      - name: Test codegraph
+        working-directory: packages/codegraph
         run: pnpm test
+
+      - name: Test storage
+        run: pnpm --filter @skillbrain/storage test
