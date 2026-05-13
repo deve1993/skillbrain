@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# Scaffold a new skill and import it into .codegraph/graph.db.
+#
+# Usage: bin/skill-new <name> [type]
+#   type ∈ { domain | lifecycle | process | agent | command }   default: domain
+#
+# After scaffold: edit the generated SKILL.md, then `git add` + commit.
+# The importer is idempotent — re-run `bin/skill-new` or
+# `node packages/codegraph/dist/cli.js import-skills .` any time content changes.
+
+set -euo pipefail
+
+NAME="${1:-}"
+TYPE="${2:-domain}"
+
+if [[ -z "$NAME" ]]; then
+    echo "Usage: bin/skill-new <name> [type]"
+    echo "  type ∈ { domain | lifecycle | process | agent | command }"
+    exit 1
+fi
+
+if [[ ! "$NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+    echo "Error: name must be kebab-case (lowercase letters, digits, hyphens)."
+    echo "Got: $NAME"
+    exit 1
+fi
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+case "$TYPE" in
+    domain)
+        TARGET_DIR=".claude/skill/$NAME"
+        FILENAME="SKILL.md"
+        ;;
+    lifecycle|process)
+        TARGET_DIR=".agents/skills/$NAME"
+        FILENAME="SKILL.md"
+        ;;
+    agent)
+        TARGET_DIR=".claude/agents/$NAME"
+        FILENAME="AGENT.md"
+        ;;
+    command)
+        TARGET_DIR=".claude/command"
+        FILENAME="$NAME.md"
+        ;;
+    *)
+        echo "Error: type must be one of: domain, lifecycle, process, agent, command"
+        echo "Got: $TYPE"
+        exit 1
+        ;;
+esac
+
+TARGET_FILE="$TARGET_DIR/$FILENAME"
+
+if [[ -e "$TARGET_FILE" ]]; then
+    echo "Error: $TARGET_FILE already exists. Refusing to overwrite."
+    exit 1
+fi
+
+mkdir -p "$TARGET_DIR"
+
+# Choose template body based on type
+if [[ "$TYPE" == "command" ]]; then
+    cat > "$TARGET_FILE" <<EOF
+---
+name: $NAME
+description: One-line description of what /$NAME does. Use when <X>.
+argument-hint: "<expected argument>"
+---
+
+# /$NAME
+
+## Purpose
+
+What this command accomplishes.
+
+## Inputs
+
+- arg1: ...
+
+## Steps
+
+1. ...
+2. ...
+3. ...
+
+## Output
+
+What the user sees.
+EOF
+elif [[ "$TYPE" == "agent" ]]; then
+    cat > "$TARGET_FILE" <<EOF
+---
+name: $NAME
+description: Agent purpose in one line. Use when <X>.
+model: sonnet
+---
+
+# Agent: $NAME
+
+## Role
+...
+
+## Inputs
+...
+
+## Process
+...
+
+## Output Format
+...
+EOF
+else
+    cat > "$TARGET_FILE" <<EOF
+---
+name: $NAME
+description: One-line trigger phrase. Use when <X>. Triggers on: <keywords>.
+version: 1.0.0
+---
+
+# ${NAME}
+
+## Overview
+
+What this skill teaches in one paragraph.
+
+## When to use
+
+- Trigger 1
+- Trigger 2
+
+## Process
+
+1. ...
+2. ...
+3. ...
+
+## Examples
+
+\`\`\`
+example here
+\`\`\`
+
+## Anti-patterns
+
+- Don't ...
+EOF
+fi
+
+echo "✓ Created $TARGET_FILE"
+echo ""
+echo "Running importer..."
+
+# Ensure dist/ is built (importer reads from compiled output)
+if [[ ! -f "packages/codegraph/dist/cli.js" ]]; then
+    echo "  Building codegraph CLI first..."
+    pnpm --filter @synapse/codegraph build > /dev/null 2>&1 || {
+        echo "Warning: codegraph build failed. Skill file was created but not imported."
+        echo "Run manually: pnpm --filter @synapse/codegraph build && node packages/codegraph/dist/cli.js import-skills ."
+        exit 0
+    }
+fi
+
+if node packages/codegraph/dist/cli.js import-skills . 2>&1 | tail -4; then
+    echo ""
+    DB="$REPO_ROOT/.codegraph/graph.db"
+    if [[ -f "$DB" ]]; then
+        VERIFY=$(sqlite3 "$DB" "SELECT name FROM skills WHERE name = '$NAME' OR name = 'agent:$NAME' OR name = 'command:$NAME';" 2>/dev/null)
+        if [[ -n "$VERIFY" ]]; then
+            echo "✓ Imported into DB as: $VERIFY"
+        else
+            echo "⚠ Importer ran but skill not found in DB. Check $TARGET_FILE frontmatter (needs name + description)."
+        fi
+    fi
+fi
+
+echo ""
+echo "Next:"
+echo "  1. Edit $TARGET_FILE — fill in the template"
+echo "  2. Re-run: bin/skill-new $NAME $TYPE   (to re-import after edits — idempotent)"
+echo "     or:    node packages/codegraph/dist/cli.js import-skills ."
+echo "  3. Commit: git add $TARGET_FILE && git commit -m \"feat(skills): add $NAME\""

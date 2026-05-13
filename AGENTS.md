@@ -175,6 +175,51 @@ MASTER_Fullstack session/     ← ROOT (config workflow)
 
 ---
 
+## Skills — Adding & Using
+
+Skills are team-shared and live in the repo. Codex (and any other agent without MCP `skill_read`) reads them directly from the filesystem; Claude uses the MCP catalog backed by `.codegraph/graph.db`. Both pipelines see the same skills.
+
+### Reading an existing skill (Codex / Bash)
+
+```bash
+# By topic — fastest
+ls .claude/skill/ .agents/skills/ | grep -i <topic>
+cat .claude/skill/<name>/SKILL.md
+# or for process/lifecycle skills:
+cat .agents/skills/<name>/SKILL.md
+```
+
+### Adding a new skill (works for both Claude and Codex)
+
+```bash
+bash bin/skill-new <name> <type>
+# type ∈ { domain | lifecycle | process | agent | command }
+# Example: bash bin/skill-new stripe-checkout domain
+```
+
+The wrapper:
+1. Scaffolds the directory with a `SKILL.md` template
+2. Pre-fills the frontmatter
+3. Runs the importer so the DB picks it up
+4. Prints next steps
+
+After scaffold: edit the file, then `git add` + commit. Importer is idempotent — re-run any time you change `SKILL.md` content.
+
+### Quality bar
+
+- Frontmatter must have `name` + `description` (with trigger keywords) + optional `version`
+- Description should include phrases users would naturally type ("when X happens", "to do Y")
+- Keep body actionable — checklists, code snippets, decision tables — not prose
+- See `.claude/skill/skill-template-2.0/` for a full template
+
+### Lifecycle
+
+- Skills routed but never loaded for 30 days → flagged by `skill_gc`
+- Skills with confidence ≤ 3 and 30+ stale sessions → auto-deprecated
+- Reinforce useful skills with `skill_decay({ usefulSkills: [...] })` at session end
+
+---
+
 ## Quality Gates
 
 ### Sicurezza
@@ -198,5 +243,5 @@ MASTER_Fullstack session/     ← ROOT (config workflow)
 
 ---
 
-**Version**: 3.0.0
-**Last update**: May 2026
+**Version**: 3.1.0
+**Last update**: 2026-05-14 — added skill add workflow (works for Claude + Codex)
