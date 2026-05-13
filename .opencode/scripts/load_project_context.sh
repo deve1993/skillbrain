@@ -28,26 +28,33 @@ echo ""
 # ═══════════════════════════════════════════
 
 if [[ -f "$PROJECT_ROOT/package.json" ]]; then
-    NEXT_VERSION=$(node -p "require('./package.json').dependencies?.next || require('./package.json').devDependencies?.next || 'N/A'" 2>/dev/null)
-    PAYLOAD_VERSION=$(node -p "require('./package.json').dependencies?.payload || 'N/A'" 2>/dev/null)
-    TS_VERSION=$(node -p "require('./package.json').devDependencies?.typescript || 'N/A'" 2>/dev/null)
+    NEXT_VERSION=$(node -p "require('$PROJECT_ROOT/package.json').dependencies?.next || require('$PROJECT_ROOT/package.json').devDependencies?.next || ''" 2>/dev/null)
+    PAYLOAD_VERSION=$(node -p "require('$PROJECT_ROOT/package.json').dependencies?.payload || ''" 2>/dev/null)
+    TS_VERSION=$(node -p "require('$PROJECT_ROOT/package.json').devDependencies?.typescript || ''" 2>/dev/null)
+    IS_WORKSPACE=$(node -p "Array.isArray(require('$PROJECT_ROOT/package.json').workspaces) || !!require('$PROJECT_ROOT/package.json').workspaces" 2>/dev/null)
 
-    echo "### Layer 1: Stack"
-    echo "- Next.js: $NEXT_VERSION"
-    [[ "$PAYLOAD_VERSION" != "N/A" ]] && echo "- Payload CMS: $PAYLOAD_VERSION"
-    echo "- TypeScript: $TS_VERSION"
-    echo ""
-fi
+    # Only print Layer 1 if at least one version is known.
+    # Workspaces roots typically have none → skip the section entirely.
+    if [[ -n "$NEXT_VERSION" || -n "$PAYLOAD_VERSION" || -n "$TS_VERSION" ]]; then
+        echo "### Layer 1: Stack"
+        [[ -n "$NEXT_VERSION" ]] && echo "- Next.js: $NEXT_VERSION"
+        [[ -n "$PAYLOAD_VERSION" ]] && echo "- Payload CMS: $PAYLOAD_VERSION"
+        [[ -n "$TS_VERSION" ]] && echo "- TypeScript: $TS_VERSION"
 
-if [[ -f "$PROJECT_ROOT/tsconfig.json" ]]; then
-    STRICT=$(python3 -c "import json; d=json.load(open('tsconfig.json')); print(d.get('compilerOptions',{}).get('strict','false'))" 2>/dev/null)
-    echo "- TS strict: $STRICT"
-fi
+        if [[ -f "$PROJECT_ROOT/tsconfig.json" ]]; then
+            STRICT=$(python3 -c "import json; d=json.load(open('$PROJECT_ROOT/tsconfig.json')); print(d.get('compilerOptions',{}).get('strict','false'))" 2>/dev/null)
+            [[ -n "$STRICT" ]] && echo "- TS strict: $STRICT"
+        fi
 
-if [[ -d "$PROJECT_ROOT/src/app" ]]; then
-    echo "- Router: App Router (src/app/)"
+        if [[ -d "$PROJECT_ROOT/src/app" ]]; then
+            echo "- Router: App Router (src/app/)"
+        fi
+        echo ""
+    elif [[ "$IS_WORKSPACE" == "true" ]]; then
+        echo "### Layer 1: Workspace root (no app-level stack detected)"
+        echo ""
+    fi
 fi
-echo ""
 
 # ═══════════════════════════════════════════
 # LAYER 2: Event Log (recent activity)
