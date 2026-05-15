@@ -8,6 +8,12 @@
             "command": "bash .claude/scripts/load_project_context.sh",
             "timeout": 15,
             "statusMessage": "Loading SkillBrain Cortex briefing"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/scripts/project_autodetect.sh",
+            "timeout": 5,
+            "statusMessage": "Checking projects registry"
           }
         ]
       }

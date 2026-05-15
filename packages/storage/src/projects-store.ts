@@ -320,6 +320,29 @@ export class ProjectsStore {
   }
 
   /**
+   * Full cascade delete: project + env vars + sessions + memories.
+   * env_vars go via FK CASCADE; sessions and memories have no FK so we delete explicitly.
+   * Wrapped in a transaction so partial deletes can't strand rows.
+   * Returns counts removed. Throws if the project doesn't exist.
+   */
+  purge(name: string): { sessions: number; memories: number; envVars: number } {
+    if (!this.get(name)) throw new Error(`Project not found: ${name}`)
+    let sessions = 0
+    let memories = 0
+    let envVars = 0
+    const tx = this.db.transaction(() => {
+      envVars = (this.db.prepare('SELECT COUNT(*) AS c FROM project_env_vars WHERE project_name = ?').get(name) as any).c
+      const s = this.db.prepare('DELETE FROM session_log WHERE project = ?').run(name)
+      sessions = s.changes
+      const m = this.db.prepare('DELETE FROM memories WHERE project = ?').run(name)
+      memories = m.changes
+      this.delete(name) // cascades env_vars via FK
+    })
+    tx()
+    return { sessions, memories, envVars }
+  }
+
+  /**
    * Atomically toggle the pinned flag for a project.
    * Returns the new value. Throws if the project doesn't exist.
    */

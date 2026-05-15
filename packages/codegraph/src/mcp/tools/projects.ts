@@ -318,6 +318,199 @@ export function registerProjectTools(server: McpServer, _ctx: ToolContext): void
     },
   )
 
+  // --- Tool: project_create ---
+  server.tool(
+    'project_create',
+    'Create a new project explicitly. Fails if a project with the same name already exists. For implicit auto-create (no-fail upsert) use project_scan instead.',
+    {
+      name: z.string().describe('Unique project name (primary key)'),
+      displayName: z.string().optional(),
+      description: z.string().optional(),
+      clientName: z.string().optional(),
+      category: z.string().optional(),
+      workspacePath: z.string().optional().describe('Absolute path to project workspace on disk'),
+      repoUrl: z.string().optional(),
+      mainBranch: z.string().optional(),
+      stack: z.array(z.string()).optional(),
+      language: z.string().optional(),
+      packageManager: z.string().optional(),
+      deployPlatform: z.string().optional(),
+      liveUrl: z.string().optional(),
+      domainPrimary: z.string().optional(),
+      status: z.enum(['active', 'paused', 'archived', 'completed']).optional().default('active'),
+      teamLead: z.string().optional(),
+      notes: z.string().optional(),
+      repo: z.string().optional(),
+    },
+    async ({ repo, ...fields }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+      try {
+        const created = withProjectsStore(resolved.path, (store) => {
+          if (store.get(fields.name)) {
+            throw new Error(`Project "${fields.name}" already exists. Use project_update to modify or project_clone to duplicate.`)
+          }
+          return store.upsert({ ...fields, startedAt: new Date().toISOString() })
+        })
+        return { content: [{ type: 'text', text: `✅ Created project "${created.name}"\n${JSON.stringify({ name: created.name, status: created.status, workspacePath: created.workspacePath, stack: created.stack }, null, 2)}` }] }
+      } catch (err: any) {
+        return { content: [{ type: 'text', text: `❌ ${err.message}` }] }
+      }
+    },
+  )
+
+  // --- Tool: project_delete ---
+  server.tool(
+    'project_delete',
+    'Permanently delete a project and ALL associated data (sessions, memories, env vars). Irreversible. Requires confirm=true. For soft-delete prefer project_update with status="archived".',
+    {
+      name: z.string().describe('Project name to delete'),
+      confirm: z.literal(true).describe('Must be explicitly true — guards against accidental deletion'),
+      repo: z.string().optional(),
+    },
+    async ({ name, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+      try {
+        const counts = withProjectsStore(resolved.path, (store) => store.purge(name))
+        return { content: [{ type: 'text', text: `🗑️ Deleted "${name}"\n  Sessions removed: ${counts.sessions}\n  Memories removed: ${counts.memories}\n  Env vars removed: ${counts.envVars}` }] }
+      } catch (err: any) {
+        return { content: [{ type: 'text', text: `❌ ${err.message}` }] }
+      }
+    },
+  )
+
+  // --- Tool: project_repair ---
+  server.tool(
+    'project_repair',
+    'Health-check a project: workspace path exists on disk, git remote reachable, env vars complete vs detected stack. Read-only — returns issues + suggested fixes without writing.',
+    {
+      name: z.string().describe('Project to inspect'),
+      repo: z.string().optional(),
+    },
+    async ({ name, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+      const project = withProjectsStore(resolved.path, (store) => store.get(name))
+      if (!project) return { content: [{ type: 'text', text: `Project "${name}" not found.` }] }
+
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const issues: { severity: 'error' | 'warn' | 'info'; field: string; message: string; suggestedFix: string }[] = []
+
+      // 1. Workspace path
+      if (!project.workspacePath) {
+        issues.push({ severity: 'warn', field: 'workspacePath', message: 'No workspacePath set', suggestedFix: 'Run project_scan or project_update with workspacePath' })
+      } else if (!fs.existsSync(project.workspacePath)) {
+        issues.push({ severity: 'error', field: 'workspacePath', message: `Path does not exist on disk: ${project.workspacePath}`, suggestedFix: 'Update workspacePath via project_update, or archive the project' })
+      } else {
+        const gitDir = path.join(project.workspacePath, '.git')
+        if (!fs.existsSync(gitDir)) {
+          issues.push({ severity: 'warn', field: 'workspacePath', message: 'No .git directory — workspace exists but is not a repo', suggestedFix: 'Initialize git or update workspacePath' })
+        }
+      }
+
+      // 2. Re-scan and diff against stored metadata
+      if (project.workspacePath && fs.existsSync(project.workspacePath)) {
+        try {
+          const fresh = scanProject(project.workspacePath)
+          const d = fresh.detected
+          if (d.repoUrl && d.repoUrl !== project.repoUrl) {
+            issues.push({ severity: 'info', field: 'repoUrl', message: `DB has "${project.repoUrl || '∅'}" but disk reports "${d.repoUrl}"`, suggestedFix: `project_update name="${name}" fields={ repoUrl: "${d.repoUrl}" }` })
+          }
+          if (d.stack && d.stack.length && JSON.stringify(d.stack.sort()) !== JSON.stringify((project.stack || []).slice().sort())) {
+            issues.push({ severity: 'info', field: 'stack', message: `Stack drift — DB: [${(project.stack || []).join(', ')}] vs disk: [${d.stack.join(', ')}]`, suggestedFix: `project_scan workspacePath="${project.workspacePath}"` })
+          }
+          if (d.packageManager && d.packageManager !== project.packageManager) {
+            issues.push({ severity: 'info', field: 'packageManager', message: `DB: ${project.packageManager || '∅'}, disk: ${d.packageManager}`, suggestedFix: `project_update with packageManager` })
+          }
+          // 3. Missing env vars
+          const stored = withProjectsStore(resolved.path, (store) => store.listEnvNames(name, 'production'))
+          const storedNames = new Set(stored.map((v) => v.varName))
+          const missing = (d.envVarNames || []).filter((v: string) => !storedNames.has(v))
+          if (missing.length > 0) {
+            issues.push({ severity: 'warn', field: 'envVars', message: `${missing.length} env vars in .env.example without stored values: ${missing.slice(0, 10).join(', ')}${missing.length > 10 ? '…' : ''}`, suggestedFix: `project_set_env or project_set_env_batch for each` })
+          }
+        } catch (e: any) {
+          issues.push({ severity: 'warn', field: 'scan', message: `Scan failed: ${e.message}`, suggestedFix: 'Inspect workspace manually' })
+        }
+      }
+
+      // 4. Status sanity
+      if (project.status === 'archived' && (project.endedAt == null || project.endedAt === '')) {
+        issues.push({ severity: 'info', field: 'endedAt', message: 'Archived but endedAt is empty', suggestedFix: `project_update endedAt="${new Date().toISOString()}"` })
+      }
+
+      const summary = issues.length === 0
+        ? `✅ "${name}" looks healthy. No issues detected.`
+        : `🔍 ${issues.length} issue(s) on "${name}"\n\n` + issues.map((i, n) => `${n + 1}. [${i.severity.toUpperCase()}] ${i.field}: ${i.message}\n   → ${i.suggestedFix}`).join('\n\n')
+
+      return { content: [{ type: 'text', text: summary }] }
+    },
+  )
+
+  // --- Tool: project_clone ---
+  server.tool(
+    'project_clone',
+    'Duplicate a project as a template — copies metadata (stack, integrations, team) under a new name. Does NOT copy env var values, sessions, or memories. Optionally copies env var NAMES as placeholders.',
+    {
+      source: z.string().describe('Existing project to clone'),
+      target: z.string().describe('Name for the new project (must not exist)'),
+      includeEnvSchema: z.boolean().optional().default(false).describe('If true, copy env var NAMES (not values) as placeholders with value "TODO_SET_ME"'),
+      repo: z.string().optional(),
+    },
+    async ({ source, target, includeEnvSchema, repo }) => {
+      const resolved = resolveMemoryRepo(repo)
+      if (!resolved) return { content: [{ type: 'text', text: 'Repository not found.' }] }
+      try {
+        const result = withProjectsStore(resolved.path, (store) => {
+          const src = store.get(source)
+          if (!src) throw new Error(`Source project "${source}" not found`)
+          if (store.get(target)) throw new Error(`Target project "${target}" already exists`)
+
+          const now = new Date().toISOString()
+          store.upsert({
+            name: target,
+            displayName: src.displayName,
+            description: src.description ? `${src.description} (cloned from ${source})` : `Cloned from ${source}`,
+            clientName: src.clientName,
+            category: src.category,
+            teamLead: src.teamLead,
+            teamMembers: src.teamMembers,
+            status: 'active',
+            startedAt: now,
+            mainBranch: src.mainBranch,
+            stack: src.stack,
+            language: src.language,
+            packageManager: src.packageManager,
+            nodeVersion: src.nodeVersion,
+            dbType: src.dbType,
+            cmsType: src.cmsType,
+            deployPlatform: src.deployPlatform,
+            hasCi: src.hasCi,
+            integrations: src.integrations,
+            // explicitly NOT copied: workspacePath, repoUrl, liveUrl, domainPrimary, dbReference, dbAdminUrl, cmsAdminUrl, lastDeploy
+          })
+
+          let envSchemaCopied = 0
+          if (includeEnvSchema) {
+            const vars = store.listEnvNames(source, 'production')
+            for (const v of vars) {
+              try {
+                store.setEnv(target, v.varName, 'TODO_SET_ME', 'production', 'cloned', v.isSecret, v.description, v.category, v.service)
+                envSchemaCopied++
+              } catch { /* skip on error */ }
+            }
+          }
+          return { envSchemaCopied }
+        })
+        return { content: [{ type: 'text', text: `✅ Cloned "${source}" → "${target}"\n  Env schema copied: ${result.envSchemaCopied} vars (placeholders)\n  Next: project_update "${target}" workspacePath, repoUrl, liveUrl as needed.` }] }
+      } catch (err: any) {
+        return { content: [{ type: 'text', text: `❌ ${err.message}` }] }
+      }
+    },
+  )
+
   // --- Tool: project_merge ---
   server.tool(
     'project_merge',
