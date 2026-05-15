@@ -140,9 +140,8 @@ async function openProjectDetail(name) {
 function switchProjectTab(tab, name) {
   document.querySelectorAll('.proj-tab').forEach(b => {
     const active = b.dataset.tab === tab
-    b.style.color = active ? 'var(--accent)' : 'var(--text-muted)'
-    b.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent'
     b.classList.toggle('active', active)
+    b.setAttribute('aria-selected', active ? 'true' : 'false')
   })
   renderProjectTab(tab, name)
 }
@@ -226,6 +225,60 @@ async function importEnv(project) {
   loadEnvVars(project)
 }
 
+function toggleEnvAddForm(show) {
+  const form = document.getElementById('env-add-form')
+  if (!form) return
+  const willShow = show === undefined ? form.hasAttribute('hidden') : !!show
+  if (willShow) {
+    form.removeAttribute('hidden')
+    const nameInput = document.getElementById('env-add-name')
+    if (nameInput) {
+      // Default secret toggle based on var name as user types
+      nameInput.oninput = () => {
+        const secret = document.getElementById('env-add-secret')
+        if (!secret) return
+        const v = nameInput.value || ''
+        secret.checked = !(v.startsWith('NEXT_PUBLIC_') || v.startsWith('PUBLIC_'))
+      }
+      nameInput.focus()
+    }
+  } else {
+    form.setAttribute('hidden', '')
+    const nameInput = document.getElementById('env-add-name')
+    const valueInput = document.getElementById('env-add-value')
+    if (nameInput) nameInput.value = ''
+    if (valueInput) valueInput.value = ''
+  }
+}
+
+async function addEnvVar(project) {
+  const nameInput = document.getElementById('env-add-name')
+  const valueInput = document.getElementById('env-add-value')
+  const secretInput = document.getElementById('env-add-secret')
+  if (!nameInput || !valueInput) return
+  const varName = nameInput.value.trim()
+  const value = valueInput.value
+  if (!varName) { nameInput.focus(); return }
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(varName)) {
+    alert('Variable name must match [A-Za-z_][A-Za-z0-9_]*')
+    nameInput.focus()
+    return
+  }
+  const isSecret = secretInput ? !!secretInput.checked : !(varName.startsWith('NEXT_PUBLIC_') || varName.startsWith('PUBLIC_'))
+  const r = await fetch(`/api/projects-meta/${encodeURIComponent(project)}/env`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ varName, value, isSecret, source: 'manual-ui' }),
+  })
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: r.statusText }))
+    alert('Failed to save: ' + (err.error || r.statusText))
+    return
+  }
+  toggleEnvAddForm(false)
+  loadEnvVars(project)
+}
+
 async function deleteEnv(project, varName) {
   if (!confirm(`Delete ${varName}?`)) return
   await fetch(`/api/projects-meta/${encodeURIComponent(project)}/env/${encodeURIComponent(varName)}`, { method: 'DELETE' })
@@ -285,6 +338,8 @@ window.revealEnv = revealEnv
 window.exportEnv = exportEnv
 window.importEnv = importEnv
 window.deleteEnv = deleteEnv
+window.addEnvVar = addEnvVar
+window.toggleEnvAddForm = toggleEnvAddForm
 window.renderComponents = renderComponents
 window.openComponentDetail = (id) => openComponentDetail(id, openDetail)
 window.renderDesignSystems = renderDesignSystems

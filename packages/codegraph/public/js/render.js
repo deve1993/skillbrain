@@ -1485,21 +1485,22 @@ export async function renderProjectDetail(name, openDetailFn) {
   const hasNext = s.detailIndex >= 0 && s.detailIndex < s.filtered.length - 1
 
   const html = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap">
-      <div class="proj-detail-nav" role="group" aria-label="Detail navigation">
-        <button type="button" onclick="projectDetailNav(-1)" ${!hasPrev ? 'disabled' : ''} title="Previous project" aria-label="Previous project">←</button>
-        <button type="button" onclick="projectDetailNav(1)" ${!hasNext ? 'disabled' : ''} title="Next project" aria-label="Next project">→</button>
+    <div class="proj-detail-header">
+      <div class="proj-detail-actions">
+        <div class="proj-detail-nav" role="group" aria-label="Detail navigation">
+          <button type="button" onclick="projectDetailNav(-1)" ${!hasPrev ? 'disabled' : ''} title="Previous project" aria-label="Previous project">←</button>
+          <button type="button" onclick="projectDetailNav(1)" ${!hasNext ? 'disabled' : ''} title="Next project" aria-label="Next project">→</button>
+        </div>
+        <div class="proj-detail-actions-spacer"></div>
+        <button class="proj-action-btn proj-action-board" onclick="openProjectBoard('${escAttr(name)}')" title="Open or create the project's home whiteboard (auto-populated with Memorie + Sessioni + Skills)">🗂 Project board</button>
+        <button class="proj-action-btn proj-action-edit" onclick="openEditProjectModal('${escAttr(name)}')">Edit</button>
+        <button class="proj-action-btn proj-action-merge" onclick="showMergeDialog('${escAttr(name)}')">Merge</button>
       </div>
-      <div id="proj-tabs" style="display:flex;gap:4px;border-bottom:1px solid var(--border);flex:1;min-width:0">
-        <button class="proj-tab active" data-tab="overview" onclick="switchProjectTab('overview','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--accent);border-bottom:2px solid var(--accent);font-size:13px;cursor:pointer">Overview</button>
-        <button class="proj-tab" data-tab="env" onclick="switchProjectTab('env','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Env Vars</button>
-        <button class="proj-tab" data-tab="activity" onclick="switchProjectTab('activity','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Activity</button>
-        <button class="proj-tab" data-tab="insights" onclick="switchProjectTab('insights','${escAttr(name)}')" style="padding:8px 14px;background:none;border:none;color:var(--text-muted);border-bottom:2px solid transparent;font-size:13px;cursor:pointer">Insights</button>
-      </div>
-      <div style="display:flex;gap:6px;margin-left:8px;flex-wrap:wrap">
-        <button onclick="openProjectBoard('${escAttr(name)}')" title="Open or create the project's home whiteboard (auto-populated with Memorie + Sessioni + Skills)" style="padding:6px 12px;border-radius:6px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;font-size:12px;font-weight:600;cursor:pointer">🗂 Project board</button>
-        <button onclick="openEditProjectModal('${escAttr(name)}')" style="padding:6px 12px;border-radius:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Edit</button>
-        <button onclick="showMergeDialog('${escAttr(name)}')" style="padding:6px 12px;border-radius:6px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer">Merge</button>
+      <div id="proj-tabs" class="proj-tabs-row" role="tablist" aria-label="Project sections">
+        <button class="proj-tab active" data-tab="overview" role="tab" aria-selected="true" onclick="switchProjectTab('overview','${escAttr(name)}')">Overview</button>
+        <button class="proj-tab" data-tab="env" role="tab" aria-selected="false" onclick="switchProjectTab('env','${escAttr(name)}')">Env Vars</button>
+        <button class="proj-tab" data-tab="activity" role="tab" aria-selected="false" onclick="switchProjectTab('activity','${escAttr(name)}')">Activity</button>
+        <button class="proj-tab" data-tab="insights" role="tab" aria-selected="false" onclick="switchProjectTab('insights','${escAttr(name)}')">Insights</button>
       </div>
     </div>
     <div id="proj-tab-content"></div>
@@ -1854,28 +1855,54 @@ async function loadProjectInsights(name) {
 export async function loadEnvVars(name) {
   const container = document.getElementById('env-content')
   if (!container) return
+  const safeName = escAttr(name)
   try {
     const { vars } = await api.get(`/api/projects-meta/${encodeURIComponent(name)}/env`)
 
+    const addFormHtml = `
+      <form id="env-add-form" class="env-add-form" onsubmit="event.preventDefault();addEnvVar('${safeName}')" hidden>
+        <input id="env-add-name" type="text" placeholder="VAR_NAME" autocomplete="off" spellcheck="false" pattern="[A-Za-z_][A-Za-z0-9_]*" required>
+        <input id="env-add-value" type="text" placeholder="value" autocomplete="off" spellcheck="false" required>
+        <label class="env-add-secret">
+          <input id="env-add-secret" type="checkbox" checked>
+          <span>secret</span>
+        </label>
+        <button type="submit" class="env-add-save">Save</button>
+        <button type="button" class="env-add-cancel" onclick="toggleEnvAddForm(false)">Cancel</button>
+      </form>
+    `
+
     container.innerHTML = `
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button onclick="importEnv('${name}')" style="padding:6px 12px;border-radius:6px;background:rgba(99,102,241,.1);border:1px solid var(--accent2);color:var(--accent);font-size:12px;cursor:pointer">Import .env</button>
-        <button onclick="exportEnv('${name}')" style="padding:6px 12px;border-radius:6px;background:rgba(52,211,153,.1);border:1px solid var(--green);color:var(--green);font-size:12px;cursor:pointer">Copy all as .env</button>
+      <div class="env-toolbar">
+        <button class="env-btn env-btn-add" onclick="toggleEnvAddForm(true)" title="Add a single env var manually">+ Add var</button>
+        <button class="env-btn env-btn-import" onclick="importEnv('${safeName}')" title="Paste a full .env block and bulk-save">Import .env</button>
+        <button class="env-btn env-btn-export" onclick="exportEnv('${safeName}')" title="Copy all vars as a .env block to clipboard">Copy all as .env</button>
       </div>
+      ${addFormHtml}
       ${vars?.length ? `
       <div class="card">
         <div class="card-title">Env Vars <span class="count">${vars.length}</span></div>
         ${vars.map(v => `
-          <div class="row">
+          <div class="row env-row">
             <span class="row-label"><code style="color:${v.isSecret ? 'var(--yellow)' : 'var(--green)'}">${escHtml(v.varName)}</code>${v.isSecret ? '' : ' <span style="font-size:10px;color:var(--text-muted)">(public)</span>'}</span>
-            <span>
-              <button onclick="revealEnv('${name}','${v.varName}')" style="padding:2px 8px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text-muted);font-size:11px;cursor:pointer;margin-right:4px">Reveal</button>
-              <button onclick="deleteEnv('${name}','${v.varName}')" style="padding:2px 8px;border-radius:4px;background:none;border:1px solid rgba(248,113,113,.3);color:var(--red);font-size:11px;cursor:pointer">Delete</button>
+            <span class="env-row-actions">
+              <button onclick="revealEnv('${safeName}','${escAttr(v.varName)}')" class="env-row-btn">Reveal</button>
+              <button onclick="deleteEnv('${safeName}','${escAttr(v.varName)}')" class="env-row-btn env-row-btn-del">Delete</button>
             </span>
           </div>
         `).join('')}
       </div>
-      ` : '<p style="color:var(--text-muted);font-size:13px">No env vars saved yet. Click "Import .env" to paste and save.</p>'}
+      ` : `
+      <div class="card env-empty">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">No env vars saved yet for this project.</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6">
+          • Click <strong>+ Add var</strong> to insert one manually<br>
+          • Click <strong>Import .env</strong> to paste a full file<br>
+          • Or, from Claude Code CLI, use the MCP tool <code>project_set_env</code><br>
+          &nbsp;&nbsp;&nbsp;<code style="font-size:11px;color:var(--accent)">project_set_env({ project: "${escHtml(name)}", varName: "MY_VAR", value: "...", isSecret: true })</code>
+        </div>
+      </div>
+      `}
     `
   } catch (e) {
     container.innerHTML = `<p style="color:var(--red)">Error loading env vars</p>`

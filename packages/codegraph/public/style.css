@@ -1668,7 +1668,71 @@ dialog details pre {
 .proj-bulk-toolbar button.danger:hover { background: rgba(248,113,113,.08); }
 .proj-bulk-toolbar button.cancel { color: var(--text-muted); }
 
-/* ── Project detail panel: prev/next nav + 2-col overview ── */
+/* ── Project detail panel: header (actions row + tabs row) ── */
+.proj-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.proj-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.proj-detail-actions-spacer { flex: 1 1 auto; min-width: 0; }
+.proj-action-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  line-height: 1;
+  white-space: nowrap;
+}
+.proj-action-board {
+  background: rgba(99,102,241,.15);
+  border-color: rgba(99,102,241,.4);
+  color: #a5b4fc;
+}
+.proj-action-edit {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  color: #fff;
+}
+.proj-action-merge {
+  background: rgba(245,158,11,.15);
+  border-color: rgba(245,158,11,.4);
+  color: #f59e0b;
+}
+.proj-tabs-row {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.proj-tabs-row::-webkit-scrollbar { height: 4px; }
+.proj-tabs-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.proj-tab {
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: -1px;
+  transition: color .12s, border-color .12s;
+}
+.proj-tab:hover { color: var(--text); }
+.proj-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 .proj-detail-nav {
   display: flex;
   gap: 4px;
@@ -1687,6 +1751,109 @@ dialog details pre {
 }
 .proj-detail-nav button:hover:not(:disabled) { border-color: var(--accent2); color: var(--accent); }
 .proj-detail-nav button:disabled { opacity: .3; cursor: not-allowed; }
+
+/* Env Vars: toolbar + manual add form */
+.env-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.env-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.env-btn-add {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  color: #fff;
+}
+.env-btn-import {
+  background: rgba(99,102,241,.1);
+  border-color: var(--accent2);
+  color: var(--accent);
+}
+.env-btn-export {
+  background: rgba(52,211,153,.1);
+  border-color: var(--green);
+  color: var(--green);
+}
+.env-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: rgba(99,102,241,.04);
+  border: 1px solid rgba(99,102,241,.25);
+  border-radius: 8px;
+}
+.env-add-form[hidden] { display: none; }
+.env-add-form input[type="text"] {
+  flex: 1 1 140px;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+.env-add-form input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.env-add-secret {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+}
+.env-add-secret input[type="checkbox"] { accent-color: var(--accent); }
+.env-add-save {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.env-add-cancel {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  cursor: pointer;
+}
+.env-row { gap: 8px; }
+.env-row-actions { display: inline-flex; gap: 4px; flex-shrink: 0; }
+.env-row-btn {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.env-row-btn:hover { border-color: var(--accent2); color: var(--accent); }
+.env-row-btn-del {
+  border-color: rgba(248,113,113,.3);
+  color: var(--red);
+}
+.env-row-btn-del:hover { border-color: var(--red); color: var(--red); }
+.env-empty code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 3px; }
 
 .proj-detail-grid {
   display: grid;

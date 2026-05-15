@@ -249,6 +249,36 @@ export function createProjectsRouter(ctx: RouteContext): Router {
     }
   })
 
+  // Set a single env var (manual add from UI)
+  router.post('/api/projects-meta/:name/env', (req, res) => {
+    const { varName, value, environment, isSecret, description, category, service, source } = req.body || {}
+    if (!varName || typeof varName !== 'string') { res.status(400).json({ error: 'varName required' }); return }
+    if (typeof value !== 'string') { res.status(400).json({ error: 'value required' }); return }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(varName)) { res.status(400).json({ error: 'varName must match [A-Za-z_][A-Za-z0-9_]*' }); return }
+    try {
+      const db = openDb(ctx.skillbrainRoot)
+      const store = new ProjectsStore(db)
+      const inferredSecret = typeof isSecret === 'boolean'
+        ? isSecret
+        : !(varName.startsWith('NEXT_PUBLIC_') || varName.startsWith('PUBLIC_'))
+      store.setEnv(
+        String(req.params.name),
+        varName,
+        value,
+        environment || 'production',
+        source || 'manual',
+        inferredSecret,
+        description,
+        category,
+        service,
+      )
+      closeDb(db)
+      res.json({ ok: true, varName })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   router.post('/api/projects-meta/:name/env/import', (req, res) => {
     const { envContent, environment, category, service } = req.body || {}
     if (!envContent) { res.status(400).json({ error: 'envContent required' }); return }
