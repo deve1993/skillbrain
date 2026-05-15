@@ -1635,8 +1635,8 @@ export function renderProjectTab(tab, name, data) {
   }
 
   if (tab === 'env') {
-    loadEnvVars(name)
     container.innerHTML = `<div id="env-content"><p style="color:var(--text-muted);font-size:13px">Loading env vars...</p></div>`
+    loadEnvVars(name)
   }
 
   if (tab === 'activity') {
