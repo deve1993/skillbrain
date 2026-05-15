@@ -1852,12 +1852,21 @@ async function loadProjectInsights(name) {
 
 // ── Env Vars ──
 
+// Monotonic request id so a slow response from a stale call can't overwrite
+// the result of a newer call (e.g. user clicks Refresh twice quickly).
+let _envReqId = 0
+
 export async function loadEnvVars(name) {
   const container = document.getElementById('env-content')
   if (!container) return
   const safeName = escAttr(name)
+  const reqId = ++_envReqId
   try {
     const { vars } = await api.get(`/api/projects-meta/${encodeURIComponent(name)}/env`)
+    if (reqId !== _envReqId) return // newer call in flight — drop stale result
+
+    const ts = new Date().toLocaleTimeString('en-GB', { hour12: false })
+    const count = vars?.length || 0
 
     const addFormHtml = `
       <form id="env-add-form" class="env-add-form" onsubmit="event.preventDefault();addEnvVar('${safeName}')" hidden>
@@ -1873,15 +1882,21 @@ export async function loadEnvVars(name) {
     `
 
     container.innerHTML = `
+      <div class="env-meta">
+        <span class="env-meta-project" title="Project name used to query env vars"><code>${escHtml(name)}</code></span>
+        <span class="env-meta-count">${count} var${count === 1 ? '' : 's'}</span>
+        <span class="env-meta-ts" title="Last fetched">${ts}</span>
+        <button class="env-meta-refresh" onclick="loadEnvVars('${safeName}')" title="Reload list from server">↻</button>
+      </div>
       <div class="env-toolbar">
         <button class="env-btn env-btn-add" onclick="toggleEnvAddForm(true)" title="Add a single env var manually">+ Add var</button>
         <button class="env-btn env-btn-import" onclick="importEnv('${safeName}')" title="Paste a full .env block and bulk-save">Import .env</button>
         <button class="env-btn env-btn-export" onclick="exportEnv('${safeName}')" title="Copy all vars as a .env block to clipboard">Copy all as .env</button>
       </div>
       ${addFormHtml}
-      ${vars?.length ? `
+      ${count ? `
       <div class="card">
-        <div class="card-title">Env Vars <span class="count">${vars.length}</span></div>
+        <div class="card-title">Env Vars <span class="count">${count}</span></div>
         ${vars.map(v => `
           <div class="row env-row">
             <span class="row-label"><code style="color:${v.isSecret ? 'var(--yellow)' : 'var(--green)'}">${escHtml(v.varName)}</code>${v.isSecret ? '' : ' <span style="font-size:10px;color:var(--text-muted)">(public)</span>'}</span>
@@ -1905,7 +1920,15 @@ export async function loadEnvVars(name) {
       `}
     `
   } catch (e) {
-    container.innerHTML = `<p style="color:var(--red)">Error loading env vars</p>`
+    if (reqId !== _envReqId) return
+    const msg = (e && e.message) ? e.message : String(e)
+    container.innerHTML = `
+      <div class="card" style="border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.04)">
+        <div style="color:var(--red);font-size:13px;font-weight:600;margin-bottom:6px">Error loading env vars</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">${escHtml(msg)}</div>
+        <button class="env-meta-refresh" onclick="loadEnvVars('${safeName}')" style="padding:4px 10px">Retry</button>
+      </div>
+    `
   }
 }
 
