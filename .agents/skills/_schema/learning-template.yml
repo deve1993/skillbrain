@@ -1,0 +1,49 @@
+# ============================================================
+# LEARNING SCHEMA v1.0
+# Every learning in the system MUST conform to this structure.
+# capture-learning validates against this before writing.
+# ============================================================
+
+# --- Required fields ---
+id: "L-{skill}-{NNN}"
+date: "YYYY-MM-DD"
+type: ""                  # bug-fix | pattern | anti-pattern | preference | negative
+status: "active"          # active | pending-review | deprecated
+
+# --- Context fields (all required) ---
+project: ""               # project name or "global"
+scope: ""                 # project-specific | global
+tags: []                  # 2-5 tags, lowercase, kebab-case
+confidence: 1             # 1-10, starts at 1
+
+# --- The learning (all required) ---
+context: ""               # "In [technology], when [situation]..."
+problem: ""               # what went wrong or was unclear
+solution: ""              # what worked — actionable
+reason: ""                # WHY it works — understanding not recipe
+
+# --- Tracking ---
+validated_by: []
+created_in: ""
+
+# --- Relationships (optional) ---
+supersedes: null
+superseded_by: null
+reinforces: []
+contradicts: []
+
+# --- Decay (optional) ---
+valid_until_version: {}
+last_validated: "YYYY-MM-DD"
+sessions_since_validation: 0
+
+# ============================================================
+# VALIDATION RULES
+# 1. REJECT if context/problem/solution/reason empty
+# 2. REJECT if tags < 2 or > 5
+# 3. REJECT if problem/solution contains absolute file paths
+# 4. REJECT if solution < 10 words
+# 5. REJECT if reason is empty
+# 6. WARN if type=negative and confidence > 1
+# 7. CHECK tags overlap >= 2 with existing = contradiction check
+# ============================================================

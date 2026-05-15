@@ -23,6 +23,7 @@ Thumbs.db
 
 # ─── Build artifacts ──────────────────────────────────────────────────────────
 packages/codegraph/dist/
+packages/storage/dist/
 
 # ─── Node (nei progetti dentro Progetti/) ─────────────────────────────────────
 Progetti/*/node_modules/
@@ -34,7 +35,9 @@ Progetti/*/.turbo/
 # ─── AI Tool directories (residui di tool provati — non committare) ───────────
 .adal/
 .agent/
-.agents/
+# .agents/skills/ è team-shared (skill condivise). Il resto di .agents/ resta ignorato.
+.agents/*
+!.agents/skills/
 .augment/
 .codebuddy/
 .commandcode/
@@ -71,7 +74,14 @@ Progetti/*/.turbo/
 packages/codegraph/.codegraph/
 
 # ─── Configurazione personale (non committare nel repo pubblico) ──────────────
-.opencode/
+# .opencode/ is the legacy mirror dir (symlinked from .claude/). Most of its
+# content is per-machine (personal skill mirror), but team-shared infrastructure
+# lives alongside and should be tracked:
+#   - settings.json: project-scoped hook config
+#   - scripts/:      shared SessionStart/PostToolUse hooks
+.opencode/*
+!.opencode/settings.json
+!.opencode/scripts/
 .sisyphus/
 opencode.json
 skills-lock.json

@@ -1,0 +1,20 @@
+{
+  "skill": "verification-before-completion",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "runs-verification-before-claiming-done",
+      "description": "Should run verification commands before saying complete",
+      "input": "I think I've fixed the login bug, looks good",
+      "expected_output_contains": ["verify", "run", "check", "test", "build"],
+      "expected_output_excludes": ["done", "complete", "finished", "merged"]
+    },
+    {
+      "id": "evidence-before-assertions",
+      "description": "Should show evidence (command output) before claiming success",
+      "input": "The authentication is now working",
+      "expected_output_contains": ["npm", "test", "lint", "output", "result"],
+      "expected_output_excludes": ["I believe", "should work", "probably"]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "skill": "audit-website",
+  "description": "Triggered when the user wants to audit a website for SEO, performance, security, accessibility, broken links, or general health using the squirrelscan CLI.",
+  "should_trigger": [
+    "Audit https://mysite.com for SEO issues",
+    "Run a website health check on our landing page",
+    "Check https://example.com for broken links and meta tag issues",
+    "Do a full performance and accessibility audit of our site",
+    "Run squirrel audit on our e-commerce store",
+    "What's the health score of https://myblog.com?"
+  ],
+  "should_not_trigger": [
+    "Analyze competitor content strategy for keyword gaps",
+    "Check my Next.js code for TypeScript errors",
+    "Review my React component for accessibility issues in the code",
+    "How do I improve my Core Web Vitals in code?"
+  ]
+}

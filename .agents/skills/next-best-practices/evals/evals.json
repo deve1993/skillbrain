@@ -1,0 +1,27 @@
+{
+  "skill": "next-best-practices",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "async-params-next15",
+      "description": "Verifies correct async params handling in Next.js 15",
+      "input": "Come accedo ai params di una route dinamica in Next.js 15?",
+      "expected_output_contains": ["await", "params", "async", "Promise"],
+      "expected_output_excludes": ["params.id without await", "synchronous params"]
+    },
+    {
+      "id": "hydration-error-date",
+      "description": "Verifies correct fix for date-related hydration errors",
+      "input": "Ho un hydration error perché uso new Date() in un Server Component. Come risolvo?",
+      "expected_output_contains": ["suppressHydrationWarning", "useEffect", "useState", "client"],
+      "expected_output_excludes": ["ignore the error", "use any for types"]
+    },
+    {
+      "id": "usesearchparams-suspense",
+      "description": "Verifies Suspense boundary requirement for useSearchParams",
+      "input": "Il mio componente con useSearchParams causa un CSR bailout warning",
+      "expected_output_contains": ["Suspense", "boundary", "useSearchParams"],
+      "expected_output_excludes": ["remove useSearchParams", "ignore warning"]
+    }
+  ]
+}

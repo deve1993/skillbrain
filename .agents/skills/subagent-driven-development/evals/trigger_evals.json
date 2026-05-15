@@ -1,0 +1,17 @@
+{
+  "skill": "subagent-driven-development",
+  "description": "Triggers when user wants to execute an implementation plan using subagents in the current session with two-stage review",
+  "should_trigger": [
+    "Execute this implementation plan using subagents",
+    "Dispatch subagents to implement my plan",
+    "Implement all the tasks in this plan with reviews",
+    "Run the plan in this session with spec and quality review",
+    "Use subagent-driven development to execute my plan here"
+  ],
+  "should_not_trigger": [
+    "Write an implementation plan for this feature",
+    "Review my existing code",
+    "Run my tests in parallel",
+    "Execute tasks in a separate parallel session"
+  ]
+}

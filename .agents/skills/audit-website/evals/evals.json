@@ -1,0 +1,52 @@
+{
+  "skill": "audit-website",
+  "version": "1.22",
+  "test_cases": [
+    {
+      "id": "surface-audit-command",
+      "description": "Verifies the skill uses the squirrel CLI with --format llm for a standard audit",
+      "input": "Audit https://pixarts.eu for SEO and performance issues",
+      "expected_output_contains": [
+        "squirrel audit",
+        "https://pixarts.eu",
+        "llm",
+        "--format"
+      ],
+      "expected_output_excludes": [
+        "manual checks only",
+        "just look at the source"
+      ]
+    },
+    {
+      "id": "iterative-fix-workflow",
+      "description": "Verifies the skill follows the iterate-fix-reaudit workflow with score targets",
+      "input": "The audit shows a score of 62. What should I do next?",
+      "expected_output_contains": [
+        "85",
+        "fix",
+        "re-audit",
+        "errors",
+        "warnings"
+      ],
+      "expected_output_excludes": [
+        "ignore the score",
+        "score doesn't matter"
+      ]
+    },
+    {
+      "id": "coverage-modes",
+      "description": "Verifies the skill recommends appropriate coverage mode based on use case",
+      "input": "I want to do a thorough audit before launching our new website with 300+ pages",
+      "expected_output_contains": [
+        "full",
+        "--coverage",
+        "surface",
+        "quick"
+      ],
+      "expected_output_excludes": [
+        "quick mode always",
+        "coverage doesn't matter"
+      ]
+    }
+  ]
+}

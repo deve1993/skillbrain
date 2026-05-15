@@ -111,6 +111,83 @@ To use: read `.claude/command/{name}.md` and follow its protocol.
 
 ---
 
+## Auto-hooks (project-scoped)
+
+The following are wired in `.claude/settings.json` and run automatically — do **not** invoke them manually unless the task changes mid-session.
+
+| Event | Script | Purpose |
+|-------|--------|---------|
+| `SessionStart` | `.claude/scripts/load_project_context.sh` | Prints 5-layer Cortex briefing into the session as system context |
+| `PostToolUse` matcher `Skill` | `.claude/scripts/skill-apply-hook.sh` | Inserts an `applied` row into `.codegraph/graph.db skill_usage` so health/route ranking sees real apply signal |
+
+Implications:
+- Skip manual `cortex_briefing` calls at the start of a session — the briefing is already in context.
+- The `Skill` tool (built-in Claude Code skills) is auto-instrumented. For MCP skills loaded via `skill_read`, telemetry is recorded server-side and is not affected by these hooks.
+- Both scripts walk upward from `cwd` to locate `.codegraph/graph.db`, so they work from any subdir of the workspace.
+
+---
+
+## Adding a Skill
+
+Skills are team-shared and live in the repo. Two storage zones:
+
+| Path | Type | Use for |
+|------|------|---------|
+| `.claude/skill/<name>/SKILL.md` | `domain` | Tech/topic knowledge (auth, payments, Next.js, ...) |
+| `.agents/skills/<name>/SKILL.md` | `lifecycle` or `process` | Cross-cutting workflows (debugging, testing, code review, ...) |
+
+Both directories are tracked by git. New skills committed here become available to every teammate (Claude *and* Codex) once the importer runs.
+
+### Workflow — Claude (interactive)
+
+1. Run `/skill-creator` or call MCP `skill_add({ name, content, type, ... })` directly. Stored as `pending` draft by default → approve at the dashboard.
+2. To go live immediately without review: `skill_add({ ..., draft: false })`.
+3. Skill is queryable via `skill_route` and loadable via `skill_read` immediately.
+
+### Workflow — Codex / manual filesystem
+
+1. Create `.claude/skill/<name>/SKILL.md` (or `.agents/skills/<name>/SKILL.md` for process skills) with frontmatter:
+   ```yaml
+   ---
+   name: <name>
+   description: One-line trigger phrase. Use when <X>. Triggers on: <keywords>.
+   version: 1.0.0
+   ---
+
+   # Skill Title
+
+   ## Overview
+   ...
+   ```
+2. Run the importer:
+   ```bash
+   pnpm --filter @synapse/codegraph build
+   node packages/codegraph/dist/cli.js import-skills .
+   ```
+3. Verify in DB: `sqlite3 .codegraph/graph.db "SELECT name, type FROM skills WHERE name='<name>';"`
+4. Commit the new skill file(s).
+
+### What gets imported from where
+
+| Source dir | Skill type | Notes |
+|------------|-----------|-------|
+| `.claude/skill/<name>/SKILL.md` (or `.opencode/` fallback) | `domain` | Subdir-based |
+| `.agents/skills/<name>/SKILL.md` | `lifecycle` or `process` | Type auto-detected from name |
+| `.claude/agents/<name>/AGENT.md` | `agent` | Stored as `agent:<name>` |
+| `.claude/agent/<file>.md` | `agent` | Flat files |
+| `.claude/command/<name>.md` | `command` | Slash commands |
+
+### Quality bar
+
+Every skill must have:
+- Frontmatter with `name`, `description`, optional `version` (default `1.0.0`)
+- Description that includes **trigger keywords** so `skill_route` can find it via FTS
+- Body in markdown — no fixed structure required, but the "Overview / When to use / Process / Examples" template (see `.claude/skill/skill-template-2.0/`) is recommended
+
+Skills with confidence ≤ 3 and ≥ 30 sessions stale are auto-deprecated by `skill_decay`. Skills routed but never loaded after 30 days are flagged by `skill_gc`.
+
+---
+
 ## Deployment
 
 | | |
@@ -158,5 +235,5 @@ Key vars: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_CMS_URL`, `TENANT_SLUG`, `REVALID
 
 ---
 
-**Version**: 3.0.0
-**Last update**: May 2026
+**Version**: 3.1.0
+**Last update**: 2026-05-14 — added auto-hooks + skill add workflow

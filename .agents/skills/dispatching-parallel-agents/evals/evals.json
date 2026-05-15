@@ -1,0 +1,54 @@
+{
+  "skill": "dispatching-parallel-agents",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "independence-check",
+      "description": "Verifies the skill correctly identifies when failures are NOT independent and parallel dispatch should NOT be used",
+      "input": "Form validation fails, the API returns 400, and the database throws a constraint error. Should I use parallel agents?",
+      "expected_output_contains": [
+        "related",
+        "together",
+        "not independent",
+        "investigate"
+      ],
+      "expected_output_excludes": [
+        "dispatch in parallel",
+        "3 agents simultaneously"
+      ]
+    },
+    {
+      "id": "agent-prompt-structure",
+      "description": "Verifies the skill produces well-scoped agent prompts with specific scope, goal, and constraints",
+      "input": "Create agent prompts for fixing 3 failing test files: auth.test.ts, payments.test.ts, and notifications.test.ts",
+      "expected_output_contains": [
+        "scope",
+        "constraint",
+        "return",
+        "summary",
+        "Do NOT"
+      ],
+      "expected_output_excludes": [
+        "fix everything",
+        "no scope",
+        "vague prompt"
+      ]
+    },
+    {
+      "id": "integration-verification",
+      "description": "Verifies the skill includes a post-dispatch integration and conflict-check step",
+      "input": "I dispatched 3 parallel agents and they all returned with fixes. What do I do now?",
+      "expected_output_contains": [
+        "review",
+        "conflicts",
+        "full suite",
+        "integrate",
+        "verify"
+      ],
+      "expected_output_excludes": [
+        "just merge everything",
+        "no need to check"
+      ]
+    }
+  ]
+}

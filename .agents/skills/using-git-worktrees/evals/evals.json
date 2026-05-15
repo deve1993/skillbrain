@@ -1,0 +1,51 @@
+{
+  "skill": "using-git-worktrees",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "directory-selection-priority",
+      "description": "Verifies the skill follows the correct priority order for directory selection",
+      "input": "I have both .worktrees/ and worktrees/ directories in my project. Which should I use for a new worktree?",
+      "expected_output_contains": [
+        ".worktrees",
+        "priority",
+        "wins",
+        "hidden"
+      ],
+      "expected_output_excludes": [
+        "worktrees/",
+        "ask user first"
+      ]
+    },
+    {
+      "id": "gitignore-verification",
+      "description": "Verifies the skill requires .gitignore verification before creating project-local worktrees",
+      "input": "Create a worktree at .worktrees/feature-auth in my project.",
+      "expected_output_contains": [
+        "git check-ignore",
+        ".gitignore",
+        "verify",
+        "ignored"
+      ],
+      "expected_output_excludes": [
+        "skip verification",
+        "just create it"
+      ]
+    },
+    {
+      "id": "baseline-test-verification",
+      "description": "Verifies the skill runs tests to confirm a clean baseline before starting work",
+      "input": "I created a worktree. My baseline tests are failing. Should I proceed with the feature?",
+      "expected_output_contains": [
+        "report",
+        "ask",
+        "pre-existing",
+        "permission"
+      ],
+      "expected_output_excludes": [
+        "proceed anyway",
+        "ignore failures"
+      ]
+    }
+  ]
+}

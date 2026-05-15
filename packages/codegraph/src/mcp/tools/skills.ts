@@ -489,6 +489,7 @@ export function registerSkillTools(server: McpServer, ctx: ToolContext): void {
         topApplied: store.topApplied(168, 10),
         deadSkills: store.deadSkills(30, 10),
         atRiskSkills: store.atRiskSkills(10),
+        telemetry_failures: SkillsStore.telemetryFailures,
       }))
 
       const sections: string[] = []
